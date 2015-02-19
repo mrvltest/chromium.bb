@@ -106,6 +106,7 @@ void BitmapContentLayerUpdater::UpdateTexture(ResourceUpdateQueue* queue,
 
 void BitmapContentLayerUpdater::ReduceMemoryUsage() {
   canvas_.clear();
+  bitmap_backing_.reset();
   canvas_size_ = gfx::Size();
 }
 

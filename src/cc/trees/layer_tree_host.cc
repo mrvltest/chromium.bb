@@ -237,6 +237,7 @@ void LayerTreeHost::DeleteContentsTexturesOnImplThread(
 
 void LayerTreeHost::DidBeginMainFrame() {
   client_->DidBeginMainFrame();
+  ReduceMemoryUsage();
 }
 
 void LayerTreeHost::UpdateClientAnimations(base::TimeTicks frame_begin_time) {
