@@ -47,12 +47,13 @@ namespace blpwtk2 {
 static void InitLogging()
 {
     base::FilePath log_filename;
-    PathService::Get(base::DIR_EXE, &log_filename);
-    log_filename = log_filename.AppendASCII("blpwtk2.log");
+    PathService::Get(base::DIR_TEMP, &log_filename);
+    log_filename = log_filename.AppendASCII("Bloomberg\\Log\\blpwtk2.log");
+
     logging::LoggingSettings settings;
     settings.logging_dest = logging::LOG_TO_ALL;
     settings.log_file = log_filename.value().c_str();
-    settings.delete_old = logging::DELETE_OLD_LOG_FILE;
+    settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
     logging::InitLogging(settings);
     logging::SetLogItems(true, true, true, true);
 }
