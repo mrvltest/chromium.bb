@@ -30,11 +30,18 @@
 #include <content/public/app/content_main.h>
 #include <ui/gl/gl_implementation.h>
 
+extern const char* g_wtk2LogFileName;
 
 namespace blpwtk2 {
 
 Toolkit::~Toolkit()
 {
+}
+
+// static
+void Toolkit::setLogFileName_temporary(const char* filename)
+{
+    g_wtk2LogFileName = filename;
 }
 
 }  // close namespace blpwtk2
