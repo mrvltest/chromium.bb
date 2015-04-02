@@ -170,6 +170,8 @@ class Toolkit {
     // processes.
     virtual void clearWebCache() = 0;
 
+    BLPWTK2_EXPORT static void setLogFileName_temporary(const char* filename);
+
 protected:
     // Destroy this Toolkit object.  Note that clients of blpwtk2 should use
     // the 'destroy()' method, instead of deleting the object directly.
