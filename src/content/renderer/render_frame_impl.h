@@ -91,6 +91,14 @@ struct CustomContextMenuContext;
 struct RequestNavigationParams;
 struct ResourceResponseHead;
 
+
+typedef void(*ConsoleLogMessageHandlerFunction)(int severity,
+                                                const std::string& file,
+                                                int line,
+                                                int column,
+                                                const std::string& message,
+                                                const std::string& stack_trace);
+
 class CONTENT_EXPORT RenderFrameImpl
     : public RenderFrame,
       NON_EXPORTED_BASE(public blink::WebFrameClient),
@@ -127,6 +135,9 @@ class CONTENT_EXPORT RenderFrameImpl
   // RenderFrameImpls.
   static void InstallCreateHook(
       RenderFrameImpl* (*create_render_frame_impl)(RenderViewImpl*, int32));
+
+  static void SetConsoleLogMessageHandler(
+      ConsoleLogMessageHandlerFunction handler);
 
   virtual ~RenderFrameImpl();
 
@@ -337,6 +348,7 @@ class CONTENT_EXPORT RenderFrameImpl
   virtual void didAddMessageToConsole(const blink::WebConsoleMessage& message,
                                       const blink::WebString& source_name,
                                       unsigned source_line,
+                                      unsigned source_column_number,
                                       const blink::WebString& stack_trace);
   virtual void loadURLExternally(blink::WebLocalFrame* frame,
                                  const blink::WebURLRequest& request,
