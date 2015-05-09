@@ -186,6 +186,7 @@ public:
 
     virtual bool selectionStartHasSpellingMarkerFor(int from, int length) const override;
     virtual WebString layerTreeAsText(bool showDebugInfo = false) const override;
+    virtual void drawInCanvas(const WebRect& rect, const WebString& styleClass, WebCanvas* canvas) const override;
 
     virtual WebLocalFrame* createLocalChild(const WebString& name, WebFrameClient*) override;
     virtual WebRemoteFrame* createRemoteChild(const WebString& name, WebRemoteFrameClient*) override;
