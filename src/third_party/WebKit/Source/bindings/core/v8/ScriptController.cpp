@@ -83,6 +83,9 @@
 
 namespace blink {
 
+static bool s_enabledStackCaptureInConstructor = false;
+bool ScriptController::s_stackCaptureControlledByInspector = true;
+
 bool ScriptController::canAccessFromCurrentOrigin(LocalFrame *frame)
 {
     if (!frame)
@@ -98,6 +101,12 @@ ScriptController::ScriptController(LocalFrame* frame)
     , m_windowProxy(WindowProxy::create(frame, DOMWrapperWorld::mainWorld(), m_isolate))
     , m_windowScriptNPObject(0)
 {
+    // If this is true, then callstack capturing will be enabled by
+    // InspectorConsoleAgent.
+    if (!s_stackCaptureControlledByInspector && !s_enabledStackCaptureInConstructor) {
+        setCaptureCallStackForUncaughtExceptions_bb(true);
+        s_enabledStackCaptureInConstructor = true;
+    }
 }
 
 ScriptController::~ScriptController()
@@ -441,7 +450,8 @@ void ScriptController::clearWindowProxy()
     blink::Platform::current()->histogramCustomCounts("WebCore.ScriptController.clearWindowProxy", (currentTime() - start) * 1000, 0, 10000, 50);
 }
 
-void ScriptController::setCaptureCallStackForUncaughtExceptions(bool value)
+// SHEZ: Renamed this function to prevent new upstream code from calling this.
+void ScriptController::setCaptureCallStackForUncaughtExceptions_bb(bool value)
 {
     v8::V8::SetCaptureStackTraceForUncaughtExceptions(value, ScriptCallStack::maxCallStackSizeToCapture, stackTraceOptions);
 }
