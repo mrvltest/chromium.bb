@@ -32,14 +32,22 @@
 #include <blpwtk2_webframeimpl.h>
 #include <blpwtk2_webviewdelegate.h>
 #include <blpwtk2_webview_messages.h>
+#include <blpwtk2_products.h>
 
 #include <base/bind.h>
 #include <base/message_loop/message_loop.h>
+#include <base/native_library.h>
+#include <base/scoped_native_library.h>
 #include <content/browser/renderer_host/web_input_event_aura.h>
 #include <content/public/browser/native_web_keyboard_event.h>
 #include <content/public/renderer/render_view.h>
 #include <third_party/WebKit/public/web/WebView.h>
+#include <third_party/WebKit/public/web/WebFrame.h>
 #include <third_party/WebKit/public/web/WebInputEvent.h>
+#include <skia/ext/platform_canvas.h>
+#include <third_party/skia/include/core/SkDocument.h>
+#include <third_party/skia/include/core/SkStream.h>
+#include <pdf/pdf.h>
 #include <ui/events/event.h>
 #include <ui/gfx/geometry/size.h>
 
@@ -161,6 +169,90 @@ void WebViewProxy::print()
 {
     DCHECK(Statics::isInApplicationMainThread());
     Send(new BlpWebViewHostMsg_Print(d_routingId));
+}
+
+static inline SkScalar distance(SkScalar x, SkScalar y)
+{
+    return sqrt(x*x + y*y);
+}
+
+void WebViewProxy::drawContents(const NativeRect &srcRegion,
+                                const NativeRect &destRegion,
+                                int dpiMultiplier,
+                                const StringRef &styleClass,
+                                NativeDeviceContext deviceContext)
+{
+    DCHECK(Statics::isRendererMainThreadMode());
+    DCHECK(Statics::isInApplicationMainThread());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
+
+    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+    DCHECK(webFrame->isWebLocalFrame());
+
+    // Compute an average dpi rounded to the nearest integer
+    const int dpi =
+        25.4 *                                                                                      // millimeters / inch
+        distance(GetDeviceCaps(deviceContext, HORZRES), GetDeviceCaps(deviceContext, VERTRES)) /    // resolution
+        distance(GetDeviceCaps(deviceContext, HORZSIZE), GetDeviceCaps(deviceContext, VERTSIZE));   // size in millimeters
+
+    const int destWidth = destRegion.right - destRegion.left;
+    const int destHeight = destRegion.bottom - destRegion.top;
+
+    std::vector<char> pdf_data;
+    size_t pdf_data_size;
+    {
+        SkDynamicMemoryWStream pdf_stream;
+        {
+            skia::RefPtr<SkDocument> document = skia::AdoptRef(SkDocument::CreatePDF(&pdf_stream, 0, 0, dpi * dpiMultiplier));
+            SkCanvas *canvas = document->beginPage(destWidth, destHeight);
+            const int srcWidth = srcRegion.right - srcRegion.left;
+            const int srcHeight = srcRegion.bottom - srcRegion.top;
+
+            canvas->scale(static_cast<SkScalar>(destWidth) / srcWidth, static_cast<SkScalar>(destHeight) / srcHeight);
+
+            webFrame->drawInCanvas(blink::WebRect(srcRegion.left, srcRegion.top, srcWidth, srcHeight),
+                                   blink::WebString::fromUTF8(styleClass.data(), styleClass.length()),
+                                   canvas);
+            canvas->flush();
+            document->endPage();
+        }
+        pdf_data_size = pdf_stream.getOffset();
+        pdf_data.reserve(pdf_data_size);
+        pdf_data.push_back(0);
+        pdf_stream.copyTo(&pdf_data[0]);
+    }
+
+    typedef bool(*RenderPDFPageToDCProc)(
+        const void* pdf_buffer, int buffer_size, int page_number, HDC dc,
+        int dpi_x, int dpi_y, int bounds_origin_x, int bounds_origin_y,
+        int bounds_width, int bounds_height, bool fit_to_bounds,
+        bool stretch_to_bounds, bool keep_aspect_ratio, bool center_in_bounds,
+        bool autorotate);
+
+    base::ScopedNativeLibrary pdf_lib(base::LoadNativeLibrary(base::FilePath::FromUTF8Unsafe(BLPPDFIUM_DLL_NAME), NULL));
+
+    RenderPDFPageToDCProc RenderPDFPageToDC =
+        reinterpret_cast<RenderPDFPageToDCProc>(pdf_lib.GetFunctionPointer("RenderPDFPageToDC"));
+
+    RenderPDFPageToDC(
+        pdf_data.data(),
+        pdf_data_size,
+        0,
+        deviceContext,
+        dpi,
+        dpi,
+        destRegion.left,
+        destRegion.top,
+        destWidth,
+        destHeight,
+        false,
+        false,
+        false,
+        false,
+        false);
 }
 
 void WebViewProxy::handleInputEvents(const InputEvent *events, size_t eventsCount)
