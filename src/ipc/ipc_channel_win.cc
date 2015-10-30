@@ -194,6 +194,7 @@ void ChannelWin::HandleInternalMessage(const Message& msg) {
   if (failed) {
     NOTREACHED();
     Close();
+    LOG(WARNING) << "ChannelWin::HandleInternalMessage(): Calling OnChannelError()";
     listener()->OnChannelError();
     return;
   }
@@ -491,6 +492,7 @@ void ChannelWin::OnIOCompleted(
   if (!ok && pipe_.IsValid()) {
     // We don't want to re-enter Close().
     Close();
+    LOG(WARNING) << "ChannelWin::OnIOCompleted(): Calling OnChannelError()";
     listener()->OnChannelError();
   }
 }
