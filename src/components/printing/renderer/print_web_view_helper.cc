@@ -1498,8 +1498,11 @@ void PrintWebViewHelper::ComputePageLayoutInPointsForCss(
 
 bool PrintWebViewHelper::InitPrintSettings(bool fit_to_paper_size) {
   PrintMsg_PrintPages_Params settings;
-  Send(new PrintHostMsg_GetDefaultPrintSettings(routing_id(),
-                                                &settings.params));
+  IPC::SyncMessage* msg =
+      new PrintHostMsg_GetDefaultPrintSettings(routing_id(),
+                                               &settings.params);
+  msg->EnableMessagePumping();
+  Send(msg);
   // Check if the printer returned any settings, if the settings is empty, we
   // can safely assume there are no printer drivers configured. So we safely
   // terminate.

@@ -94,7 +94,7 @@ void InProcessRenderer::init(const scoped_refptr<base::SingleThreadTaskRunner>& 
     DCHECK(!g_inProcessRendererThread);
     DCHECK(!Statics::rendererMessageLoop);
 
-    if (Statics::isRendererMainThreadMode()) {
+    if (Statics::isRendererMainThreadMode() || Statics::isRendererOnBrowserThreadEnabled) {
         Statics::rendererMessageLoop = base::MessageLoop::current();
         InitDirectWrite();
         content::RenderThread::InitInProcessRenderer(
@@ -114,7 +114,7 @@ void InProcessRenderer::cleanup()
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::rendererMessageLoop);
 
-    if (Statics::isRendererMainThreadMode()) {
+	if (Statics::isRendererMainThreadMode() || Statics::isRendererOnBrowserThreadEnabled) {
         DCHECK(!g_inProcessRendererThread);
         content::RenderThread::CleanUpInProcessRenderer();
         Statics::rendererMessageLoop = 0;
@@ -140,7 +140,7 @@ scoped_refptr<base::SingleThreadTaskRunner> InProcessRenderer::ioTaskRunner()
 void InProcessRenderer::setChannelName(const std::string& channelName)
 {
     DCHECK(Statics::isInApplicationMainThread());
-    if (Statics::isInBrowserMainThread()) {
+	if (Statics::isInBrowserMainThread() && !Statics::isRendererOnBrowserThreadEnabled) {
         DCHECK(Statics::rendererMessageLoop);
         Statics::rendererMessageLoop->PostTask(
             FROM_HERE,

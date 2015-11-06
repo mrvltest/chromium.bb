@@ -40,6 +40,7 @@
 #include <net/socket/tcp_server_socket.h>
 #include <ui/gfx/screen.h>
 #include <ui/views/widget/desktop_aura/desktop_screen.h>
+#include <base/threading/thread_restrictions.h>
 
 namespace {
 
@@ -104,6 +105,12 @@ BrowserMainRunner::BrowserMainRunner(
     d_impl.reset(content::BrowserMainRunner::Create());
     int rc = d_impl->Initialize(d_mainParams);
     DCHECK(-1 == rc);  // it returns -1 for success!!
+
+    // Relax anti-jank restrictions established by content::BrowserMainLoop.
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        base::ThreadRestrictions::SetIOAllowed(true);
+        base::ThreadRestrictions::bbAllowWaiting();
+    }
 
     // The MessageLoop is created by content::BrowserMainRunner (inside
     // content::BrowserMainLoop).

@@ -343,6 +343,7 @@ class CONTENT_EXPORT RenderWidget
   bool host_closing() const { return host_closing_; }
 
   void bbHandleInputEvent(const blink::WebInputEvent& event);
+  void bbClose();
 
  protected:
   // Friend RefCounted so that the dtor can be non-public. Using this class

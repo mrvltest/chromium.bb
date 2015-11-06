@@ -370,7 +370,8 @@ WebView* ToolkitImpl::createWebView(NativeView parent,
     }
 
     bool singleProcess = base::CommandLine::ForCurrentProcess()->HasSwitch(
-        switches::kSingleProcess);
+        switches::kSingleProcess) ||
+        Statics::isRendererOnBrowserThreadEnabled;
     // Enforce in-process renderer if "--single-process" is specified on the
     // command line.  This is useful for debugging.
     int rendererAffinity = singleProcess ? Constants::IN_PROCESS_RENDERER

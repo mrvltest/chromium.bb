@@ -105,6 +105,8 @@ struct Statics {
     // in-process renderer should be enabled.
     static bool inProcessResizeOptimizationDisabled;
 
+    static bool isRendererOnBrowserThreadEnabled;
+
 
     // ====== some utility functions =============
 

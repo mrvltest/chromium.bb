@@ -54,6 +54,7 @@ bool g_custom_hit_test = false;
 bool g_custom_tooltip = false;
 bool g_no_plugin_discovery = false;
 bool g_disable_work_message_while_doing_work = false;
+bool g_enable_renderer_on_browser_thread = false;
 HANDLE g_hJob;
 
 #define BUTTON_WIDTH 72
@@ -149,7 +150,12 @@ void testV8AppendElement(blpwtk2::WebView* webView)
 {
     blpwtk2::WebFrame* mainFrame = webView->mainFrame();
     v8::Isolate* isolate = mainFrame->scriptIsolate();
-    v8::HandleScope handleScope(isolate);
+
+    isolate->LowMemoryNotification();
+    while (!isolate->IdleNotification(1000))
+        ;
+
+    /*v8::HandleScope handleScope(isolate);
     v8::Local<v8::Context> context = mainFrame->mainWorldScriptContext();
     static const char SCRIPT[] =
         "var div = document.createElement('div');\n"
@@ -168,7 +174,7 @@ void testV8AppendElement(blpwtk2::WebView* webView)
         char buf[1024];
         sprintf_s(buf, sizeof(buf), "EXCEPTION: %s\n", *msg);
         OutputDebugStringA(buf);
-    }
+    }*/
 }
 
 void testPlayKeyboardEvents(HWND hwnd, blpwtk2::WebView* webView)
@@ -806,7 +812,7 @@ public:
         sprintf_s(buf, sizeof(buf), "DELEGATE: handleExternalProtocol('%s')\n", target.c_str());
         OutputDebugStringA(buf);
 
-        ShellExecuteA(NULL, NULL, target.c_str(), NULL, NULL, SW_SHOWNORMAL);        
+        ShellExecuteA(NULL, NULL, target.c_str(), NULL, NULL, SW_SHOWNORMAL);
     }
 
     void requestNCHitTest(blpwtk2::WebView* source) override
@@ -1258,6 +1264,9 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             else if (0 == wcscmp(L"--disable-work-message-while-doing-work", argv[i])) {
                 g_disable_work_message_while_doing_work = true;
             }
+            else if (0 == wcscmp(L"--enable-renderer-on-browser-thread", argv[i])) {
+                g_enable_renderer_on_browser_thread = true;
+            }
             else if (argv[i][0] != '-') {
                 char buf[1024];
                 sprintf_s(buf, sizeof(buf), "%S", argv[i]);
@@ -1280,7 +1289,13 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
     blpwtk2::ToolkitCreateParams toolkitParams;
     if (isHost || (!g_in_process_renderer && hostChannel.empty())) {
         toolkitParams.setThreadMode(blpwtk2::ThreadMode::ORIGINAL);
-        toolkitParams.disableInProcessRenderer();
+
+        if (g_enable_renderer_on_browser_thread) {
+            toolkitParams.enableRendererOnBrowserThread();
+        }
+        else {
+            toolkitParams.disableInProcessRenderer();
+        }
     }
     else {
         toolkitParams.setThreadMode(blpwtk2::ThreadMode::RENDERER_MAIN);

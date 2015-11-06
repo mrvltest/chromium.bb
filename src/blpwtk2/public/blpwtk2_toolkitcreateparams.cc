@@ -62,6 +62,7 @@ struct ToolkitCreateParamsImpl {
     bool d_useDefaultPrintSettings;
     std::string d_subProcessModule;
     bool d_inProcessResizeOptimizationDisabled;
+    bool d_isRendererOnBrowserThreadEnabled;
 
     ToolkitCreateParamsImpl()
     : d_threadMode(ThreadMode::ORIGINAL)
@@ -83,6 +84,7 @@ struct ToolkitCreateParamsImpl {
     , d_inProcessRendererDisabled(false)
     , d_useDefaultPrintSettings(false)
     , d_inProcessResizeOptimizationDisabled(false)
+    , d_isRendererOnBrowserThreadEnabled(false)
     {
     }
 };
@@ -272,6 +274,11 @@ void ToolkitCreateParams::disableInProcessResizeOptimization()
     d_impl->d_inProcessResizeOptimizationDisabled = true;
 }
 
+void ToolkitCreateParams::enableRendererOnBrowserThread()
+{
+    d_impl->d_isRendererOnBrowserThreadEnabled = true;
+}
+
 ThreadMode::Value ToolkitCreateParams::threadMode() const
 {
     return d_impl->d_threadMode;
@@ -424,6 +431,11 @@ StringRef ToolkitCreateParams::subProcessModule() const
 bool ToolkitCreateParams::isInProcessResizeOptimizationDisabled() const
 {
     return d_impl->d_inProcessResizeOptimizationDisabled;
+}
+
+bool ToolkitCreateParams::isRendererOnBrowserThreadEnabled() const
+{
+    return d_impl->d_isRendererOnBrowserThreadEnabled;
 }
 
 }  // close namespace blpwtk2

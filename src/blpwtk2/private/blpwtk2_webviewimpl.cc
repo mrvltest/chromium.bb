@@ -36,7 +36,9 @@
 #include <blpwtk2_webviewdelegate.h>
 #include <blpwtk2_webviewimplclient.h>
 #include <blpwtk2_blob.h>
+#include <blpwtk2_rendererutil.h>
 
+#include <base/bind.h>
 #include <base/message_loop/message_loop.h>
 #include <base/strings/utf_string_conversions.h>
 #include <chrome/browser/printing/print_view_manager.h>
@@ -52,6 +54,8 @@
 #include <content/public/browser/site_instance.h>
 #include <content/public/common/file_chooser_file_info.h>
 #include <content/public/common/web_preferences.h>
+#include <content/public/renderer/render_view.h>
+#include <content/renderer/render_view_impl.h>
 #include <third_party/WebKit/public/web/WebFindOptions.h>
 #include <third_party/WebKit/public/web/WebView.h>
 #include <ui/base/win/hidden_window.h>
@@ -103,6 +107,9 @@ WebViewImpl::WebViewImpl(WebViewDelegate* delegate,
 , d_ncHitTestEnabled(false)
 , d_ncHitTestPendingAck(false)
 , d_lastNCHitTestResult(HTCLIENT)
+, d_isMainFrameAccessible(false)
+, d_gotRenderViewInfo(false)
+, d_renderViewRoutingId(0)
 {
     DCHECK(Statics::isInBrowserMainThread());
     DCHECK(browserContext);
@@ -117,8 +124,7 @@ WebViewImpl::WebViewImpl(WebViewDelegate* delegate,
 
     printing::PrintViewManager::CreateForWebContents(d_webContents.get());
 
-    if (parent)
-        createWidget(parent);
+    createWidget(parent);
 
     if (initiallyVisible)
         show();
@@ -143,6 +149,9 @@ WebViewImpl::WebViewImpl(content::WebContents* contents,
 , d_ncHitTestEnabled(false)
 , d_ncHitTestPendingAck(false)
 , d_lastNCHitTestResult(HTCLIENT)
+, d_isMainFrameAccessible(false)
+, d_gotRenderViewInfo(false)
+, d_renderViewRoutingId(0)
 {
     DCHECK(Statics::isInBrowserMainThread());
 
@@ -230,13 +239,38 @@ void WebViewImpl::onRenderViewHostMadeCurrent(content::RenderViewHost* renderVie
     DCHECK(Statics::isInBrowserMainThread());
     DCHECK(renderViewHost);
     if (d_wasDestroyed) return;
+    int routingId = renderViewHost->GetRoutingID();
     if (d_implClient) {
-        int routingId = renderViewHost->GetRoutingID();
         d_implClient->gotNewRenderViewRoutingId(routingId);
+    }
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        gotNewRenderViewRoutingId(routingId);
     }
 #ifdef BB_RENDER_VIEW_HOST_SUPPORTS_RUBBERBANDING
     renderViewHost->EnableAltDragRubberbanding(d_altDragRubberbandingEnabled);
 #endif
+}
+
+void WebViewImpl::gotNewRenderViewRoutingId(int renderViewRoutingId)
+{
+    DCHECK(Statics::isRendererOnBrowserThreadEnabled);
+
+    content::RenderView* rv =
+        content::RenderView::FromRoutingID(renderViewRoutingId);
+    if (!rv) {
+        // The RenderView has not been created yet.  Keep reposting this task
+        // until the RenderView is available.
+        base::MessageLoop::current()->PostTask(
+            FROM_HERE,
+            base::Bind(&WebViewImpl::gotNewRenderViewRoutingId,
+                       AsWeakPtr(),
+                       renderViewRoutingId));
+        return;
+    }
+
+    d_gotRenderViewInfo = true;
+    d_renderViewRoutingId = renderViewRoutingId;
+    LOG(INFO) << "gotRenderViewInfo, renderViewRoutingId=" << renderViewRoutingId;
 }
 
 void WebViewImpl::destroy()
@@ -248,6 +282,7 @@ void WebViewImpl::destroy()
     d_browserContext->decrementWebViewCount();
 
     Observe(0);  // stop observing the WebContents
+    d_webContents.reset();
     d_wasDestroyed = true;
     if (d_isReadyForDelete) {
         d_isDeletingSoon = true;
@@ -257,8 +292,26 @@ void WebViewImpl::destroy()
 
 WebFrame* WebViewImpl::mainFrame()
 {
-    NOTREACHED() << "mainFrame() not supported in WebViewImpl";
-    return 0;
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(Statics::isInApplicationMainThread());
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+
+        if (!d_mainFrame.get()) {
+            content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+            DCHECK(rv);
+
+            blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+            d_mainFrame.reset(new WebFrameImpl(webFrame));
+        }
+
+        return d_mainFrame.get();
+    }
+    else {
+        NOTREACHED() << "mainFrame() not supported in WebViewImpl";
+        return 0;
+    }
 }
 
 void WebViewImpl::loadUrl(const StringRef& url)
@@ -310,13 +363,37 @@ void WebViewImpl::print()
 
 void WebViewImpl::drawContentsToBlob(Blob *blob, const DrawParams& params)
 {
-    NOTREACHED() << "drawContentsToBlob() not supported in WebViewImpl";
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+        DCHECK(blob);
+
+        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+        RendererUtil::drawContentsToBlob(rv, blob, params);
+    }
+    else {
+        NOTREACHED() << "drawContentsToBlob() not supported in WebViewImpl";
+    }
 }
 
 String WebViewImpl::getLayoutTreeAsText(int flags) const
 {
-    NOTREACHED() << "getLayoutTreeAsText() not supported in WebViewImpl";
-    return String();
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+
+        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+        blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+        DCHECK(webFrame->isWebLocalFrame());
+
+        return fromWebString(webFrame->layoutTreeAsText(flags));
+    }
+    else {
+        NOTREACHED() << "getLayoutTreeAsText() not supported in WebViewImpl";
+        return String();
+    }
 }
 
 int WebViewImpl::getRoutingId() const
@@ -336,6 +413,20 @@ void WebViewImpl::setBackgroundColor(NativeColor color)
             GetGValue(color),
             GetBValue(color)
     ));
+
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+
+        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+        rv->GetWebView()->setBaseBackgroundColor(
+            SkColorSetARGB(
+                GetAValue(color),
+                GetRValue(color),
+                GetGValue(color),
+                GetBValue(color)));
+    }
 }
 
 void WebViewImpl::setRegion(NativeRegion region)
@@ -347,7 +438,17 @@ void WebViewImpl::setRegion(NativeRegion region)
 
 void WebViewImpl::setLCDTextShouldBlendWithCSSBackgroundColor(bool lcdTextShouldBlendWithCSSBackgroundColor)
 {
-    NOTREACHED() << "setLCDTextShouldBlendWithCSSBackgroundColor() not supported in WebViewImpl";
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+
+        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+        rv->GetWebView()->setLCDTextShouldBlendWithCSSBackgroundColor(lcdTextShouldBlendWithCSSBackgroundColor);
+    }
+    else {
+        NOTREACHED() << "setLCDTextShouldBlendWithCSSBackgroundColor() not supported in WebViewImpl";
+    }
 }
 
 void WebViewImpl::clearTooltip()
@@ -379,7 +480,19 @@ void WebViewImpl::rootWindowCompositionChanged()
 
 void WebViewImpl::handleInputEvents(const InputEvent *events, size_t eventsCount)
 {
-    NOTREACHED() << "handleInputEvents() not supported in WebViewImpl";
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        DCHECK(d_isMainFrameAccessible)
+            << "You should wait for didFinishLoad";
+        DCHECK(d_gotRenderViewInfo);
+
+        content::RenderWidget* rw = content::RenderViewImpl::FromRoutingID(d_renderViewRoutingId);
+        DCHECK(rw);
+
+        RendererUtil::handleInputEvents(rw, events, eventsCount);
+    }
+    else {
+        NOTREACHED() << "handleInputEvents() not supported in WebViewImpl";
+    }
 }
 
 void WebViewImpl::loadInspector(WebView* inspectedView)
@@ -1118,6 +1231,10 @@ void WebViewImpl::DidFinishLoad(content::RenderFrameHost* render_frame_host,
 {
     DCHECK(Statics::isInBrowserMainThread());
     if (d_wasDestroyed || !d_delegate) return;
+
+    if (Statics::isRendererOnBrowserThreadEnabled) {
+        d_isMainFrameAccessible = true;
+    }
 
     // TODO: figure out what to do for iframes
     if (!render_frame_host->GetParent()) {

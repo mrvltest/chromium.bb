@@ -3299,6 +3299,7 @@
               'delayimp.lib',
               'credui.lib',
               'netapi32.lib',
+              'dwmapi.lib',
             ],
             'AdditionalOptions': [
               # Suggested by Microsoft Devrel to avoid

@@ -143,6 +143,7 @@ Toolkit* ToolkitFactory::create(const ToolkitCreateParams& params)
     content::DisableDWriteFactoryPatching();
     Statics::userAgentFromEmbedder().assign(params.userAgent().data(), params.userAgent().length());
     Statics::inProcessResizeOptimizationDisabled = params.isInProcessResizeOptimizationDisabled();
+    Statics::isRendererOnBrowserThreadEnabled = params.isRendererOnBrowserThreadEnabled();
 
     // If this process is the host, then set the environment variable that
     // subprocesses will use to determine which SubProcessMain module should
@@ -193,7 +194,8 @@ Toolkit* ToolkitFactory::create(const ToolkitCreateParams& params)
         params.purecallHandler());
 
     DCHECK(!Statics::inProcessResourceLoader ||
-            Statics::isRendererMainThreadMode());
+            Statics::isRendererMainThreadMode() ||
+            Statics::isRendererOnBrowserThreadEnabled);
 
     if (params.isMaxSocketsPerProxySet()) {
         setMaxSocketsPerProxy(params.maxSocketsPerProxy());

@@ -42,6 +42,7 @@ bool Statics::hasDevTools = false;
 bool Statics::isInProcessRendererDisabled = false;
 int Statics::numProfiles = 0;
 bool Statics::inProcessResizeOptimizationDisabled = false;
+bool Statics::isRendererOnBrowserThreadEnabled = false;
 
 static int lastRoutingId = 0;
 
