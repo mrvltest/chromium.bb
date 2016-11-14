@@ -25,6 +25,7 @@
 
 #include <blpwtk2_config.h>
 #include <blpwtk2_webview.h>
+#include <blpwtk2_string.h>
 
 namespace content {
 
@@ -37,13 +38,19 @@ namespace blpwtk2 {
 
 struct RendererUtil
 {
-	static void handleInputEvents(content::RenderWidget *rw,
-		                      const WebView::InputEvent *events,
-		                      size_t eventsCount);
+    static void handleInputEvents(content::RenderWidget     *rw,
+                                  const WebView::InputEvent *events,
+                                  size_t                     eventsCount);
 
-	static void drawContentsToBlob(content::RenderView *rv,
-    	                      Blob *blob,
-    	                      const WebView::DrawParams& params);
+    static void drawContentsToBlob(content::RenderView        *rv,
+                                   Blob                       *blob,
+                                   const WebView::DrawParams&  params);
+
+
+    static String getLayoutTreeAsText(int renderViewRoutingId, int flags);
+
+    static void setLCDTextShouldBlendWithCSSBackgroundColor(int  renderViewRoutingId,
+                                                            bool enable);
 };
 
 }  // close namespace blpwtk2

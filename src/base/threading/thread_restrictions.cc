@@ -66,10 +66,6 @@ void ThreadRestrictions::DisallowWaiting() {
   g_wait_disallowed.Get().Set(true);
 }
 
-void ThreadRestrictions::bbAllowWaiting() {
-  g_wait_disallowed.Get().Set(false);
-}
-
 // static
 void ThreadRestrictions::AssertWaitAllowed() {
   if (g_wait_disallowed.Get().Get()) {

@@ -54,7 +54,7 @@ bool g_custom_hit_test = false;
 bool g_custom_tooltip = false;
 bool g_no_plugin_discovery = false;
 bool g_disable_work_message_while_doing_work = false;
-bool g_enable_renderer_on_browser_thread = false;
+bool g_in_thread_renderer = false;
 HANDLE g_hJob;
 
 #define BUTTON_WIDTH 72
@@ -150,12 +150,7 @@ void testV8AppendElement(blpwtk2::WebView* webView)
 {
     blpwtk2::WebFrame* mainFrame = webView->mainFrame();
     v8::Isolate* isolate = mainFrame->scriptIsolate();
-
-    isolate->LowMemoryNotification();
-    while (!isolate->IdleNotification(1000))
-        ;
-
-    /*v8::HandleScope handleScope(isolate);
+    v8::HandleScope handleScope(isolate);
     v8::Local<v8::Context> context = mainFrame->mainWorldScriptContext();
     static const char SCRIPT[] =
         "var div = document.createElement('div');\n"
@@ -174,7 +169,7 @@ void testV8AppendElement(blpwtk2::WebView* webView)
         char buf[1024];
         sprintf_s(buf, sizeof(buf), "EXCEPTION: %s\n", *msg);
         OutputDebugStringA(buf);
-    }*/
+    }
 }
 
 void testPlayKeyboardEvents(HWND hwnd, blpwtk2::WebView* webView)
@@ -1231,6 +1226,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             else if (0 == wcscmp(L"--in-process-renderer", argv[i])) {
                 g_in_process_renderer = true;
             }
+            else if (0 == wcscmp(L"--in-thread-renderer", argv[i])) {
+                g_in_thread_renderer = true;
+                g_in_process_renderer = false;
+            }
             else if (0 == wcsncmp(L"--data-dir=", argv[i], 11)) {
                 char buf[1024];
                 sprintf_s(buf, sizeof(buf), "%S", argv[i]+11);
@@ -1264,9 +1263,6 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             else if (0 == wcscmp(L"--disable-work-message-while-doing-work", argv[i])) {
                 g_disable_work_message_while_doing_work = true;
             }
-            else if (0 == wcscmp(L"--enable-renderer-on-browser-thread", argv[i])) {
-                g_enable_renderer_on_browser_thread = true;
-            }
             else if (argv[i][0] != '-') {
                 char buf[1024];
                 sprintf_s(buf, sizeof(buf), "%S", argv[i]);
@@ -1287,17 +1283,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
     }
 
     blpwtk2::ToolkitCreateParams toolkitParams;
-    if (isHost || (!g_in_process_renderer && hostChannel.empty())) {
-        toolkitParams.setThreadMode(blpwtk2::ThreadMode::ORIGINAL);
 
-        if (g_enable_renderer_on_browser_thread) {
-            toolkitParams.enableRendererOnBrowserThread();
-        }
-        else {
-            toolkitParams.disableInProcessRenderer();
-        }
-    }
-    else {
+    if (!isHost && (g_in_process_renderer || !hostChannel.empty())) {
         toolkitParams.setThreadMode(blpwtk2::ThreadMode::RENDERER_MAIN);
         toolkitParams.setInProcessResourceLoader(createInProcessResourceLoader());
         toolkitParams.setHostChannel(hostChannel);
@@ -1305,6 +1292,13 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             toolkitParams.disableInProcessRenderer();
         }
     }
+    else if (g_in_thread_renderer) {
+        toolkitParams.setThreadMode(blpwtk2::ThreadMode::SINGLE);
+    }
+    else {
+        toolkitParams.setThreadMode(blpwtk2::ThreadMode::ORIGINAL);
+    }
+
 #if AUTO_PUMP
     toolkitParams.setPumpMode(blpwtk2::PumpMode::AUTOMATIC);
 #endif

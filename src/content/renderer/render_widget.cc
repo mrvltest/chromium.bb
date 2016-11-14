@@ -1117,10 +1117,6 @@ void RenderWidget::bbHandleInputEvent(const blink::WebInputEvent& event) {
   bb_OnHandleInputEvent_no_ack_ = false;
 }
 
-void RenderWidget::bbClose() {
-  Close();
-}
-
 void RenderWidget::OnHandleInputEvent(const blink::WebInputEvent* input_event,
                                       const ui::LatencyInfo& latency_info) {
   if (!input_event)

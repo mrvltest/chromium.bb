@@ -94,15 +94,15 @@ void InProcessRenderer::init(const scoped_refptr<base::SingleThreadTaskRunner>& 
     DCHECK(!g_inProcessRendererThread);
     DCHECK(!Statics::rendererMessageLoop);
 
-    if (Statics::isRendererMainThreadMode() || Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isOriginalThreadMode()) {
+        DCHECK(Statics::isOriginalThreadMode());
+        g_inProcessRendererThread = new InProcessRendererThread(browserIOTaskRunner);
+    }
+    else {
         Statics::rendererMessageLoop = base::MessageLoop::current();
         InitDirectWrite();
         content::RenderThread::InitInProcessRenderer(
             content::InProcessChildThreadParams("", browserIOTaskRunner));
-    }
-    else {
-        DCHECK(Statics::isOriginalThreadMode());
-        g_inProcessRendererThread = new InProcessRendererThread(browserIOTaskRunner);
     }
 
     DCHECK(Statics::rendererMessageLoop);
@@ -114,15 +114,15 @@ void InProcessRenderer::cleanup()
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::rendererMessageLoop);
 
-	if (Statics::isRendererMainThreadMode() || Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(!g_inProcessRendererThread);
-        content::RenderThread::CleanUpInProcessRenderer();
-        Statics::rendererMessageLoop = 0;
-    }
-    else {
+    if (Statics::isOriginalThreadMode()) {
         DCHECK(g_inProcessRendererThread);
         delete g_inProcessRendererThread;
         g_inProcessRendererThread = 0;
+    }
+    else {
+        DCHECK(!g_inProcessRendererThread);
+        content::RenderThread::CleanUpInProcessRenderer();
+        Statics::rendererMessageLoop = 0;
     }
 
     DCHECK(!Statics::rendererMessageLoop);
@@ -140,7 +140,7 @@ scoped_refptr<base::SingleThreadTaskRunner> InProcessRenderer::ioTaskRunner()
 void InProcessRenderer::setChannelName(const std::string& channelName)
 {
     DCHECK(Statics::isInApplicationMainThread());
-	if (Statics::isInBrowserMainThread() && !Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isOriginalThreadMode()) {
         DCHECK(Statics::rendererMessageLoop);
         Statics::rendererMessageLoop->PostTask(
             FROM_HERE,

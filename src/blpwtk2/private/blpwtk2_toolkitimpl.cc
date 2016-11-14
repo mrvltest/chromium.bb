@@ -97,8 +97,8 @@ ToolkitImpl::ToolkitImpl(const StringRef& dictionaryPath,
     DCHECK(!g_instance);
     g_instance = this;
 
-    // If host channel is set, we must not be in ORIGINAL thread mode.
-    CHECK(d_hostChannel.empty() || !Statics::isOriginalThreadMode());
+    // If host channel is set, we must be in RENDERER_MAIN thread mode.
+    CHECK(d_hostChannel.empty() || Statics::isRendererMainThreadMode());
 
     if (!d_hostChannel.empty()) {
         // If another process is our host, then explicitly disable sandbox
@@ -170,8 +170,14 @@ void ToolkitImpl::startupThreads()
         }
     }
     else {
-        DCHECK(Statics::isOriginalThreadMode());
-        LOG(INFO) << "isOriginalThreadMode";
+        DCHECK(Statics::isOriginalThreadMode() || Statics::isSingleThreadMode());
+
+        if (Statics::isOriginalThreadMode()) {
+            LOG(INFO) << "isOriginalThreadMode";
+        }
+        else {
+            LOG(INFO) << "isSingleThreadMode";
+        }
         d_browserMainRunner.reset(new BrowserMainRunner(&d_sandboxInfo));
     }
 
@@ -271,7 +277,7 @@ void ToolkitImpl::shutdownThreads()
         }
     }
     else {
-        DCHECK(Statics::isOriginalThreadMode());
+        DCHECK(Statics::isOriginalThreadMode() || Statics::isSingleThreadMode());
         d_browserMainRunner->destroyProcessHostManager();
         Statics::browserContextImplManager->destroyBrowserContexts();
     }
@@ -288,7 +294,7 @@ void ToolkitImpl::shutdownThreads()
         d_browserThread.reset();
     }
     else {
-        DCHECK(Statics::isOriginalThreadMode());
+        DCHECK(Statics::isOriginalThreadMode() || Statics::isSingleThreadMode());
         d_inProcessRendererHost.reset();
         d_browserMainRunner.reset();
     }
@@ -310,7 +316,8 @@ Profile* ToolkitImpl::createProfile(const ProfileCreateParams& params)
 {
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::isRendererMainThreadMode()
-        || Statics::isOriginalThreadMode());
+        || Statics::isOriginalThreadMode()
+        || Statics::isSingleThreadMode());
 
     if (!d_threadsStarted) {
         startupThreads();
@@ -325,7 +332,7 @@ Profile* ToolkitImpl::createProfile(const ProfileCreateParams& params)
                                 params.cookiePersistenceEnabled());
     }
     else {
-        DCHECK(Statics::isOriginalThreadMode());
+        DCHECK(Statics::isOriginalThreadMode() || Statics::isSingleThreadMode());
         DCHECK(Statics::browserContextImplManager);
         return Statics::browserContextImplManager->obtainBrowserContextImpl(
             dataDir,
@@ -355,7 +362,8 @@ WebView* ToolkitImpl::createWebView(NativeView parent,
 {
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::isRendererMainThreadMode()
-        || Statics::isOriginalThreadMode());
+        || Statics::isOriginalThreadMode()
+        || Statics::isSingleThreadMode());
 
     if (!d_threadsStarted) {
         startupThreads();
@@ -371,7 +379,7 @@ WebView* ToolkitImpl::createWebView(NativeView parent,
 
     bool singleProcess = base::CommandLine::ForCurrentProcess()->HasSwitch(
         switches::kSingleProcess) ||
-        Statics::isRendererOnBrowserThreadEnabled;
+        Statics::isSingleThreadMode();
     // Enforce in-process renderer if "--single-process" is specified on the
     // command line.  This is useful for debugging.
     int rendererAffinity = singleProcess ? Constants::IN_PROCESS_RENDERER
@@ -403,7 +411,7 @@ WebView* ToolkitImpl::createWebView(NativeView parent,
                                 params.initiallyVisible(),
                                 properties);
     }
-    else if (Statics::isOriginalThreadMode()) {
+    else {
         BrowserContextImpl* browserContext =
             static_cast<BrowserContextImpl*>(profile);
 
@@ -446,7 +454,8 @@ String ToolkitImpl::createHostChannel(int timeoutInMilliseconds)
 {
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::isRendererMainThreadMode()
-        || Statics::isOriginalThreadMode());
+        || Statics::isOriginalThreadMode()
+        || Statics::isSingleThreadMode());
 
     if (!d_threadsStarted) {
         startupThreads();

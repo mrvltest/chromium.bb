@@ -164,8 +164,6 @@ class BASE_EXPORT ThreadRestrictions {
 
   // Check whether the current thread is allowed to wait, and DCHECK if not.
   static void AssertWaitAllowed();
-
-  static void bbAllowWaiting();
 #else
   // Inline the empty definitions of these functions so that they can be
   // compiled out.
@@ -175,7 +173,12 @@ class BASE_EXPORT ThreadRestrictions {
   static void AssertSingletonAllowed() {}
   static void DisallowWaiting() {}
   static void AssertWaitAllowed() {}
-  static void bbAllowWaiting() {}
+#endif
+
+#if ENABLE_THREAD_RESTRICTIONS
+  static bool SetWaitAllowed(bool allowed);
+#else
+  static bool SetWaitAllowed(bool allowed) { return true; }
 #endif
 
  private:
@@ -221,12 +224,6 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
-
-#if ENABLE_THREAD_RESTRICTIONS
-  static bool SetWaitAllowed(bool allowed);
-#else
-  static bool SetWaitAllowed(bool allowed) { return true; }
-#endif
 
   // Constructing a ScopedAllowWait temporarily allows waiting on the current
   // thread.  Doing this is almost always incorrect, which is why we limit who

@@ -107,9 +107,9 @@ BrowserMainRunner::BrowserMainRunner(
     DCHECK(-1 == rc);  // it returns -1 for success!!
 
     // Relax anti-jank restrictions established by content::BrowserMainLoop.
-    if (Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isSingleThreadMode()) {
         base::ThreadRestrictions::SetIOAllowed(true);
-        base::ThreadRestrictions::bbAllowWaiting();
+        base::ThreadRestrictions::SetWaitAllowed(true);
     }
 
     // The MessageLoop is created by content::BrowserMainRunner (inside

@@ -293,16 +293,11 @@ static inline SkScalar distance(SkScalar x, SkScalar y)
 String WebViewProxy::getLayoutTreeAsText(int flags) const
 {
     DCHECK(Statics::isRendererMainThreadMode());
-    DCHECK(Statics::isInApplicationMainThread());
     DCHECK(d_isMainFrameAccessible)
         << "You should wait for didFinishLoad";
     DCHECK(d_gotRenderViewInfo);
 
-    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-    DCHECK(webFrame->isWebLocalFrame());
-
-    return fromWebString(webFrame->layoutTreeAsText(flags));
+    return RendererUtil::getLayoutTreeAsText(d_renderViewRoutingId, flags);
 }
 
 int WebViewProxy::getRoutingId() const
@@ -353,16 +348,15 @@ void WebViewProxy::setRegion(NativeRegion region)
     }
 }
 
-void WebViewProxy::setLCDTextShouldBlendWithCSSBackgroundColor(bool lcdTextShouldBlendWithCSSBackgroundColor)
+void WebViewProxy::setLCDTextShouldBlendWithCSSBackgroundColor(bool enable)
 {
     DCHECK(Statics::isRendererMainThreadMode());
-    DCHECK(Statics::isInApplicationMainThread());
     DCHECK(d_isMainFrameAccessible)
         << "You should wait for didFinishLoad";
     DCHECK(d_gotRenderViewInfo);
 
-    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    rv->GetWebView()->setLCDTextShouldBlendWithCSSBackgroundColor(lcdTextShouldBlendWithCSSBackgroundColor);
+    RendererUtil::setLCDTextShouldBlendWithCSSBackgroundColor(d_renderViewRoutingId,
+                                                              enable);
 }
 
 void WebViewProxy::clearTooltip()

@@ -40,7 +40,11 @@ struct ThreadMode {
         // The new threading model for blpwtk2, which runs the renderer in the
         // application's main thread, and runs the browser-main in a second
         // thread.
-        RENDERER_MAIN
+        RENDERER_MAIN,
+
+        // An alternative threading model where the browser and the renderer
+        // runs on the same thread.
+        SINGLE
     };
 };
 

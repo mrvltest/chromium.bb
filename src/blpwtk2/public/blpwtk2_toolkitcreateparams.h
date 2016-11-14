@@ -224,10 +224,6 @@ class ToolkitCreateParams {
     // when the WebView is hosted in a deeply-nested window hierarchy).
     BLPWTK2_EXPORT void disableInProcessResizeOptimization();
 
-    // When running in 'ThreadMode::ORIGINAL' mode, this function will cause
-    // the renderer code to run on the same thread as the browser.
-    BLPWTK2_EXPORT void enableRendererOnBrowserThread();
-
     // ACCESSORS
     ThreadMode::Value threadMode() const;
     PumpMode::Value pumpMode() const;
@@ -259,7 +255,6 @@ class ToolkitCreateParams {
     bool isPrintBackgroundGraphicsEnabled() const;
     StringRef subProcessModule() const;
     bool isInProcessResizeOptimizationDisabled() const;
-    bool isRendererOnBrowserThreadEnabled() const;
 
   private:
     ToolkitCreateParamsImpl* d_impl;

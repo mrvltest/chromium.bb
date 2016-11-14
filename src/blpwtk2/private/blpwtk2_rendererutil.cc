@@ -22,6 +22,7 @@
 
 #include <blpwtk2_rendererutil.h>
 #include <blpwtk2_blob.h>
+#include <blpwtk2_statics.h>
 
 #include <base/logging.h>  // for DCHECK
 
@@ -136,7 +137,9 @@ void RendererUtil::handleInputEvents(content::RenderWidget *rw, const WebView::I
     }
 }
 
-void RendererUtil::drawContentsToBlob(content::RenderView *rv, Blob *blob, const WebView::DrawParams& params)
+void RendererUtil::drawContentsToBlob(content::RenderView        *rv,
+                                      Blob                       *blob,
+                                      const WebView::DrawParams&  params)
 {
     blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
     DCHECK(webFrame->isWebLocalFrame());
@@ -171,6 +174,26 @@ void RendererUtil::drawContentsToBlob(content::RenderView *rv, Blob *blob, const
 
         canvas.flush();
     }
+}
+
+String RendererUtil::getLayoutTreeAsText(int renderViewRoutingId, int flags)
+{
+    DCHECK(Statics::isInApplicationMainThread());
+
+    content::RenderView* rv = content::RenderView::FromRoutingID(renderViewRoutingId);
+    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+    DCHECK(webFrame->isWebLocalFrame());
+
+    return fromWebString(webFrame->layoutTreeAsText(flags));
+}
+
+void RendererUtil::setLCDTextShouldBlendWithCSSBackgroundColor(int renderViewRoutingId,
+                                                               bool enable)
+{
+    DCHECK(Statics::isInApplicationMainThread());
+
+    content::RenderView* rv = content::RenderView::FromRoutingID(renderViewRoutingId);
+    rv->GetWebView()->setLCDTextShouldBlendWithCSSBackgroundColor(enable);
 }
 
 }  // close namespace blpwtk2

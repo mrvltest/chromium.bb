@@ -243,7 +243,7 @@ void WebViewImpl::onRenderViewHostMadeCurrent(content::RenderViewHost* renderVie
     if (d_implClient) {
         d_implClient->gotNewRenderViewRoutingId(routingId);
     }
-    if (Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isSingleThreadMode()) {
         gotNewRenderViewRoutingId(routingId);
     }
 #ifdef BB_RENDER_VIEW_HOST_SUPPORTS_RUBBERBANDING
@@ -253,7 +253,7 @@ void WebViewImpl::onRenderViewHostMadeCurrent(content::RenderViewHost* renderVie
 
 void WebViewImpl::gotNewRenderViewRoutingId(int renderViewRoutingId)
 {
-    DCHECK(Statics::isRendererOnBrowserThreadEnabled);
+    DCHECK(Statics::isSingleThreadMode());
 
     content::RenderView* rv =
         content::RenderView::FromRoutingID(renderViewRoutingId);
@@ -292,26 +292,21 @@ void WebViewImpl::destroy()
 
 WebFrame* WebViewImpl::mainFrame()
 {
-    if (Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(Statics::isInApplicationMainThread());
-        DCHECK(d_isMainFrameAccessible)
-            << "You should wait for didFinishLoad";
-        DCHECK(d_gotRenderViewInfo);
+    DCHECK(Statics::isSingleThreadMode());
+    DCHECK(Statics::isInApplicationMainThread());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
 
-        if (!d_mainFrame.get()) {
-            content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-            DCHECK(rv);
+    if (!d_mainFrame.get()) {
+        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+        DCHECK(rv);
 
-            blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-            d_mainFrame.reset(new WebFrameImpl(webFrame));
-        }
-
-        return d_mainFrame.get();
+        blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+        d_mainFrame.reset(new WebFrameImpl(webFrame));
     }
-    else {
-        NOTREACHED() << "mainFrame() not supported in WebViewImpl";
-        return 0;
-    }
+
+    return d_mainFrame.get();
 }
 
 void WebViewImpl::loadUrl(const StringRef& url)
@@ -332,7 +327,7 @@ void WebViewImpl::loadUrl(const StringRef& url)
 
 void WebViewImpl::find(const wchar_t *text, size_t len, bool matchCase, bool forward)
 {
-    DCHECK(Statics::isOriginalThreadMode())
+    DCHECK(Statics::isOriginalThreadMode() || Statics::isSingleThreadMode())
         <<  "renderer-main thread mode should use handleFindRequest";
 
     DCHECK(Statics::isInBrowserMainThread());
@@ -363,37 +358,25 @@ void WebViewImpl::print()
 
 void WebViewImpl::drawContentsToBlob(Blob *blob, const DrawParams& params)
 {
-    if (Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(d_isMainFrameAccessible)
-            << "You should wait for didFinishLoad";
-        DCHECK(d_gotRenderViewInfo);
-        DCHECK(blob);
+    DCHECK(Statics::isSingleThreadMode());
+    DCHECK(Statics::isInApplicationMainThread());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
+    DCHECK(blob);
 
-        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-        RendererUtil::drawContentsToBlob(rv, blob, params);
-    }
-    else {
-        NOTREACHED() << "drawContentsToBlob() not supported in WebViewImpl";
-    }
+    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+    RendererUtil::drawContentsToBlob(rv, blob, params);
 }
 
 String WebViewImpl::getLayoutTreeAsText(int flags) const
 {
-    if (Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(d_isMainFrameAccessible)
-            << "You should wait for didFinishLoad";
-        DCHECK(d_gotRenderViewInfo);
+    DCHECK(Statics::isSingleThreadMode());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
 
-        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-        blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-        DCHECK(webFrame->isWebLocalFrame());
-
-        return fromWebString(webFrame->layoutTreeAsText(flags));
-    }
-    else {
-        NOTREACHED() << "getLayoutTreeAsText() not supported in WebViewImpl";
-        return String();
-    }
+    return RendererUtil::getLayoutTreeAsText(d_renderViewRoutingId, flags);
 }
 
 int WebViewImpl::getRoutingId() const
@@ -414,7 +397,8 @@ void WebViewImpl::setBackgroundColor(NativeColor color)
             GetBValue(color)
     ));
 
-    if (Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isSingleThreadMode()) {
+        DCHECK(Statics::isInApplicationMainThread());
         DCHECK(d_isMainFrameAccessible)
             << "You should wait for didFinishLoad";
         DCHECK(d_gotRenderViewInfo);
@@ -438,17 +422,12 @@ void WebViewImpl::setRegion(NativeRegion region)
 
 void WebViewImpl::setLCDTextShouldBlendWithCSSBackgroundColor(bool lcdTextShouldBlendWithCSSBackgroundColor)
 {
-    if (Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(d_isMainFrameAccessible)
-            << "You should wait for didFinishLoad";
-        DCHECK(d_gotRenderViewInfo);
+    DCHECK(Statics::isSingleThreadMode());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
 
-        content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-        rv->GetWebView()->setLCDTextShouldBlendWithCSSBackgroundColor(lcdTextShouldBlendWithCSSBackgroundColor);
-    }
-    else {
-        NOTREACHED() << "setLCDTextShouldBlendWithCSSBackgroundColor() not supported in WebViewImpl";
-    }
+    RendererUtil::setLCDTextShouldBlendWithCSSBackgroundColor(d_renderViewRoutingId, lcdTextShouldBlendWithCSSBackgroundColor);
 }
 
 void WebViewImpl::clearTooltip()
@@ -480,19 +459,16 @@ void WebViewImpl::rootWindowCompositionChanged()
 
 void WebViewImpl::handleInputEvents(const InputEvent *events, size_t eventsCount)
 {
-    if (Statics::isRendererOnBrowserThreadEnabled) {
-        DCHECK(d_isMainFrameAccessible)
-            << "You should wait for didFinishLoad";
-        DCHECK(d_gotRenderViewInfo);
+    DCHECK(Statics::isSingleThreadMode());
+    DCHECK(Statics::isInApplicationMainThread());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
 
-        content::RenderWidget* rw = content::RenderViewImpl::FromRoutingID(d_renderViewRoutingId);
-        DCHECK(rw);
+    content::RenderWidget* rw = content::RenderViewImpl::FromRoutingID(d_renderViewRoutingId);
+    DCHECK(rw);
 
-        RendererUtil::handleInputEvents(rw, events, eventsCount);
-    }
-    else {
-        NOTREACHED() << "handleInputEvents() not supported in WebViewImpl";
-    }
+    RendererUtil::handleInputEvents(rw, events, eventsCount);
 }
 
 void WebViewImpl::loadInspector(WebView* inspectedView)
@@ -1232,7 +1208,7 @@ void WebViewImpl::DidFinishLoad(content::RenderFrameHost* render_frame_host,
     DCHECK(Statics::isInBrowserMainThread());
     if (d_wasDestroyed || !d_delegate) return;
 
-    if (Statics::isRendererOnBrowserThreadEnabled) {
+    if (Statics::isSingleThreadMode()) {
         d_isMainFrameAccessible = true;
     }
 
