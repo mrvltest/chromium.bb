@@ -216,6 +216,8 @@
         'private/blpwtk2_proxyconfigimpl.h',
         'private/blpwtk2_rendererinfomap.cc',
         'private/blpwtk2_rendererinfomap.h',
+        'private/blpwtk2_rendererutil.cc',
+        'private/blpwtk2_rendererutil.h',
         'private/blpwtk2_renderviewobserverimpl.cc',
         'private/blpwtk2_renderviewobserverimpl.h',
         'private/blpwtk2_resourcecontextimpl.cc',

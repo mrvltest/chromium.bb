@@ -219,12 +219,12 @@ public:
     virtual void fileChooserCompleted(const StringRef* paths,
                                       size_t numPaths) = 0;
 
-    // Perform a custom context menu action. This should be called when a custom 
+    // Perform a custom context menu action. This should be called when a custom
     // item in the context menu has been selected.
     virtual void performCustomContextMenuAction(int actionId) = 0;
 
-    // If set to 'true', the default tooltip will not be used and the 
-    // corresponding WebViewDelegate will be expected to provide a custom 
+    // If set to 'true', the default tooltip will not be used and the
+    // corresponding WebViewDelegate will be expected to provide a custom
     // tooltip. Otherwise, the default tooltip will be used.
     virtual void enableCustomTooltip(bool enabled) = 0;
 

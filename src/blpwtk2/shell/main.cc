@@ -54,6 +54,7 @@ bool g_custom_hit_test = false;
 bool g_custom_tooltip = false;
 bool g_no_plugin_discovery = false;
 bool g_disable_work_message_while_doing_work = false;
+bool g_in_thread_renderer = false;
 HANDLE g_hJob;
 
 #define BUTTON_WIDTH 72
@@ -806,7 +807,7 @@ public:
         sprintf_s(buf, sizeof(buf), "DELEGATE: handleExternalProtocol('%s')\n", target.c_str());
         OutputDebugStringA(buf);
 
-        ShellExecuteA(NULL, NULL, target.c_str(), NULL, NULL, SW_SHOWNORMAL);        
+        ShellExecuteA(NULL, NULL, target.c_str(), NULL, NULL, SW_SHOWNORMAL);
     }
 
     void requestNCHitTest(blpwtk2::WebView* source) override
@@ -1225,6 +1226,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             else if (0 == wcscmp(L"--in-process-renderer", argv[i])) {
                 g_in_process_renderer = true;
             }
+            else if (0 == wcscmp(L"--in-thread-renderer", argv[i])) {
+                g_in_thread_renderer = true;
+                g_in_process_renderer = false;
+            }
             else if (0 == wcsncmp(L"--data-dir=", argv[i], 11)) {
                 char buf[1024];
                 sprintf_s(buf, sizeof(buf), "%S", argv[i]+11);
@@ -1278,11 +1283,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
     }
 
     blpwtk2::ToolkitCreateParams toolkitParams;
-    if (isHost || (!g_in_process_renderer && hostChannel.empty())) {
-        toolkitParams.setThreadMode(blpwtk2::ThreadMode::ORIGINAL);
-        toolkitParams.disableInProcessRenderer();
-    }
-    else {
+
+    if (!isHost && (g_in_process_renderer || !hostChannel.empty())) {
         toolkitParams.setThreadMode(blpwtk2::ThreadMode::RENDERER_MAIN);
         toolkitParams.setInProcessResourceLoader(createInProcessResourceLoader());
         toolkitParams.setHostChannel(hostChannel);
@@ -1290,6 +1292,13 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
             toolkitParams.disableInProcessRenderer();
         }
     }
+    else if (g_in_thread_renderer) {
+        toolkitParams.setThreadMode(blpwtk2::ThreadMode::SINGLE);
+    }
+    else {
+        toolkitParams.setThreadMode(blpwtk2::ThreadMode::ORIGINAL);
+    }
+
 #if AUTO_PUMP
     toolkitParams.setPumpMode(blpwtk2::PumpMode::AUTOMATIC);
 #endif

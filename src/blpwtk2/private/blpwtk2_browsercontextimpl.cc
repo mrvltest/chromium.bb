@@ -62,7 +62,7 @@ BrowserContextImpl::BrowserContextImpl(const std::string& dataDir,
     DCHECK(!diskCacheEnabled || !d_isIncognito);
     DCHECK(!cookiePersistenceEnabled || !d_isIncognito);
 
-    if (Statics::isOriginalThreadMode()) {
+    if (Statics::isOriginalThreadMode() || Statics::isSingleThreadMode()) {
         ++Statics::numProfiles;
     }
 
@@ -157,7 +157,7 @@ void BrowserContextImpl::reallyDestroy()
     DCHECK(0 == d_numWebViews);
     DCHECK(!d_isDestroyed);
 
-    if (Statics::isOriginalThreadMode()) {
+    if (Statics::isOriginalThreadMode() || Statics::isSingleThreadMode()) {
         DCHECK(0 < Statics::numProfiles);
         --Statics::numProfiles;
     }

@@ -30,6 +30,7 @@
 #include <blpwtk2_webview.h>
 #include <blpwtk2_webviewproperties.h>
 
+#include <base/memory/weak_ptr.h>
 #include <content/public/browser/web_contents_delegate.h>
 #include <content/public/browser/web_contents_observer.h>
 #include <content/public/common/context_menu_params.h>
@@ -54,6 +55,7 @@ class DevToolsFrontendHostDelegateImpl;
 class NativeViewWidget;
 class WebViewDelegate;
 class WebViewImplClient;
+class WebFrameImpl;
 
 // This is the implementation of the blpwtk2::WebView interface.  It creates a
 // content::WebContents object, and implements the content::WebContentsDelegate
@@ -72,7 +74,8 @@ class WebViewImplClient;
 class WebViewImpl : public WebView,
                     private NativeViewWidgetDelegate,
                     private content::WebContentsDelegate,
-                    private content::WebContentsObserver {
+                    private content::WebContentsObserver,
+                    private base::SupportsWeakPtr<WebViewImpl> {
   public:
     WebViewImpl(WebViewDelegate* delegate,
                 blpwtk2::NativeView parent,
@@ -95,6 +98,7 @@ class WebViewImpl : public WebView,
     void handleExternalProtocol(const GURL& url);
     void overrideWebkitPrefs(content::WebPreferences* prefs);
     void onRenderViewHostMadeCurrent(content::RenderViewHost* renderViewHost);
+    void gotNewRenderViewRoutingId(int renderViewRoutingId);
 
     /////////////// WebView overrides
 
@@ -297,6 +301,11 @@ class WebViewImpl : public WebView,
     // For calling performCustomContextMenuAction().  TODO: clean this
     content::CustomContextMenuContext d_customContext;
 
+    // For in-process renderers:
+    bool d_isMainFrameAccessible;
+    bool d_gotRenderViewInfo;
+    int d_renderViewRoutingId;
+    scoped_ptr<WebFrameImpl> d_mainFrame;
 
     DISALLOW_COPY_AND_ASSIGN(WebViewImpl);
 };

@@ -33,6 +33,7 @@
 #include <blpwtk2_webviewdelegate.h>
 #include <blpwtk2_webview_messages.h>
 #include <blpwtk2_blob.h>
+#include <blpwtk2_rendererutil.h>
 
 #include <base/bind.h>
 #include <base/message_loop/message_loop.h>
@@ -292,16 +293,11 @@ static inline SkScalar distance(SkScalar x, SkScalar y)
 String WebViewProxy::getLayoutTreeAsText(int flags) const
 {
     DCHECK(Statics::isRendererMainThreadMode());
-    DCHECK(Statics::isInApplicationMainThread());
     DCHECK(d_isMainFrameAccessible)
         << "You should wait for didFinishLoad";
     DCHECK(d_gotRenderViewInfo);
 
-    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-    DCHECK(webFrame->isWebLocalFrame());
-
-    return fromWebString(webFrame->layoutTreeAsText(flags));
+    return RendererUtil::getLayoutTreeAsText(d_renderViewRoutingId, flags);
 }
 
 int WebViewProxy::getRoutingId() const
@@ -352,16 +348,15 @@ void WebViewProxy::setRegion(NativeRegion region)
     }
 }
 
-void WebViewProxy::setLCDTextShouldBlendWithCSSBackgroundColor(bool lcdTextShouldBlendWithCSSBackgroundColor)
+void WebViewProxy::setLCDTextShouldBlendWithCSSBackgroundColor(bool enable)
 {
     DCHECK(Statics::isRendererMainThreadMode());
-    DCHECK(Statics::isInApplicationMainThread());
     DCHECK(d_isMainFrameAccessible)
         << "You should wait for didFinishLoad";
     DCHECK(d_gotRenderViewInfo);
 
-    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    rv->GetWebView()->setLCDTextShouldBlendWithCSSBackgroundColor(lcdTextShouldBlendWithCSSBackgroundColor);
+    RendererUtil::setLCDTextShouldBlendWithCSSBackgroundColor(d_renderViewRoutingId,
+                                                              enable);
 }
 
 void WebViewProxy::clearTooltip()
@@ -392,39 +387,7 @@ void WebViewProxy::drawContentsToBlob(Blob *blob, const DrawParams& params)
     DCHECK(blob);
 
     content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-    DCHECK(webFrame->isWebLocalFrame());
-
-    int srcWidth = params.srcRegion.right - params.srcRegion.left;
-    int srcHeight = params.srcRegion.bottom - params.srcRegion.top;
-
-    if (params.rendererType == DrawParams::RendererTypePDF) {
-        SkDynamicMemoryWStream& pdf_stream = blob->makeSkStream();
-        {
-            skia::RefPtr<SkDocument> document = skia::AdoptRef(SkDocument::CreatePDF(&pdf_stream, params.dpi));
-            SkCanvas *canvas = document->beginPage(params.destWidth, params.destHeight);
-            canvas->scale(params.destWidth / srcWidth, params.destHeight / srcHeight);
-
-            webFrame->drawInCanvas(blink::WebRect(params.srcRegion.left, params.srcRegion.top, srcWidth, srcHeight),
-                                   blink::WebString::fromUTF8(params.styleClass.data(), params.styleClass.length()),
-                                   canvas);
-            canvas->flush();
-            document->endPage();
-        }
-    }
-    else if (params.rendererType == DrawParams::RendererTypeBitmap) {
-        SkBitmap& bitmap = blob->makeSkBitmap();
-        bitmap.allocN32Pixels(params.destWidth + 0.5, params.destHeight + 0.5);
-
-        SkCanvas canvas(bitmap);
-        canvas.scale(params.destWidth / srcWidth, params.destHeight / srcHeight);
-
-        webFrame->drawInCanvas(blink::WebRect(params.srcRegion.left, params.srcRegion.top, srcWidth, srcHeight),
-                               blink::WebString::fromUTF8(params.styleClass.data(), params.styleClass.length()),
-                               &canvas);
-
-        canvas.flush();
-    }
+    RendererUtil::drawContentsToBlob(rv, blob, params);
 }
 
 void WebViewProxy::handleInputEvents(const InputEvent *events, size_t eventsCount)
@@ -438,96 +401,7 @@ void WebViewProxy::handleInputEvents(const InputEvent *events, size_t eventsCoun
     content::RenderWidget* rw = content::RenderViewImpl::FromRoutingID(d_renderViewRoutingId);
     DCHECK(rw);
 
-    for (size_t i=0; i < eventsCount; ++i) {
-        const InputEvent *event = events + i;
-        MSG msg = {
-            event->hwnd,
-            event->message,
-            event->wparam,
-            event->lparam,
-            GetMessageTime()
-        };
-
-        switch (event->message) {
-        case WM_SYSKEYDOWN:
-        case WM_KEYDOWN:
-        case WM_SYSKEYUP:
-        case WM_KEYUP:
-        case WM_IME_CHAR:
-        case WM_SYSCHAR:
-        case WM_CHAR: {
-            ui::KeyEvent uiKeyboardEvent(msg);
-            content::NativeWebKeyboardEvent blinkKeyboardEvent(&uiKeyboardEvent);
-
-            blinkKeyboardEvent.modifiers &= ~(
-                    blink::WebInputEvent::ShiftKey |
-                    blink::WebInputEvent::ControlKey |
-                    blink::WebInputEvent::AltKey |
-                    blink::WebInputEvent::MetaKey |
-                    blink::WebInputEvent::IsAutoRepeat |
-                    blink::WebInputEvent::IsKeyPad |
-                    blink::WebInputEvent::IsLeft |
-                    blink::WebInputEvent::IsRight |
-                    blink::WebInputEvent::NumLockOn |
-                    blink::WebInputEvent::CapsLockOn
-                );
-
-            if (event->shiftKey)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::ShiftKey;
-
-            if (event->controlKey)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::ControlKey;
-
-            if (event->altKey)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::AltKey;
-
-            if (event->metaKey)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::MetaKey;
-
-            if (event->isAutoRepeat)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::IsAutoRepeat;
-
-            if (event->isKeyPad)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::IsKeyPad;
-
-            if (event->isLeft)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::IsLeft;
-
-            if (event->isRight)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::IsRight;
-
-            if (event->numLockOn)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::NumLockOn;
-
-            if (event->capsLockOn)
-                blinkKeyboardEvent.modifiers |= blink::WebInputEvent::CapsLockOn;
-
-            rw->bbHandleInputEvent(blinkKeyboardEvent);
-        } break;
-
-        case WM_MOUSEMOVE:
-        case WM_MOUSELEAVE:
-        case WM_LBUTTONDOWN:
-        case WM_LBUTTONDBLCLK:
-        case WM_MBUTTONDOWN:
-        case WM_MBUTTONDBLCLK:
-        case WM_RBUTTONDOWN:
-        case WM_RBUTTONDBLCLK:
-        case WM_LBUTTONUP:
-        case WM_MBUTTONUP:
-        case WM_RBUTTONUP: {
-            ui::MouseEvent uiMouseEvent(msg);
-            blink::WebMouseEvent blinkMouseEvent = content::MakeWebMouseEvent(uiMouseEvent);
-            rw->bbHandleInputEvent(blinkMouseEvent);
-        } break;
-
-        case WM_MOUSEWHEEL: {
-            ui::MouseWheelEvent uiMouseWheelEvent(msg);
-            blink::WebMouseWheelEvent blinkMouseWheelEvent = content::MakeWebMouseWheelEvent(uiMouseWheelEvent);
-            rw->bbHandleInputEvent(blinkMouseWheelEvent);
-        } break;
-        }
-    }
+    RendererUtil::handleInputEvents(rw, events, eventsCount);
 }
 
 void WebViewProxy::loadInspector(WebView* inspectedView)

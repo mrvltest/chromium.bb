@@ -105,7 +105,6 @@ struct Statics {
     // in-process renderer should be enabled.
     static bool inProcessResizeOptimizationDisabled;
 
-
     // ====== some utility functions =============
 
     static bool isOriginalThreadMode()
@@ -116,6 +115,11 @@ struct Statics {
     static bool isRendererMainThreadMode()
     {
         return ThreadMode::RENDERER_MAIN == threadMode;
+    }
+
+    static bool isSingleThreadMode()
+    {
+        return ThreadMode::SINGLE == threadMode;
     }
 
     static bool isInApplicationMainThread()

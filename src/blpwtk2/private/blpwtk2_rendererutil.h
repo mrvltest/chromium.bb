@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Bloomberg Finance L.P.
+ * Copyright (C) 2015 Bloomberg Finance L.P.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -20,35 +20,39 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef INCLUDED_BLPWTK2_THREADMODE_H
-#define INCLUDED_BLPWTK2_THREADMODE_H
+#ifndef INCLUDED_BLPWTK2_RENDERERUTIL_H
+#define INCLUDED_BLPWTK2_RENDERERUTIL_H
 
 #include <blpwtk2_config.h>
+#include <blpwtk2_webview.h>
+#include <blpwtk2_string.h>
+
+namespace content {
+
+class RenderWidget;
+class RenderView;
+
+}
 
 namespace blpwtk2 {
 
-// See blpwtk2_toolkit.h for an explanation of the threading model.
-struct ThreadMode {
+struct RendererUtil
+{
+    static void handleInputEvents(content::RenderWidget     *rw,
+                                  const WebView::InputEvent *events,
+                                  size_t                     eventsCount);
 
-    enum Value {
-        // The original chromium threading model, which runs the browser-main
-        // in the application's main thread, and creates a background thread if
-        // any in-process WebViews are created.  This is the default thread
-        // mode.
-        ORIGINAL,
+    static void drawContentsToBlob(content::RenderView        *rv,
+                                   Blob                       *blob,
+                                   const WebView::DrawParams&  params);
 
-        // The new threading model for blpwtk2, which runs the renderer in the
-        // application's main thread, and runs the browser-main in a second
-        // thread.
-        RENDERER_MAIN,
 
-        // An alternative threading model where the browser and the renderer
-        // runs on the same thread.
-        SINGLE
-    };
+    static String getLayoutTreeAsText(int renderViewRoutingId, int flags);
+
+    static void setLCDTextShouldBlendWithCSSBackgroundColor(int  renderViewRoutingId,
+                                                            bool enable);
 };
 
 }  // close namespace blpwtk2
 
-#endif  // INCLUDED_BLPWTK2_THREADMODE_H
-
+#endif  // INCLUDED_BLPWTK2_RENDERERUTIL_H
