@@ -201,8 +201,10 @@ ChannelWin::ReadState ChannelWin::ReadData(
     char* buffer,
     int buffer_len,
     int* /* bytes_read */) {
-  if (!pipe_.IsValid())
-    return READ_FAILED;
+    if (!pipe_.IsValid()){
+        LOG(ERROR) << "ChannelWin::ReadData: pipe_ is not valid.";
+        return READ_FAILED;
+    }
 
   DWORD bytes_read = 0;
   BOOL ok = ReadFile(pipe_.Get(), buffer, buffer_len,
@@ -213,7 +215,7 @@ ChannelWin::ReadState ChannelWin::ReadData(
       input_state_.is_pending = true;
       return READ_PENDING;
     }
-    LOG(ERROR) << "pipe error: " << err;
+    LOG(ERROR) << "ChannelWin::ReadData: ReadFile failed. pipe error: " << err;
     return READ_FAILED;
   }
 
@@ -474,7 +476,7 @@ bool ChannelWin::ProcessOutgoingMessages(
     output_state_.is_pending = false;
     if (!context || bytes_written == 0) {
       DWORD err = GetLastError();
-      LOG(ERROR) << "pipe error: " << err;
+      LOG(ERROR) << "ChannelWin::ProcessOutgoingMessages: pipe error: " << err << ((!context) ? " null context" : " bytes_written == 0");
       return false;
     }
     // Message was sent.
@@ -487,8 +489,10 @@ bool ChannelWin::ProcessOutgoingMessages(
   if (output_queue_.empty())
     return true;
 
-  if (!pipe_.IsValid())
-    return false;
+  if (!pipe_.IsValid()){
+      LOG(ERROR) << "ChannelWin::ProcessOutgoingMessages: Invalid pipe ";
+      return false;
+  }
 
   // Write to pipe...
   OutputElement* element = output_queue_.front();
@@ -511,7 +515,7 @@ bool ChannelWin::ProcessOutgoingMessages(
 
       return true;
     }
-    LOG(ERROR) << "pipe error: " << write_error;
+    LOG(ERROR) << "ChannelWin::ProcessOutgoingMessages: WriteFile failed. pipe error: " << write_error;
     return false;
   }
 
@@ -554,20 +558,33 @@ void ChannelWin::OnIOCompleted(
       input_state_.is_pending = false;
       if (!bytes_transfered) {
         ok = false;
+        if (pipe_.IsValid()) {
+            LOG(WARNING) << "ChannelWin::OnIOCompleted(): input_state_.is_pending. bytes_transfered is 0. ChannelError! error=" << error;
+        }
       } else if (pipe_.IsValid()) {
         ok = (AsyncReadComplete(bytes_transfered) != DISPATCH_ERROR);
+        if (!ok) {
+            LOG(WARNING) << "ChannelWin::OnIOCompleted(): input_state_.is_pending. AsyncReadComplete return DISPATCH_ERROR. ChannelError!";
+        }
       }
     } else {
       DCHECK(!bytes_transfered);
     }
 
     // Request more data.
-    if (ok)
-      ok = (ProcessIncomingMessages() != DISPATCH_ERROR);
+    if (ok) {
+        ok = (ProcessIncomingMessages() != DISPATCH_ERROR);
+        if (!ok && pipe_.IsValid()) {
+            LOG(WARNING) << "ChannelWin::OnIOCompleted(): ProcessIncomingMessages return DISPATCH_ERROR. ChannelError!";
+        }
+    }
   } else {
     DCHECK(context == &output_state_.context);
     CHECK(output_state_.is_pending);
     ok = ProcessOutgoingMessages(context, bytes_transfered);
+    if (!ok && pipe_.IsValid()) {
+        LOG(WARNING) << "ChannelWin::OnIOCompleted(): ProcessOutgoingMessages return DISPATCH_ERROR. ChannelError!";
+    }
   }
   if (!ok && pipe_.IsValid()) {
     // We don't want to re-enter Close().
