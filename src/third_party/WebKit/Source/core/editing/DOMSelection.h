@@ -91,7 +91,7 @@ public:
     bool containsNode(const Node*, bool partlyContained) const;
     void selectAllChildren(Node*, ExceptionState&);
 
-	String getClipboardCopyString() const;
+    String getClipboardCopyString() const;
 
     String toString();
 

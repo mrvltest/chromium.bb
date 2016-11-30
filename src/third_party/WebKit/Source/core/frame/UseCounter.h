@@ -877,7 +877,7 @@ public:
         FormNameAccessForNonDescendantImageElement = 1093,
         FormControlsCollectionNameAccessForImageElement = 1094,
 
-		SelectionGetClipboardCopyString = 1149,
+        SelectionGetClipboardCopyString = 1149, // Bloomberg-specific at the moment
 
         // Add new features immediately above this line. Don't change assigned
         // numbers of any item, and don't reuse removed slots.

@@ -85,6 +85,6 @@
                                             [Default=Undefined] optional DOMString granularity);
 
 
-	[MeasureAs = SelectionGetClipboardCopyString] DOMString getClipboardCopyString();
+    [MeasureAs = SelectionGetClipboardCopyString] DOMString getClipboardCopyString();
 
 };

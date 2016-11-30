@@ -574,10 +574,10 @@ DEFINE_TRACE(DOMSelection)
 
 String DOMSelection::getClipboardCopyString() const
 {
-	if (!m_frame)
-		return String();
+    if (!m_frame)
+        return String();
 
-	return m_frame->selection().selectedHTMLForClipboard();
+    return m_frame->selection().selectedHTMLForClipboard();
 }
 
 } // namespace blink
