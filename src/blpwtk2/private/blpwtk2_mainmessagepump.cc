@@ -165,7 +165,18 @@ static bool shouldStopDoingWork(bool stopForTimers)
         }
         if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE | PM_QS_INPUT | PM_QS_SENDMESSAGE))
             return true;
+
         queueStatus = HIWORD(GetQueueStatus(mask));
+
+        // GetQueueStatus occasionally returns true even if there isn't a
+        // message available for processing.  We make the more expensive
+        // PeekMessage call to double-check whether we really do have an input
+        // message that can be processed.
+        if (queueStatus & INPUT_MASK &&
+            !PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE | PM_QS_INPUT)) {
+
+            queueStatus &= ~INPUT_MASK;
+        }
     }
 
     return queueStatus & mask;
