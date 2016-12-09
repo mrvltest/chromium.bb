@@ -303,6 +303,8 @@
         'public/blpwtk2_webviewcreateparams.h',
         'public/blpwtk2_webviewdelegate.cc',
         'public/blpwtk2_webviewdelegate.h',
+        'public/blpwtk2_webviewhostobserver.cc',
+        'public/blpwtk2_webviewhostobserver.h',
       ],
       'include_dirs': [
         'public',

@@ -37,6 +37,7 @@
 #include <blpwtk2_toolkit.h>
 #include <blpwtk2_webview_messages.h>
 #include <blpwtk2_webviewhost.h>
+#include <blpwtk2_webviewhostobserver.h>
 #include <blpwtk2_utility.h>
 
 #include <base/command_line.h>
@@ -315,7 +316,7 @@ void ProcessHostImpl::onWebViewNew(const BlpWebViewHostMsg_NewParams& params)
             d_rendererInfoMap->obtainHostAffinity(params.rendererAffinity);
     }
 
-    new WebViewHost(this,
+    WebViewHost* webViewHost = new WebViewHost(this,
                     profileHost->browserContext(),
                     params.routingId,
                     isInProcess,
@@ -323,6 +324,13 @@ void ProcessHostImpl::onWebViewNew(const BlpWebViewHostMsg_NewParams& params)
                     hostAffinity,
                     params.initiallyVisible,
                     params.properties);
+
+    if (Statics::webViewHostObserver) {
+        Statics::webViewHostObserver->webViewHostCreated(
+            channelId(),
+            webViewHost->getRoutingId(),
+            webViewHost->getWebView());
+    }
 }
 
 void ProcessHostImpl::onWebViewDestroy(int routingId)
@@ -331,6 +339,11 @@ void ProcessHostImpl::onWebViewDestroy(int routingId)
     WebViewHost* webViewHost =
         static_cast<WebViewHost*>(findListener(routingId));
     DCHECK(webViewHost);
+    if (Statics::webViewHostObserver) {
+        Statics::webViewHostObserver->webViewHostDestroyed(
+            channelId(),
+            webViewHost->getRoutingId());
+    }
     delete webViewHost;
 }
 

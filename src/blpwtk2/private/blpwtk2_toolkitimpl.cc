@@ -573,4 +573,33 @@ void ToolkitImpl::addOriginToTrustworthyList(const StringRef& originString)
         blink::WebSecurityOrigin::createFromString(toWebString(originString)));
 }
 
+String ToolkitImpl::getHostChannelId()
+{
+    DCHECK(Statics::isInApplicationMainThread());
+
+    if (!d_hostChannel.empty()) {
+        ChannelInfo hostChannelInfo;
+        bool check = hostChannelInfo.deserialize(d_hostChannel);
+        if (check) {
+            return String(hostChannelInfo.d_channelId);
+        }
+    }
+
+    return String("");
+}
+
+void ToolkitImpl::setWebViewHostObserver(WebViewHostObserver* observer)
+{
+    if (Statics::isInBrowserMainThread()) {
+        Statics::webViewHostObserver = observer;
+    }
+    else if (d_browserThread) {
+        d_browserThread->messageLoop()->PostTask(
+                FROM_HERE,
+                base::Bind(&ToolkitImpl::setWebViewHostObserver,
+                           base::Unretained(this),
+                           observer));
+    }
+}
+
 }  // close namespace blpwtk2

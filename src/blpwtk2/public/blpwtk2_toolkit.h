@@ -94,6 +94,7 @@ class String;
 class StringRef;
 class WebView;
 class WebViewDelegate;
+class WebViewHostObserver;
 
 // This interface can be used to create profiles and WebViews.  An single
 // instance of this class can be created using the 'ToolkitFactory'.
@@ -194,6 +195,14 @@ class Toolkit {
     // Adds the security origin specified by 'originString' to the list of
     // origins that blink considers 'trustworthy'.
     virtual void addOriginToTrustworthyList(const StringRef& originString) = 0;
+
+    // Returns the string identifying the channel used by the renderer process
+    // to communicate with the browser process.
+    virtual String getHostChannelId() = 0;
+
+    // Sets the observer that will be called by the browser thread when
+    // WebView's are created and destroyed.
+    virtual void setWebViewHostObserver(WebViewHostObserver* observer) = 0;
 
   protected:
     // Destroy this Toolkit object.  Note that clients of blpwtk2 should use

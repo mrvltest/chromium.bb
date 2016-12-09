@@ -91,6 +91,8 @@ class ToolkitImpl : public Toolkit {
     void dumpDiagnosticInfo(DiagnosticInfoType type,
                             const blpwtk2::StringRef& filepath) override;
     void addOriginToTrustworthyList(const StringRef& originString) override;
+    String getHostChannelId() override;
+    void setWebViewHostObserver(WebViewHostObserver* observer) override;
 
   private:
     void createInProcessHost();
