@@ -73,6 +73,9 @@ class WebViewHost : public ProcessHostListener,
                 bool isInProcess);
     virtual ~WebViewHost();
 
+    WebView* getWebView();
+    int getRoutingId() const;
+
     // IPC::Listener overrides
     bool OnMessageReceived(const IPC::Message& message) override;
     void OnBadMessageReceived(const IPC::Message& message) override;

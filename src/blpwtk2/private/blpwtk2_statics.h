@@ -44,6 +44,7 @@ class BrowserContextImplManager;
 class ProcessHostManager;
 class Profile;
 class ResourceLoader;
+class WebViewHostObserver;
 
 // Hold any static variables.  This will be used to store global state that
 // may be setup before ToolkitImpl is instantiated, or any other global
@@ -87,6 +88,9 @@ struct Statics {
 
     // The single ProcessHostManager instance.
     static ProcessHostManager* processHostManager;
+
+    // The single WebViewHostObserver. It is called from the browser's main thread.
+    static WebViewHostObserver* webViewHostObserver;
 
     // The external handler that will be invoked whenever a channel error occurs.
     static ToolkitCreateParams::ChannelErrorHandler channelErrorHandler;
