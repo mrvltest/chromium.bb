@@ -22,6 +22,7 @@
 
 #include <blpwtk2_blob.h>
 #include <base/logging.h>  // for DCHECK
+#include <cstring>
 
 namespace blpwtk2 {
 
@@ -137,6 +138,33 @@ SkBitmap& Blob::makeSkBitmap()
     return blob->skiaBitmap();
 }
 
+// StorageDataElementBlob
+
+class StorageDataElementBlob : public Blob::Impl {
+    const storage::DataElement& d_element;
+
+public:
+    StorageDataElementBlob(const storage::DataElement& element)
+    : d_element(element) {
+    }
+
+    void copyTo(void *dest) const override
+    {
+        std::memcpy(dest, d_element.bytes(), d_element.length());
+    }
+
+    size_t size() const override
+    {
+        return d_element.length();
+    }
+};
+
+void Blob::makeStorageDataElement(const storage::DataElement& element)
+{
+    DCHECK(!d_impl);
+    StorageDataElementBlob *blob = new StorageDataElementBlob(element);
+    d_impl = blob;
+}
 
 }  // close namespace blpwtk2
 

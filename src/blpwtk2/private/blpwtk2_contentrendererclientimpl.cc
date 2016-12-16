@@ -143,7 +143,8 @@ void ContentRendererClientImpl::GetNavigationErrorStrings(
 
 content::ResourceLoaderBridge*
 ContentRendererClientImpl::OverrideResourceLoaderBridge(
-    const content::RequestInfo& request_info)
+    const content::RequestInfo& request_info,
+    content::ResourceRequestBody* request_body)
 {
     StringRef url = request_info.url.spec();
 
@@ -152,7 +153,7 @@ ContentRendererClientImpl::OverrideResourceLoaderBridge(
     {
         return nullptr;
     }
-    return new InProcessResourceLoaderBridge(request_info);
+    return new InProcessResourceLoaderBridge(request_info, request_body);
 }
 
 bool ContentRendererClientImpl::OverrideCreatePlugin(

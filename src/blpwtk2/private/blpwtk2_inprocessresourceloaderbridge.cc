@@ -22,6 +22,7 @@
 
 #include <blpwtk2_inprocessresourceloaderbridge.h>
 
+#include <blpwtk2_blob.h>
 #include <blpwtk2_resourcecontext.h>
 #include <blpwtk2_resourceloader.h>
 #include <blpwtk2_statics.h>
@@ -31,10 +32,14 @@
 #include <base/message_loop/message_loop.h>
 #include <content/child/request_info.h>
 #include <content/child/sync_load_response.h>
+#include <content/common/resource_request_body.h>
 #include <content/public/child/request_peer.h>
+#include <net/base/load_flags.h>
 #include <net/base/mime_sniffer.h>
 #include <net/base/net_errors.h>
+#include <net/http/http_request_headers.h>
 #include <net/http/http_response_headers.h>
+#include <third_party/WebKit/public/platform/WebURLRequest.h>
 #include <url/gurl.h>
 
 namespace blpwtk2 {
@@ -47,11 +52,159 @@ class ReceivedDataImpl : public content::RequestPeer::ReceivedData {
     int encoded_length() const override { return d_data.size(); }
 };
 
+class InProcessResourceLoaderBridge::InProcessURLRequest
+    : public URLRequest {
+  public:
+
+    InProcessURLRequest(
+        const content::RequestInfo& requestInfo,
+        content::ResourceRequestBody* requestBody)
+    : d_requestInfo(requestInfo)
+    , d_requestBody(requestBody) {
+        d_requestHeaders.AddHeadersFromString(d_requestInfo.headers);
+    }
+
+    ~InProcessURLRequest() {}
+
+    String url() const override {
+        return String(d_requestInfo.url.spec());
+    }
+
+    String firstPartyForCookies() const override {
+        return String(d_requestInfo.first_party_for_cookies.spec());
+    }
+
+    // see GetLoadFlagsForWebURLRequest() in web_url_request_util.cc:
+    bool allowStoredCredentials() const override {
+        static const int disallow_flags =
+            net::LOAD_DO_NOT_SAVE_COOKIES |
+            net::LOAD_DO_NOT_SEND_COOKIES |
+            net::LOAD_DO_NOT_SEND_AUTH_DATA;
+
+        return (d_requestInfo.load_flags & disallow_flags) != disallow_flags;
+    }
+
+    // see GetLoadFlagsForWebURLRequest() in web_url_request_util.cc:
+    CachePolicy cachePolicy() const override {
+        if (d_requestInfo.load_flags & net::LOAD_VALIDATE_CACHE) {
+            return ReloadIgnoringCacheData;
+        }
+        else if (d_requestInfo.load_flags & net::LOAD_BYPASS_CACHE) {
+            return ReloadBypassingCache;
+        }
+        else if (d_requestInfo.load_flags & net::LOAD_PREFERRING_CACHE) {
+            return ReturnCacheDataElseLoad;
+        }
+        else if (d_requestInfo.load_flags & net::LOAD_ONLY_FROM_CACHE) {
+            return ReturnCacheDataDontLoad;
+        }
+        else {
+            return UseProtocolCachePolicy;
+        }
+    }
+
+    String httpMethod() const override {
+        return String(d_requestInfo.method);
+    }
+
+    String httpHeaderField(const StringRef& name) const override {
+        std::string value;
+        d_requestHeaders.GetHeader(name.toStdString(), &value);
+        return String(value);
+    }
+
+    void visitHTTPHeaderFields(HTTPHeaderVisitor* visitor) const override {
+        if (!d_requestHeaders.IsEmpty()) {
+            net::HttpRequestHeaders::Iterator it(d_requestHeaders);
+            do {
+                visitor->visitHeader(
+                    StringRef(it.name()),
+                    StringRef(it.value()));
+            } while(it.GetNext());
+        }
+    }
+
+    void visitHTTPBody(HTTPBodyVisitor* visitor) const override {
+        if (!d_requestBody) {
+            return;
+        }
+
+        using ElementVector =
+                          std::vector<content::ResourceRequestBody::Element>;
+        const ElementVector* elements = d_requestBody->elements();
+
+        for (ElementVector::const_iterator
+                it = elements->begin(),
+                it_end = elements->end();
+            it != it_end;
+            ++it) {
+            Blob elementBlob;
+            elementBlob.makeStorageDataElement(*it);
+            visitor->visitBodyElement(elementBlob);
+        }
+    }
+
+    bool reportUploadProgress() const override {
+        return d_requestInfo.enable_upload_progress;
+    }
+
+    bool reportRawHeaders() const override {
+        return d_requestInfo.report_raw_headers;
+    }
+
+    bool hasUserGesture() const override {
+        return d_requestInfo.has_user_gesture;
+    }
+
+    int requesterID() const override {
+        return d_requestInfo.routing_id;
+    }
+
+    int requestorProcessID() const override {
+        return d_requestInfo.requestor_pid;
+    }
+
+    int appCacheHostID() const override {
+        return d_requestInfo.appcache_host_id;
+    }
+
+    bool downloadToFile() const override {
+        return d_requestInfo.download_to_file;
+    }
+
+    // see ConvertWebKitPriorityToNetPriority() in web_url_loader_impl.cc:
+    Priority priority() const override {
+        switch (d_requestInfo.priority) {
+        case net::HIGHEST:
+            return PriorityVeryHigh;
+        case net::MEDIUM:
+            return PriorityHigh;
+        case net::LOW:
+            return PriorityMedium;
+        case net::LOWEST:
+            return PriorityLow;
+        case net::IDLE:
+            return PriorityVeryLow;
+        default:
+            return PriorityUnresolved;
+        }
+    }
+
+  private:
+
+    const content::RequestInfo& d_requestInfo;
+    content::ResourceRequestBody* d_requestBody;
+
+    net::HttpRequestHeaders d_requestHeaders;
+};
+
 class InProcessResourceLoaderBridge::InProcessResourceContext
     : public base::RefCounted<InProcessResourceContext>
     , public ResourceContext {
   public:
-    InProcessResourceContext(const content::RequestInfo& requestInfo);
+    InProcessResourceContext(
+        const content::RequestInfo& requestInfo,
+        content::ResourceRequestBody* requestBody);
 
     // accessors
     const GURL& url() const;
@@ -62,6 +215,7 @@ class InProcessResourceLoaderBridge::InProcessResourceContext
     void dispose();
 
     // ResourceContext overrides
+    const URLRequest* request() override;
     void replaceStatusLine(const StringRef& newStatus) override;
     void addResponseHeader(const StringRef& header) override;
     void addResponseData(const char* buffer, int length) override;
@@ -73,6 +227,7 @@ class InProcessResourceLoaderBridge::InProcessResourceContext
     void cancelLoad();
     void ensureResponseHeadersSent(const char* buffer, int length);
 
+    scoped_ptr<InProcessURLRequest> d_urlRequest;
     GURL d_url;
     scoped_refptr<net::HttpResponseHeaders> d_responseHeaders;
     content::RequestPeer* d_peer;
@@ -90,8 +245,10 @@ class InProcessResourceLoaderBridge::InProcessResourceContext
 // InProcessResourceContext
 
 InProcessResourceLoaderBridge::InProcessResourceContext::InProcessResourceContext(
-    const content::RequestInfo& requestInfo)
-: d_url(requestInfo.url)
+    const content::RequestInfo& requestInfo,
+    content::ResourceRequestBody* requestBody)
+: d_urlRequest(new InProcessURLRequest(requestInfo, requestBody))
+, d_url(requestInfo.url)
 , d_peer(0)
 , d_userData(0)
 , d_totalTransferSize(0)
@@ -156,6 +313,12 @@ void InProcessResourceLoaderBridge::InProcessResourceContext::dispose()
 }
 
 // ResourceContext overrides
+const URLRequest* InProcessResourceLoaderBridge::InProcessResourceContext::request()
+{
+    DCHECK(Statics::isInApplicationMainThread());
+
+    return d_urlRequest.get();
+}
 
 void InProcessResourceLoaderBridge::InProcessResourceContext::replaceStatusLine(
     const StringRef& newStatus)
@@ -331,12 +494,13 @@ void InProcessResourceLoaderBridge::InProcessResourceContext::ensureResponseHead
 // InProcessResourceLoaderBridge
 
 InProcessResourceLoaderBridge::InProcessResourceLoaderBridge(
-    const content::RequestInfo& requestInfo)
+    const content::RequestInfo& requestInfo,
+    content::ResourceRequestBody* requestBody)
 {
     DCHECK(Statics::isInApplicationMainThread());
     DCHECK(Statics::inProcessResourceLoader);
 
-    d_context = new InProcessResourceContext(requestInfo);
+    d_context = new InProcessResourceContext(requestInfo, requestBody);
 }
 
 InProcessResourceLoaderBridge::~InProcessResourceLoaderBridge()

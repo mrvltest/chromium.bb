@@ -29,6 +29,7 @@
 
 namespace content {
 struct RequestInfo;
+class ResourceRequestBody;
 }  // close namespace content
 
 namespace blpwtk2 {
@@ -37,7 +38,8 @@ class InProcessResourceLoaderBridge
     : public content::ResourceLoaderBridge {
   public:
     InProcessResourceLoaderBridge(
-        const content::RequestInfo& requestInfo);
+        const content::RequestInfo& requestInfo,
+        content::ResourceRequestBody* requestBody);
     virtual ~InProcessResourceLoaderBridge();
 
     // content::ResourceLoaderBridge overrides
@@ -46,6 +48,7 @@ class InProcessResourceLoaderBridge
     void SyncLoad(content::SyncLoadResponse* response) override;
 
   private:
+    class InProcessURLRequest;
     class InProcessResourceContext;
     scoped_refptr<InProcessResourceContext> d_context;
 

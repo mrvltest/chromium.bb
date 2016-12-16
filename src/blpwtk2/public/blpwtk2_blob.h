@@ -28,6 +28,7 @@
 #ifdef BLPWTK2_IMPLEMENTATION
 #include <third_party/skia/include/core/SkStream.h>
 #include <third_party/skia/include/core/SkBitmap.h>
+#include <storage/common/data_element.h>
 #endif // BLPWTK2_IMPLEMENTATION
 
 namespace blpwtk2 {
@@ -47,6 +48,7 @@ class BLPWTK2_EXPORT Blob {
 #ifdef BLPWTK2_IMPLEMENTATION
     SkDynamicMemoryWStream& makeSkStream();
     SkBitmap& makeSkBitmap();
+    void makeStorageDataElement(const storage::DataElement& element);
 #endif  // BLPWTK2_IMPLEMENTATION
 
   private:
