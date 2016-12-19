@@ -34,6 +34,7 @@ namespace blpwtk2 {
 
 class ResourceLoader;
 class StringRef;
+class WebViewHostObserver;
 struct ToolkitCreateParamsImpl;
 
 // This class contains parameters that are passed to blpwtk2 when initializing

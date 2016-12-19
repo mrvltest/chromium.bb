@@ -490,7 +490,7 @@ bool ChannelWin::ProcessOutgoingMessages(
     return true;
 
   if (!pipe_.IsValid()){
-      LOG(ERROR) << "ChannelWin::ProcessOutgoingMessages: Invalid pipe ";
+      LOG(WARNING) << "ChannelWin::ProcessOutgoingMessages: Invalid pipe ";
       return false;
   }
 

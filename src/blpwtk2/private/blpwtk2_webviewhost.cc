@@ -80,6 +80,17 @@ WebViewHost::~WebViewHost()
     d_processHost->removeRoute(d_routingId);
 }
 
+
+WebView* WebViewHost::getWebView()
+{
+    return d_webView;
+}
+
+int WebViewHost::getRoutingId() const
+{
+    return d_routingId;
+}
+
 // IPC::Listener overrides
 
 bool WebViewHost::OnMessageReceived(const IPC::Message& message)
