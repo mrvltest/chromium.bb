@@ -41,9 +41,12 @@
       'type': '<(gtest_target_type)',
       'dependencies': [
         'ipc',
+        'test_support_ipc',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_base',
         '../crypto/crypto.gyp:crypto',
+        '../testing/gtest.gyp:gtest',
       ],
       'include_dirs': [
         '..'
@@ -99,9 +102,12 @@
       # TODO(viettrungluu): Figure out which dependencies are really needed.
       'dependencies': [
         'ipc',
+        'test_support_ipc',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_base',
         '../base/base.gyp:test_support_perf',
+        '../testing/gtest.gyp:gtest',
       ],
       'include_dirs': [
         '..'
@@ -126,6 +132,31 @@
             }],
           ],
         }]
+      ],
+    },
+    {
+      'target_name': 'test_support_ipc',
+      'type': 'static_library',
+      'dependencies': [
+        'ipc',
+        '../base/base.gyp:base',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'sources': [
+        'ipc_multiprocess_test.cc',
+        'ipc_multiprocess_test.h',
+        'ipc_perftest_support.cc',
+        'ipc_perftest_support.h',
+        'ipc_security_test_util.cc',
+        'ipc_security_test_util.h',
+        'ipc_test_base.cc',
+        'ipc_test_base.h',
+        'ipc_test_channel_listener.cc',
+        'ipc_test_channel_listener.h',
+        'ipc_test_sink.cc',
+        'ipc_test_sink.h',
+        'test_util_mac.cc',
+        'test_util_mac.h',
       ],
     },
   ],
@@ -157,6 +188,68 @@
               'msvs_target_platform': 'x64',
             },
           },
+        },
+      ],
+    }],
+    ['OS == "android"', {
+      'targets': [
+        {
+          'target_name': 'ipc_tests_apk',
+          'type': 'none',
+          'dependencies': [
+            'ipc_tests',
+          ],
+          'variables': {
+            'test_suite_name': 'ipc_tests',
+          },
+          'includes': [ '../build/apk_test.gypi' ],
+        },
+        {
+          'target_name': 'ipc_perftests_apk',
+          'type': 'none',
+          'dependencies': [
+            'ipc_perftests',
+          ],
+          'variables': {
+            'test_suite_name': 'ipc_perftests',
+          },
+          'includes': [ '../build/apk_test.gypi' ],
+        }
+      ],
+      'conditions': [
+        ['test_isolation_mode != "noop"', {
+          'targets': [
+            {
+              'target_name': 'ipc_tests_apk_run',
+              'type': 'none',
+              'dependencies': [
+                'ipc_tests_apk',
+              ],
+              'includes': [
+                '../build/isolate.gypi',
+              ],
+              'sources': [
+                'ipc_tests_apk.isolate',
+              ],
+            },
+          ],
+        }],
+      ],
+    }],
+    ['test_isolation_mode != "noop" and OS != "android"', {
+      'targets': [
+        {
+          'target_name': 'ipc_tests_run',
+          'type': 'none',
+          'dependencies': [
+            'ipc_tests',
+          ],
+          'includes': [
+            '../build/isolate.gypi',
+          ],
+          'sources': [
+            'ipc_tests.isolate',
+          ],
         },
       ],
     }],

@@ -243,10 +243,6 @@ def main(args):
   # DirectX SDK.  If you don't have BPCDEV_PATH setup, then you will get it
   # from the default installed location.
   bpcDevPath = os.environ.get('BPCDEV_PATH')
-  if bpcDevPath:
-    windowsSdkPath = os.path.join(bpcDevPath, 'win_sdk8.1')
-    if os.path.isdir(windowsSdkPath):
-      applyVariableToEnvironment('GYP_DEFINES', 'windows_sdk_path', windowsSdkPath.replace('\\', '/'))
 
   if 'GYP_GENERATORS' in os.environ:
     return execGyp(args)

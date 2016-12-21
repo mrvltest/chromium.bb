@@ -322,6 +322,7 @@
       'type': 'static_library',
       'dependencies': [
         '../../base/base.gyp:base',
+        '../../testing/gtest.gyp:gtest',
         'mojo_public_test_support',
       ],
       'sources': [

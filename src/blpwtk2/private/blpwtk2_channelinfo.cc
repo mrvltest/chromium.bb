@@ -31,7 +31,7 @@
 
 namespace blpwtk2 {
 
-const uint16 PICKLE_VERSION = 1;  // Increment this version whenever the
+const uint16_t PICKLE_VERSION = 1;  // Increment this version whenever the
                                   // serialization format changes.
 
 void ChannelInfo::loadSwitchesFromCommandLine(const base::CommandLine& commandLine)
@@ -71,7 +71,7 @@ bool ChannelInfo::deserialize(const StringRef& data)
 
     base::Pickle pickle(decoded.data(), decoded.size());
     base::PickleIterator it(pickle);
-    uint16 versionCheck;
+    uint16_t versionCheck;
     if (!it.ReadUInt16(&versionCheck) || versionCheck != PICKLE_VERSION)
         return false;
     if (!it.ReadString(&d_channelId))

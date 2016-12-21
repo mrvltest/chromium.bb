@@ -1194,6 +1194,7 @@
         'shared_memory_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_base',
         '../gpu/gpu.gyp:command_buffer_common',
         '../gpu/gpu.gyp:gpu_unittest_utils',
         '../skia/skia.gyp:skia',
@@ -1475,6 +1476,10 @@
       'target_name': 'media_perftests',
       'type': '<(gtest_target_type)',
       'dependencies': [
+        '../base/base.gyp:test_support_base',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
+        '../testing/perf/perf_test.gyp:perf_test',
         '../third_party/libyuv/libyuv.gyp:libyuv',
         '../ui/gfx/gfx.gyp:gfx',
         '../ui/gfx/gfx.gyp:gfx_geometry',
@@ -1616,6 +1621,9 @@
       'dependencies': [
         'audio_test_config',
         'media_test_support',
+        '../base/base.gyp:test_support_base',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
         '../ui/gfx/gfx.gyp:gfx_test_support',
         '../url/url.gyp:url_lib',
       ],
@@ -1633,6 +1641,8 @@
         'shared_memory_support',
         '../base/base.gyp:base',
         '../skia/skia.gyp:skia',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'audio/audio_unittest_util.cc',
@@ -2010,6 +2020,9 @@
           'target_name': 'ffmpeg_regression_tests',
           'type': 'executable',
           'dependencies': [
+            '../base/base.gyp:test_support_base',
+            '../testing/gmock.gyp:gmock',
+            '../testing/gtest.gyp:gtest',
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
             '../ui/gfx/gfx.gyp:gfx_geometry',
             'media',

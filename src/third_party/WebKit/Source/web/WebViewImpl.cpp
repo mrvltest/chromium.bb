@@ -2131,7 +2131,7 @@ WebInputEventResult WebViewImpl::handleInputEvent(const WebInputEvent& inputEven
 {
     // SHEZ: Ignore input events if the page is null.
     if (!page())
-        return true;
+        return WebInputEventResult::HandledSystem;
 
     // TODO(dcheng): The fact that this is getting called when there is no local
     // main frame is problematic and probably indicates a bug in the input event
@@ -2157,7 +2157,7 @@ WebInputEventResult WebViewImpl::handleInputEvent(const WebInputEvent& inputEven
 
     TRACE_EVENT1("input", "WebViewImpl::handleInputEvent", "type", inputTypeToName(inputEvent.type));
     if ((m_rubberbandingForcedOn || m_isAltDragRubberbandingEnabled) && handleAltDragRubberbandEvent(inputEvent))
-        return true;
+        return WebInputEventResult::HandledSystem;
 
     // If we've started a drag and drop operation, ignore input events until
     // we're done.

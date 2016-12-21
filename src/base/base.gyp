@@ -62,6 +62,49 @@
             '../build/linux/system.gyp:glib',
           ],
         }],
+        ['OS == "android" and _toolset == "host"', {
+          # Always build base as a static_library for host toolset, even if
+          # we're doing a component build. Specifically, we only care about the
+          # target toolset using components since that's what developers are
+          # focusing on. In theory we should do this more generally for all
+          # targets when building for host, but getting the gyp magic
+          # per-toolset for the "component" variable is hard, and we really only
+          # need base on host.
+          'type': 'static_library',
+          # Base for host support is the minimum required to run the
+          # ssl false start blacklist tool. It requires further changes
+          # to generically support host builds (and tests).
+          # Note: when building for host, gyp has OS == "android",
+          # hence the *_android.cc files are included but the actual code
+          # doesn't have OS_ANDROID / ANDROID defined.
+          'conditions': [
+            ['host_os == "mac"', {
+              'sources/': [
+                ['exclude', '^native_library_linux\\.cc$'],
+                ['exclude', '^process_util_linux\\.cc$'],
+                ['exclude', '^sys_info_linux\\.cc$'],
+                ['exclude', '^sys_string_conversions_linux\\.cc$'],
+                ['exclude', '^worker_pool_linux\\.cc$'],
+              ],
+            }],
+          ],
+        }],
+        ['OS == "android" and _toolset == "target"', {
+          'dependencies': [
+            'base_java',
+            'base_jni_headers',
+            '../build/android/ndk.gyp:cpu_features',
+            '../third_party/ashmem/ashmem.gyp:ashmem',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-llog',
+            ],
+          },
+          'sources!': [
+            'debug/stack_trace_posix.cc',
+          ],
+        }],
         ['os_bsd==1', {
           'include_dirs': [
             '/usr/local/include',
@@ -206,6 +249,9 @@
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
       ],
+      'includes': [
+        '../build/android/increase_size_for_speed.gypi',
+      ],
     },
     {
       'target_name': 'base_i18n',
@@ -249,12 +295,16 @@
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/icu/icu.gyp:icui18n',
       ],
+      'includes': [
+        '../build/android/increase_size_for_speed.gypi',
+      ],
     },
     {
       'target_name': 'base_message_loop_tests',
       'type': 'static_library',
       'dependencies': [
         'base',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'message_loop/message_loop_test.cc',
@@ -315,6 +365,9 @@
         'prefs/value_map_pref_store.h',
         'prefs/writeable_pref_store.h',
       ],
+      'includes': [
+        '../build/android/increase_size_for_speed.gypi',
+      ],
     },
     {
       'target_name': 'base_prefs_test_support',
@@ -322,6 +375,7 @@
       'dependencies': [
         'base',
         'base_prefs',
+        '../testing/gmock.gyp:gmock',
       ],
       'sources': [
         'prefs/mock_pref_change_callback.cc',
@@ -353,6 +407,9 @@
       'include_dirs': [
         '..',
       ],
+      'includes': [
+        '../build/android/increase_size_for_speed.gypi',
+      ],
     },
     # Include this target for a main() function that simply instantiates
     # and runs a base::TestSuite.
@@ -360,6 +417,7 @@
       'target_name': 'run_all_unittests',
       'type': 'static_library',
       'dependencies': [
+        'test_support_base',
       ],
       'sources': [
         'test/run_all_unittests.cc',
@@ -624,7 +682,10 @@
         'base_prefs_test_support',
         'base_static',
         'run_all_unittests',
+        'test_support_base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
@@ -785,10 +846,217 @@
       ],  # target_conditions
     },
     {
+      # GN: //base:base_perftests
+      'target_name': 'base_perftests',
+      'type': '<(gtest_target_type)',
+      'dependencies': [
+        'base',
+        'test_support_base',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'sources': [
+        'message_loop/message_pump_perftest.cc',
+        'test/run_all_unittests.cc',
+        'threading/thread_perftest.cc',
+        '../testing/perf/perf_test.cc'
+      ],
+      'conditions': [
+        ['OS == "android"', {
+          'dependencies': [
+            '../testing/android/native_test.gyp:native_test_native_code',
+          ],
+        }],
+      ],
+    },
+    {
+      # GN: //base:base_i18n_perftests
+      'target_name': 'base_i18n_perftests',
+      'type': '<(gtest_target_type)',
+      'dependencies': [
+        'test_support_base',
+        'test_support_perf',
+        '../testing/gtest.gyp:gtest',
+        'base_i18n',
+        'base',
+      ],
+      'sources': [
+        'i18n/streaming_utf8_validator_perftest.cc',
+      ],
+    },
+    {
+      # GN: //base/test:test_support
+      'target_name': 'test_support_base',
+      'type': 'static_library',
+      'dependencies': [
+        'base',
+        'base_static',
+        'base_i18n',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
+        '../third_party/icu/icu.gyp:icuuc',
+        '../third_party/libxml/libxml.gyp:libxml',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+      ],
+      'export_dependent_settings': [
+        'base',
+      ],
+      'conditions': [
+        ['os_posix==0', {
+          'sources!': [
+            'test/scoped_locale.cc',
+            'test/scoped_locale.h',
+          ],
+        }],
+        ['os_bsd==1', {
+          'sources!': [
+            'test/test_file_util_linux.cc',
+          ],
+        }],
+        ['OS == "android"', {
+          'dependencies': [
+            'base_unittests_jni_headers',
+            'base_java_unittest_support',
+          ],
+        }],
+        ['OS == "ios"', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'sources': [
+        'test/gtest_util.cc',
+        'test/gtest_util.h',
+        'test/gtest_xml_unittest_result_printer.cc',
+        'test/gtest_xml_unittest_result_printer.h',
+        'test/gtest_xml_util.cc',
+        'test/gtest_xml_util.h',
+        'test/histogram_tester.cc',
+        'test/histogram_tester.h',
+        'test/icu_test_util.cc',
+        'test/icu_test_util.h',
+        'test/ios/wait_util.h',
+        'test/ios/wait_util.mm',
+        'test/launcher/test_launcher.cc',
+        'test/launcher/test_launcher.h',
+        'test/launcher/test_result.cc',
+        'test/launcher/test_result.h',
+        'test/launcher/test_results_tracker.cc',
+        'test/launcher/test_results_tracker.h',
+        'test/launcher/unit_test_launcher.cc',
+        'test/launcher/unit_test_launcher.h',
+        'test/launcher/unit_test_launcher_ios.cc',
+        'test/mock_chrome_application_mac.h',
+        'test/mock_chrome_application_mac.mm',
+        'test/mock_devices_changed_observer.cc',
+        'test/mock_devices_changed_observer.h',
+        'test/mock_entropy_provider.cc',
+        'test/mock_entropy_provider.h',
+        'test/mock_log.cc',
+        'test/mock_log.h',
+        'test/multiprocess_test.cc',
+        'test/multiprocess_test.h',
+        'test/multiprocess_test_android.cc',
+        'test/null_task_runner.cc',
+        'test/null_task_runner.h',
+        'test/opaque_ref_counted.cc',
+        'test/opaque_ref_counted.h',
+        'test/perf_log.cc',
+        'test/perf_log.h',
+        'test/perf_test_suite.cc',
+        'test/perf_test_suite.h',
+        'test/perf_time_logger.cc',
+        'test/perf_time_logger.h',
+        'test/power_monitor_test_base.cc',
+        'test/power_monitor_test_base.h',
+        'test/scoped_locale.cc',
+        'test/scoped_locale.h',
+        'test/scoped_path_override.cc',
+        'test/scoped_path_override.h',
+        'test/sequenced_task_runner_test_template.cc',
+        'test/sequenced_task_runner_test_template.h',
+        'test/sequenced_worker_pool_owner.cc',
+        'test/sequenced_worker_pool_owner.h',
+        'test/simple_test_clock.cc',
+        'test/simple_test_clock.h',
+        'test/simple_test_tick_clock.cc',
+        'test/simple_test_tick_clock.h',
+        'test/task_runner_test_template.cc',
+        'test/task_runner_test_template.h',
+        'test/test_discardable_memory_allocator.cc',
+        'test/test_discardable_memory_allocator.h',
+        'test/test_file_util.cc',
+        'test/test_file_util.h',
+        'test/test_file_util_android.cc',
+        'test/test_file_util_linux.cc',
+        'test/test_file_util_mac.cc',
+        'test/test_file_util_posix.cc',
+        'test/test_file_util_win.cc',
+        'test/test_io_thread.cc',
+        'test/test_io_thread.h',
+        'test/test_listener_ios.h',
+        'test/test_listener_ios.mm',
+        'test/test_mock_time_task_runner.cc',
+        'test/test_mock_time_task_runner.h',
+        'test/test_pending_task.cc',
+        'test/test_pending_task.h',
+        'test/test_reg_util_win.cc',
+        'test/test_reg_util_win.h',
+        'test/test_shortcut_win.cc',
+        'test/test_shortcut_win.h',
+        'test/test_simple_task_runner.cc',
+        'test/test_simple_task_runner.h',
+        'test/test_suite.cc',
+        'test/test_suite.h',
+        'test/test_support_android.cc',
+        'test/test_support_android.h',
+        'test/test_support_ios.h',
+        'test/test_support_ios.mm',
+        'test/test_switches.cc',
+        'test/test_switches.h',
+        'test/test_timeouts.cc',
+        'test/test_timeouts.h',
+        'test/test_ui_thread_android.cc',
+        'test/test_ui_thread_android.h',
+        'test/thread_test_helper.cc',
+        'test/thread_test_helper.h',
+        'test/trace_event_analyzer.cc',
+        'test/trace_event_analyzer.h',
+        'test/trace_to_file.cc',
+        'test/trace_to_file.h',
+        'test/user_action_tester.cc',
+        'test/user_action_tester.h',
+        'test/values_test_util.cc',
+        'test/values_test_util.h',
+      ],
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', '^test/test_file_util_mac\\.cc$'],
+          ],
+        }],
+        ['OS == "ios" and _toolset == "target"', {
+          'sources!': [
+            # iOS uses its own unit test launcher.
+            'test/launcher/unit_test_launcher.cc',
+          ],
+        }],
+        ['OS == "ios" and _toolset == "host"', {
+          'sources!': [
+            'test/launcher/unit_test_launcher_ios.cc',
+            'test/test_support_ios.h',
+            'test/test_support_ios.mm',
+          ],
+        }],
+      ],  # target_conditions
+    },
+    {
       'target_name': 'test_support_perf',
       'type': 'static_library',
       'dependencies': [
         'base',
+        'test_support_base',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'test/run_all_perftests.cc',
@@ -808,6 +1076,7 @@
             'test/launcher/test_launcher_nacl_nonsfi.cc',
           ],
           'dependencies': [
+            'test_support_base',
           ],
         }, {
           'type': 'none',
@@ -1083,6 +1352,9 @@
           'include_dirs': [
             '..',
           ],
+          'includes': [
+            '../build/android/increase_size_for_speed.gypi',
+          ],
         },
         {
           'target_name': 'xdg_mime',
@@ -1111,6 +1383,9 @@
             'third_party/xdg_mime/xdgmimemagic.h',
             'third_party/xdg_mime/xdgmimeparent.c',
             'third_party/xdg_mime/xdgmimeparent.h',
+          ],
+          'includes': [
+            '../build/android/increase_size_for_speed.gypi',
           ],
         },
       ],

@@ -1279,7 +1279,7 @@ bool PrintWebViewHelper::RenderPreviewPage(
 
   base::TimeTicks begin_time = base::TimeTicks::Now();
   PrintPageInternal(page_params, print_preview_context_.prepared_frame(),
-                    initial_render_metafile, nullptr, nullptr);
+                    initial_render_metafile, nullptr, nullptr,page_number);
   print_preview_context_.RenderedPreviewPage(
       base::TimeTicks::Now() - begin_time);
   if (draft_metafile.get()) {
@@ -1771,7 +1771,8 @@ void PrintWebViewHelper::PrintPageInternal(
     blink::WebFrame* frame,
     PdfMetafileSkia* metafile,
     gfx::Size* page_size_in_dpi,
-    gfx::Rect* content_area_in_dpi) {
+    gfx::Rect* content_area_in_dpi,
+    int page_count) {
   PageSizeMargins page_layout_in_points;
   double css_scale_factor = 1.0f;
   ComputePageLayoutInPointsForCss(frame, params.page_number, params.params,
@@ -1824,7 +1825,10 @@ void PrintWebViewHelper::PrintPageInternal(
   if (params.params.display_header_footer) {
     // |page_number| is 0-based, so 1 is added.
     PrintHeaderAndFooter(canvas, params.page_number + 1,
-                         print_preview_context_.total_page_count(), *frame,
+                         // print_preview_context is initialized only when print
+                         // preview is displayed
+                         page_count, //print_preview_context_.total_page_count(), 
+                         *frame,
                          scale_factor, page_layout_in_points, params.params);
   }
 #endif  // defined(ENABLE_PRINT_PREVIEW)

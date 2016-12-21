@@ -22,6 +22,9 @@
         'rtc_sound_tests',
         'rtc_xmllite_unittest',
         'rtc_xmpp_unittest',
+        'sound/sound.gyp:rtc_sound',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
       ],
       'conditions': [
         ['OS=="android"', {
@@ -55,6 +58,7 @@
         'video/video_quality_test.h',
       ],
       'dependencies': [
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(webrtc_root)/modules/modules.gyp:video_render',
         '<(webrtc_root)/modules/modules.gyp:video_capture_module_internal_impl',
         '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
@@ -86,6 +90,7 @@
       ],
       'dependencies': [
         'video_quality_test',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
         'test/webrtc_test_common.gyp:webrtc_test_common',
         'test/webrtc_test_common.gyp:webrtc_test_renderer',
@@ -111,6 +116,7 @@
       ],
       'dependencies': [
         'video_quality_test',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
         'test/webrtc_test_common.gyp:webrtc_test_common',
         'test/webrtc_test_common.gyp:webrtc_test_renderer',
@@ -135,6 +141,7 @@
         }],
       ],
       'dependencies': [
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
         'test/webrtc_test_common.gyp:webrtc_test_common',
         'test/webrtc_test_common.gyp:webrtc_test_renderer',
@@ -174,6 +181,8 @@
         'video/vie_remb_unittest.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(webrtc_root)/common.gyp:webrtc_common',
         '<(webrtc_root)/modules/modules.gyp:rtp_rtcp',
         '<(webrtc_root)/modules/modules.gyp:video_capture',
@@ -257,6 +266,7 @@
         'GTEST_RELATIVE_PATH',
       ],
       'dependencies': [
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         'base/base.gyp:rtc_base',
         'test/test.gyp:test_main',
       ],

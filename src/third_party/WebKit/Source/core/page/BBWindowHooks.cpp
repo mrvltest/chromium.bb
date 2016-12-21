@@ -20,7 +20,6 @@
  * IN THE SOFTWARE.
  */
 
-#include "config.h"
 #include "core/page/BBWindowHooks.h"
 
 #include "core/dom/CharacterData.h"

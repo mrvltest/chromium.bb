@@ -39,6 +39,7 @@
 #include <content/public/browser/render_process_host.h>
 #include <content/public/browser/resource_dispatcher_host.h>
 #include <content/public/browser/resource_dispatcher_host_delegate.h>
+#include <content/public/browser/resource_request_info.h>
 #include <content/public/browser/web_contents.h>
 #include <content/public/common/url_constants.h>
 #include <chrome/browser/spellchecker/spellcheck_message_filter.h>
@@ -59,7 +60,7 @@ public:
 
     bool HandleExternalProtocol(const GURL& url,
                                 int child_id,
-                                int route_id,
+                                const content::ResourceRequestInfo::WebContentsGetter& web_contents_getter,
                                 bool is_main_frame,
                                 ui::PageTransition page_transition,
                                 bool has_user_gesture) override;
@@ -70,46 +71,43 @@ private:
 
     static void doHandleExternalProtocol(const GURL& url,
                                          int child_id,
-                                         int route_id);
+                                         const content::ResourceRequestInfo::WebContentsGetter& web_contents_getter);
 };
 
 }  // close unnamed namespace
 
 bool ResourceDispatcherHostDelegate::HandleExternalProtocol(const GURL& url,
                                                             int child_id,
-                                                            int route_id,
+                                                            const content::ResourceRequestInfo::WebContentsGetter& web_contents_getter,
                                                             bool is_main_frame,
                                                             ui::PageTransition page_transition,
                                                             bool has_user_gesture)
 {
     if (Statics::isInBrowserMainThread()) {
-        doHandleExternalProtocol(url, child_id, route_id);
+        doHandleExternalProtocol(url, child_id, web_contents_getter);
     }
     else {
         DCHECK(Statics::browserMainMessageLoop);
         Statics::browserMainMessageLoop->PostTask(
             FROM_HERE,
-            base::Bind(&doHandleExternalProtocol, url, child_id, route_id));
+            base::Bind(&doHandleExternalProtocol, url, child_id, web_contents_getter));
     }
     return true;
 }
 
 void ResourceDispatcherHostDelegate::doHandleExternalProtocol(const GURL& url,
                                                               int child_id,
-                                                              int route_id)
+                                                              const content::ResourceRequestInfo::WebContentsGetter& web_contents_getter)
 {
     DCHECK(Statics::isInBrowserMainThread());
 
-    content::RenderViewHost* viewHost =
-        content::RenderViewHost::FromID(child_id, route_id);
-    if (!viewHost) {
-        // RenderViewHost has gone away.
+    content::WebContents* webContents = web_contents_getter.Run();
+    if (!webContents) {
+        // comment from chrome_resource_dispatcher_host_delegate.cc
+        // If there is no longer a WebContents, the request may have raced with tab
+        // closing. Don't fire the external request. (It may have been a prerender.)
         return;
     }
-
-    content::WebContents* webContents =
-        content::WebContents::FromRenderViewHost(viewHost);
-    DCHECK(webContents);
 
     WebViewImpl* webViewImpl =
         static_cast<WebViewImpl*>(webContents->GetDelegate());

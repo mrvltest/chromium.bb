@@ -102,7 +102,7 @@ ScriptController::ScriptController(LocalFrame* frame)
     // If this is true, then callstack capturing will be enabled by
     // InspectorConsoleAgent.
     if (!s_stackCaptureControlledByInspector && !s_enabledStackCaptureInConstructor) {
-        setCaptureCallStackForUncaughtExceptions_bb(true);
+        setCaptureCallStackForUncaughtExceptions_bb(isolate(), true);
         s_enabledStackCaptureInConstructor = true;
     }
 }

@@ -164,6 +164,8 @@ void WindowFeatures::setWindowFeature(const String& keyString, const String& val
         scrollbarsVisible = value;
     } else if (keyString == "noopener") {
         noopener = true;
+    } else if (value == 1) {
+        additionalFeatures.append(keyString);
     } else {
         additionalFeatures.append(keyString + "=" + valueString);
     }

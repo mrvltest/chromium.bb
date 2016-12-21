@@ -64,7 +64,7 @@ class NET_EXPORT HostPortPair {
   // These references to the internal structure are provided to simplify IPC
   // serialization.
   std::string& internalHost() { return host_; }
-  uint16& internalPort() { return port_; }
+  uint16_t& internalPort() { return port_; }
 
   // ToString() will convert the HostPortPair to "host:port".  If |host_| is an
   // IPv6 literal, it will add brackets around |host_|.

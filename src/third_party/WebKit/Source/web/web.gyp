@@ -84,6 +84,7 @@
             'conditions': [
                 ['component=="shared_library"', {
                     'dependencies': [
+                        '<(DEPTH)/base/base.gyp:base',
                         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
                         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
                         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',

@@ -41,6 +41,9 @@ class CONTENT_EXPORT RenderWidgetHostOwnerDelegate {
   // The RenderWidgetHost got the focus.
   virtual void RenderWidgetGotFocus() = 0;
 
+  // The RenderWidgetHost lost the focus.
+  virtual void RenderWidgetLostFocus() = 0;
+  
   // The RenderWidgetHost will be hidden or shown.
   virtual void RenderWidgetWillBeHidden() = 0;
   virtual void RenderWidgetWillBeShown() = 0;

@@ -204,7 +204,7 @@ void ProcessHostImpl::OnBadMessageReceived(const IPC::Message& message)
     LOG(ERROR) << "bad message " << message.type();
 }
 
-void ProcessHostImpl::OnChannelConnected(int32 peer_pid)
+void ProcessHostImpl::OnChannelConnected(int32_t peer_pid)
 {
     LOG(INFO) << "channel connected: peer_pid(" << peer_pid << ")";
     if (peer_pid == base::GetCurrentProcId()) {

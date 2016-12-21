@@ -71,7 +71,7 @@ void WebFrameImpl::setContentSettingsDelegate(WebContentSettingsDelegate *conten
 }
 
 // blink::WebContentSettingsClient overrides
-bool WebFrameImpl::allowDisplayingInsecureContent(bool enabledPerSettings, const blink::WebSecurityOrigin& securityOrigin, const blink::WebURL& url)
+bool WebFrameImpl::allowDisplayingInsecureContent(bool enabledPerSettings, const blink::WebURL& url)
 {
     DCHECK(d_contentSettingsDelegate) << "WebContentSettingsDelegate not set";
     return d_contentSettingsDelegate->allowDisplayingInsecureContent(enabledPerSettings);

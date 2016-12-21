@@ -635,6 +635,9 @@
           'target_name': 'breakpad_unittests',
           'type': 'executable',
           'dependencies': [
+            '../testing/gtest.gyp:gtest',
+            '../testing/gtest.gyp:gtest_main',
+            '../testing/gmock.gyp:gmock',
             'breakpad_client',
             'breakpad_processor_support',
             'linux_dumper_unittest_helper',

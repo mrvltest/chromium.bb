@@ -430,8 +430,8 @@ bool ResourceDispatcher::RemovePendingRequest(int request_id) {
   bool release_downloaded_file = request_info->download_to_file;
 
   ReleaseResourcesInMessageQueue(&request_info->deferred_message_queue);
-  if (it->second.bridge)
-    delete it->second.bridge;
+  if (it->second.get()->bridge)
+    delete it->second.get()->bridge;
   pending_requests_.erase(it);
 
   if (release_downloaded_file) {
@@ -475,8 +475,8 @@ void ResourceDispatcher::Cancel(int request_id) {
     }
   }
 
-  if (it->second.bridge) {
-    it->second.bridge->Cancel();
+  if (it->second.get()->bridge) {
+    it->second.get()->bridge->Cancel();
     RemovePendingRequest(request_id);
     return;
   }
@@ -656,13 +656,13 @@ int ResourceDispatcher::StartAsync(const RequestInfo& request_info,
 
       bridge->Start(peer);
       pending_requests_[request_id] =
-          PendingRequestInfo(peer,
+          make_scoped_ptr(new PendingRequestInfo(peer,
                              bridge.release(),
                              request_info.request_type,
                              request_info.requestor_pid,
                              extra_data->frame_origin(),
                              request_info.url,
-                             request_info.download_to_file);
+                             request_info.download_to_file));
       return request_id;
   }
 

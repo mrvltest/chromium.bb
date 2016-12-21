@@ -814,7 +814,7 @@ void WebViewImpl::UpdateTargetURL(content::WebContents* source,
                                   const GURL& url)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
     if (d_wasDestroyed) return;
     if (d_delegate)
         d_delegate->updateTargetURL(this, url.spec());
@@ -824,7 +824,7 @@ void WebViewImpl::LoadingStateChanged(content::WebContents* source,
                                       bool to_different_document)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
     if (d_wasDestroyed) return;
     if (d_delegate) {
         WebViewDelegate::NavigationState state;
@@ -838,7 +838,7 @@ void WebViewImpl::LoadingStateChanged(content::WebContents* source,
 void WebViewImpl::DidNavigateMainFramePostCommit(content::WebContents* source)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
     d_isReadyForDelete = true;
     if (d_wasDestroyed) {
         if (!d_isDeletingSoon) {
@@ -855,7 +855,7 @@ void WebViewImpl::RunFileChooser(content::WebContents* source,
                                  const content::FileChooserParams& params)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
 
     if (!d_delegate) {
         return;
@@ -895,7 +895,7 @@ void WebViewImpl::RunFileChooser(content::WebContents* source,
 bool WebViewImpl::TakeFocus(content::WebContents* source, bool reverse)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
     if (d_wasDestroyed || !d_delegate) return false;
     if (reverse) {
         if (d_focusBeforeEnabled) {
@@ -919,7 +919,7 @@ void WebViewImpl::WebContentsCreated(content::WebContents* source_contents,
                                      content::WebContents* new_contents)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source_contents == d_webContents);
+    DCHECK(source_contents == d_webContents.get());
     WebViewImpl* newView = new WebViewImpl(new_contents,
                                            d_browserContext,
                                            d_properties);
@@ -975,7 +975,7 @@ void WebViewImpl::WebContentsCreated(content::WebContents* source_contents,
 void WebViewImpl::CloseContents(content::WebContents* source)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source == d_webContents);
+    DCHECK(source == d_webContents.get());
     if (d_wasDestroyed) return;
     if (!d_delegate) {
         destroy();
@@ -988,7 +988,7 @@ void WebViewImpl::CloseContents(content::WebContents* source)
 void WebViewImpl::MoveContents(content::WebContents* source_contents, const gfx::Rect& pos)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source_contents == d_webContents);
+    DCHECK(source_contents == d_webContents.get());
     if (d_wasDestroyed) return;
     if (d_delegate) {
         d_delegate->moveView(this, pos.x(), pos.y(), pos.width(), pos.height());
@@ -1143,7 +1143,7 @@ bool WebViewImpl::ShowTooltip(content::WebContents* source_contents,
                               blink::WebTextDirection text_direction_hint)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source_contents == d_webContents);
+    DCHECK(source_contents == d_webContents.get());
     if (d_wasDestroyed) return false;
     if (!d_customTooltipEnabled) return false;
     if (d_delegate) {
@@ -1171,7 +1171,7 @@ void WebViewImpl::FindReply(content::WebContents* source_contents,
                             bool final_update)
 {
     DCHECK(Statics::isInBrowserMainThread());
-    DCHECK(source_contents == d_webContents);
+    DCHECK(source_contents == d_webContents.get());
     DCHECK(d_implClient || d_find.get());
 
     if (d_wasDestroyed) return;

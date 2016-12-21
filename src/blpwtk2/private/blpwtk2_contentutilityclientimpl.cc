@@ -36,7 +36,7 @@ static bool Send(IPC::Message* message)
 
 ContentUtilityClientImpl::ContentUtilityClientImpl()
 {
-    d_handlers.push_back(new PrintingHandler());
+    d_handlers.push_back(new printing::PrintingHandler());
 }
 
 ContentUtilityClientImpl::~ContentUtilityClientImpl()

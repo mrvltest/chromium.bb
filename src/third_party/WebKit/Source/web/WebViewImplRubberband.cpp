@@ -20,7 +20,6 @@
  * IN THE SOFTWARE.
  */
 
-#include "config.h"
 #include "WebViewImpl.h"
 
 #include <vector>

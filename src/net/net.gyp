@@ -146,6 +146,8 @@
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../crypto/crypto.gyp:crypto',
         '../crypto/crypto.gyp:crypto_test_support',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
         '../url/url.gyp:url_lib',
         'balsa',
@@ -154,6 +156,7 @@
         'net_quic_proto',
         'net_derived_sources',
         'net_extras',
+        'net_test_support',
         'simple_quic_tools',
         'stale_while_revalidate_experiment_domains',
       ],
@@ -457,9 +460,11 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_perf',
+        '../testing/gtest.gyp:gtest',
         '../url/url.gyp:url_lib',
         'net',
         'net_extras',
+        'net_test_support',
       ],
       'sources': [
         'base/mime_sniffer_perftest.cc',
@@ -810,6 +815,7 @@
       'dependencies': [
         '../base/base.gyp:base',
         'net',
+        'net_test_support',
       ],
       'sources': [
         'tools/dump_cache/dump_cache.cc',
@@ -1004,6 +1010,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             'net',
+            'net_test_support',
           ],
           'sources': [
             'tools/crash_cache/crash_cache.cc',
@@ -1129,6 +1136,9 @@
           'type': 'executable',
           'dependencies': [
             '../base/base.gyp:base',
+            '../base/base.gyp:test_support_base',
+            '../testing/gtest.gyp:gtest',
+            'net_test_support',
           ],
           'sources': [
             'tools/testserver/run_testserver.cc',
@@ -1166,6 +1176,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             'net',
+            'net_test_support',
           ],
           'sources': [
             'tools/stress_cache/stress_cache.cc',
@@ -1179,6 +1190,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             '../base/base.gyp:base_i18n',
+            '../net/tools/tld_cleanup/tld_cleanup.gyp:tld_cleanup_util',
           ],
           'sources': [
             'tools/tld_cleanup/tld_cleanup.cc',
@@ -1252,9 +1264,12 @@
           'target_name': 'flip_in_mem_edsm_server_unittests',
           'type': 'executable',
           'dependencies': [
+              '../testing/gtest.gyp:gtest',
+              '../testing/gmock.gyp:gmock',
               '../third_party/boringssl/boringssl.gyp:boringssl',
               'flip_in_mem_edsm_server_base',
               'net',
+              'net_test_support',
           ],
           'sources': [
             'tools/flip_server/flip_test_utils.cc',

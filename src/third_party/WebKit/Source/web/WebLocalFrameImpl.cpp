@@ -1636,7 +1636,10 @@ WebString WebLocalFrameImpl::layerTreeAsText(bool showDebugInfo) const
     return WebString(frame()->layerTreeAsText(showDebugInfo ? LayerTreeIncludesDebugInfo : LayerTreeNormal));
 }
 
-class CanvasPainterContext {
+
+class CanvasPainterContext : public DisplayItemClient {
+    FloatRect d_visualRect;
+    
     void paintToGraphicsContext(GraphicsContext& context, FrameView* view, const FloatRect& floatRect)
     {
         // Enter a translation transform
@@ -1649,25 +1652,25 @@ class CanvasPainterContext {
 
         view->updateAllLifecyclePhases();
 
-        view->paintContents(&context, GlobalPaintFlattenCompositingLayers, IntRect(floatRect));
+        view->paintContents(context, GlobalPaintFlattenCompositingLayers, IntRect(floatRect));
     }
 
 public:
      void paint(WebCanvas* canvas, FrameView* view, const FloatRect& floatRect)
      {
-         SkPictureBuilder pictureBuilder(floatRect, &skia::getMetaData(*canvas));
+         d_visualRect = floatRect;
+         SkPictureBuilder pictureBuilder(floatRect, &skia::GetMetaData(*canvas));
          paintToGraphicsContext(pictureBuilder.context(), view, floatRect);
          pictureBuilder.endRecording()->playback(canvas);
      }
 
-     DisplayItemClient displayItemClient() const
-     {
-         return toDisplayItemClient(this);
-     }
-
-     String debugName() const
+     String debugName() const override
      {
          return "CanvasPainterContext";
+     }
+     IntRect visualRect() const override
+     {
+         return IntRect(d_visualRect);
      }
 };
 
@@ -1731,7 +1734,10 @@ void WebLocalFrameImpl::drawInCanvas(const WebRect& rect, const WebString& style
                 webBody.setAttribute(classAttribute, originalStyleClass);
             }
             else {
-                webBody.removeAttribute(classAttribute);
+                // TODO: fix this!
+                // webBody.removeAttribute(classAttribute);
+//                Element *elem = toElement(webBody);
+//                elem->removeAttribute(classAttribute);
             }
         }
     }

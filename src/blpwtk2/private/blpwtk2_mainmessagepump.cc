@@ -508,7 +508,7 @@ void MainMessagePump::ScheduleDelayedWork(const base::TimeTicks& delayed_work_ti
         if (PumpMode::AUTOMATIC == Statics::pumpMode) {
             // If we are in AUTOMATIC mode, and an event is scheduled to be
             // executed immediately, then just make this our auto-pump timer.
-            int64 us = (delayed_work_time - base::TimeTicks::Now()).InMicroseconds();
+            int64_t us = (delayed_work_time - base::TimeTicks::Now()).InMicroseconds();
             if (0 >= us)
                 d_hasAutoPumpTimer = true;
         }

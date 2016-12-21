@@ -491,7 +491,7 @@ static bool fireBbContextMenuEvent(LocalFrame* frame, WebContextMenuData& data, 
 
     RefPtr<CustomEvent> event = CustomEvent::create();
     TrackExceptionState exceptionState;
-    RefPtr<SerializedScriptValue> detailScriptValue = SerializedScriptValueFactory::instance().create(v8::Isolate::GetCurrent(), detailObj, 0, 0, exceptionState);
+    RefPtr<SerializedScriptValue> detailScriptValue = SerializedScriptValueFactory::instance().create(v8::Isolate::GetCurrent(), detailObj, 0, 0, 0, exceptionState);
     if (exceptionState.hadException()) {
         return false;
     }
