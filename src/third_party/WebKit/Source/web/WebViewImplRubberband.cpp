@@ -470,6 +470,12 @@ WTF::String WebViewImpl::getTextInRubberbandImpl(const WebRect& rcOrig)
         const RubberbandCandidate& candidate = stateImpl->m_candidates[i];
         if (candidate.m_clipRect.intersects(rc)) {
             RubberbandCandidate hit = candidate;
+
+            // Don't include any items that are over the bottom edge of the rcOrig.
+            if (candidate.m_absRect.maxY().floor() > rc.maxY().ceil()) {
+                continue;
+            }
+
             hit.m_clipRect.intersect(rc);
             hits.push_back(hit);
         }
@@ -772,6 +778,8 @@ WebRect WebViewImpl::expandRubberbandRect(const WebRect& rcOrig)
     ASSERT(isRubberbanding());
 
     LayoutRect rc(rcOrig);
+    LayoutRect origRect(rcOrig);
+
 
     RubberbandStateImpl* stateImpl = m_rubberbandState->m_impl;
 
@@ -786,7 +794,8 @@ WebRect WebViewImpl::expandRubberbandRect(const WebRect& rcOrig)
                 rc.shiftYEdgeTo(y);
                 expanded = true;
             }
-            if (rc.maxY() < maxY) {
+
+            if (rc.maxY() < maxY && y < origRect.maxY()) {
                 rc.shiftMaxYEdgeTo(maxY);
                 expanded = true;
             }
