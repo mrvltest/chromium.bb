@@ -457,6 +457,15 @@ void WebViewImpl::rootWindowCompositionChanged()
     }
 }
 
+v8::MaybeLocal<v8::Value> WebViewImpl::callFunction(v8::Local<v8::Function> func,
+                                                    v8::Local<v8::Value> recv,
+                                                    int argc,
+                                                    v8::Local<v8::Value> *argv)
+{
+    NOTREACHED() << "callFunction() not supported in WebViewImpl";
+    return v8::MaybeLocal<v8::Value>();
+}
+
 void WebViewImpl::handleInputEvents(const InputEvent *events, size_t eventsCount)
 {
     DCHECK(Statics::isSingleThreadMode());

@@ -25,6 +25,7 @@
 
 #include <blpwtk2_config.h>
 #include <blpwtk2_stringref.h>
+#include <v8.h>
 
 namespace blpwtk2 {
 
@@ -331,6 +332,12 @@ public:
 
     // Notify the webview that desktop composition has been enabled or disabled.
     virtual void rootWindowCompositionChanged() = 0;
+
+    // Call the specified V8 function with instrumentation
+    virtual v8::MaybeLocal<v8::Value> callFunction(v8::Local<v8::Function> func,
+                                                   v8::Local<v8::Value> recv,
+                                                   int argc,
+                                                   v8::Local<v8::Value> *argv) = 0;
 
 protected:
     // Destroy this WebView.  Note that clients of blpwtk2 should use the
