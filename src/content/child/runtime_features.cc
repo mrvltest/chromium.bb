@@ -71,9 +71,9 @@ void SetRuntimeFeaturesDefaultsAndUpdateFromArgs(
     const base::CommandLine& command_line) {
   if (command_line.HasSwitch(switches::kEnableExperimentalWebPlatformFeatures))
     WebRuntimeFeatures::enableExperimentalFeatures(true);
-
-  if (base::FeatureList::IsEnabled(features::kExperimentalFramework))
-    WebRuntimeFeatures::enableExperimentalFramework(true);
+// TODO: Fix this
+///  if (base::FeatureList::IsEnabled(features::kExperimentalFramework))
+///    WebRuntimeFeatures::enableExperimentalFramework(true);
 
   if (command_line.HasSwitch(switches::kEnableWebBluetooth))
     WebRuntimeFeatures::enableWebBluetooth(true);
@@ -182,8 +182,9 @@ void SetRuntimeFeaturesDefaultsAndUpdateFromArgs(
   if (command_line.HasSwitch(switches::kDisablePresentationAPI))
     WebRuntimeFeatures::enablePresentationAPI(false);
 
-  if (base::FeatureList::IsEnabled(features::kWebFontsIntervention))
-    WebRuntimeFeatures::enableWebFontsIntervention(true);
+/// TODO: Fix this
+///  if (base::FeatureList::IsEnabled(features::kWebFontsIntervention))
+///    WebRuntimeFeatures::enableWebFontsIntervention(true);
 
   if (command_line.HasSwitch(switches::kEnableSlimmingPaintV2))
     WebRuntimeFeatures::enableSlimmingPaintV2(true);
