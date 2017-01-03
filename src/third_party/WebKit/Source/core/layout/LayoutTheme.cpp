@@ -845,7 +845,7 @@ Color LayoutTheme::platformTextSearchHighlightColor(bool activeMatch) const
 
 Color LayoutTheme::platformTextSearchColor(bool activeMatch) const
 {
-    return Color::black;
+    return Color(255, 160, 40); // Amber by default
 }
 
 Color LayoutTheme::tapHighlightColor()
