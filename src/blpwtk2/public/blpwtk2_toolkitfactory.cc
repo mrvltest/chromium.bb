@@ -169,6 +169,8 @@ Toolkit* ToolkitFactory::create(const ToolkitCreateParams& params)
     blink::setTextSearchHighlightColor(GetRValue(activeSearchColor), GetGValue(activeSearchColor), GetBValue(activeSearchColor),
                                        GetRValue(inactiveSearchColor), GetGValue(inactiveSearchColor), GetBValue(inactiveSearchColor));
 
+    NativeColor activeSearchTextColor = params.activeTextSearchColor();
+    blink::setTextSearchColor(GetRValue(activeSearchTextColor), GetGValue(activeSearchTextColor), GetBValue(activeSearchTextColor));
 
     if (params.useDefaultPrintSettings()) {
         printing::PrintWebViewHelper::UseDefaultPrintSettings();

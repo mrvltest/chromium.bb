@@ -301,6 +301,11 @@ void setTextSearchHighlightColor(int activeR, int activeG, int activeB,
     LayoutTheme::setTextSearchHighlightColor(activeR, activeG, activeB, inactiveR, inactiveG, inactiveB);
 }
 
+void setTextSearchColor(int activeR, int activeG, int activeB)
+{
+    LayoutTheme::setTextSearchColor(activeR, activeG, activeB);
+}
+
 void enableLogChannel(const char* name)
 {
 #if !LOG_DISABLED

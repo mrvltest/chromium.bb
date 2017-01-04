@@ -208,6 +208,8 @@ class ToolkitCreateParams {
     // currently.
     BLPWTK2_EXPORT void setInactiveTextSearchHighlightColor(NativeColor color);
 
+    BLPWTK2_EXPORT void setActiveTextSearchColor(NativeColor color);
+
     // This method is used to set the HTML file used to format header and
     // footer of printed pages.
     BLPWTK2_EXPORT void setHeaderFooterHTML(const StringRef& htmlContent);
@@ -252,6 +254,7 @@ class ToolkitCreateParams {
     NativeFont tooltipFont() const;
     NativeColor activeTextSearchHighlightColor() const;
     NativeColor inactiveTextSearchHighlightColor() const;
+    NativeColor activeTextSearchColor() const;
     StringRef headerFooterHTMLContent() const;
     bool isPrintBackgroundGraphicsEnabled() const;
     StringRef subProcessModule() const;
