@@ -960,7 +960,7 @@ static bool LayerCanUseLcdText(const LayerImpl* layer,
     return true;
   if (!can_use_lcd_text)
     return false;
-  if (!layer->contents_opaque())
+  if (!layer->contents_opaque() && !layer->contents_opaque_for_lcd_text())
     return false;
 
   if (effect_node->data.screen_space_opacity != 1.f)
