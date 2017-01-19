@@ -6,7 +6,7 @@
 
 #include "public/fpdf_transformpage.h"
 
-#include "../include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_define.h"
 
 namespace {
 
@@ -156,18 +156,16 @@ DLLEXPORT FPDF_BOOL STDCALL FPDFPage_TransFormWithClip(FPDF_PAGE page,
   }
 
   // Need to transform the patterns as well.
-  CPDF_Dictionary* pRes = pPageDic->GetDict(FX_BSTRC("Resources"));
+  CPDF_Dictionary* pRes = pPageDic->GetDict("Resources");
   if (pRes) {
-    CPDF_Dictionary* pPattenDict = pRes->GetDict(FX_BSTRC("Pattern"));
+    CPDF_Dictionary* pPattenDict = pRes->GetDict("Pattern");
     if (pPattenDict) {
-      FX_POSITION pos = pPattenDict->GetStartPos();
-      while (pos) {
-        CPDF_Dictionary* pDict = nullptr;
-        CFX_ByteString key;
-        CPDF_Object* pObj = pPattenDict->GetNextElement(pos, key);
+      for (const auto& it : *pPattenDict) {
+        CPDF_Object* pObj = it.second;
         if (pObj->IsReference())
           pObj = pObj->GetDirect();
 
+        CPDF_Dictionary* pDict = nullptr;
         if (pObj->IsDictionary())
           pDict = pObj->AsDictionary();
         else if (CPDF_Stream* pStream = pObj->AsStream())
@@ -175,10 +173,10 @@ DLLEXPORT FPDF_BOOL STDCALL FPDFPage_TransFormWithClip(FPDF_PAGE page,
         else
           continue;
 
-        CFX_AffineMatrix m = pDict->GetMatrix(FX_BSTRC("Matrix"));
-        CFX_AffineMatrix t = *(CFX_AffineMatrix*)matrix;
+        CFX_Matrix m = pDict->GetMatrix("Matrix");
+        CFX_Matrix t = *(CFX_Matrix*)matrix;
         m.Concat(t);
-        pDict->SetAtMatrix(FX_BSTRC("Matrix"), m);
+        pDict->SetAtMatrix("Matrix", m);
       }
     }
   }
@@ -195,10 +193,10 @@ FPDFPageObj_TransformClipPath(FPDF_PAGEOBJECT page_object,
                               double e,
                               double f) {
   CPDF_PageObject* pPageObj = (CPDF_PageObject*)page_object;
-  if (pPageObj == NULL)
+  if (!pPageObj)
     return;
-  CFX_AffineMatrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
-                          (FX_FLOAT)e, (FX_FLOAT)f);
+  CFX_Matrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
+                    (FX_FLOAT)e, (FX_FLOAT)f);
 
   // Special treatment to shading object, because the ClipPath for shading
   // object is already transformed.
@@ -226,7 +224,7 @@ DLLEXPORT void STDCALL FPDF_DestroyClipPath(FPDF_CLIPPATH clipPath) {
 
 void OutputPath(CFX_ByteTextBuf& buf, CPDF_Path path) {
   const CFX_PathData* pPathData = path;
-  if (pPathData == NULL)
+  if (!pPathData)
     return;
 
   FX_PATHPOINT* pPoints = pPathData->GetPoints();

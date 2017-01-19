@@ -32,7 +32,7 @@ void CPDF_ImageObject::CopyData(const CPDF_PageObject* pSrc) {
   m_pImage = pSrcObj->m_pImage->Clone();
   m_Matrix = pSrcObj->m_Matrix;
 }
-void CPDF_ImageObject::Transform(const CFX_AffineMatrix& matrix) {
+void CPDF_ImageObject::Transform(const CFX_Matrix& matrix) {
   m_Matrix.Concat(matrix);
   CalcBoundingBox();
 }
@@ -88,11 +88,10 @@ FX_BOOL CPDF_Image::LoadImageF(CPDF_Stream* pStream, FX_BOOL bInline) {
   if (m_bInline) {
     m_pInlineDict = ToDictionary(pDict->Clone());
   }
-  m_pOC = pDict->GetDict(FX_BSTRC("OC"));
-  m_bIsMask = !pDict->KeyExist(FX_BSTRC("ColorSpace")) ||
-              pDict->GetInteger(FX_BSTRC("ImageMask"));
-  m_bInterpolate = pDict->GetInteger(FX_BSTRC("Interpolate"));
-  m_Height = pDict->GetInteger(FX_BSTRC("Height"));
-  m_Width = pDict->GetInteger(FX_BSTRC("Width"));
+  m_pOC = pDict->GetDict("OC");
+  m_bIsMask = !pDict->KeyExist("ColorSpace") || pDict->GetInteger("ImageMask");
+  m_bInterpolate = pDict->GetInteger("Interpolate");
+  m_Height = pDict->GetInteger("Height");
+  m_Width = pDict->GetInteger("Width");
   return TRUE;
 }

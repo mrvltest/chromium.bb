@@ -17,14 +17,18 @@
 #include "webrtc/modules/rtp_rtcp/include/rtp_header_parser.h"
 
 namespace webrtc {
-
+class CongestionController;
 class RemoteBitrateEstimator;
+
+namespace voe {
+class ChannelProxy;
+}  // namespace voe
 
 namespace internal {
 
 class AudioReceiveStream final : public webrtc::AudioReceiveStream {
  public:
-  AudioReceiveStream(RemoteBitrateEstimator* remote_bitrate_estimator,
+  AudioReceiveStream(CongestionController* congestion_controller,
                      const webrtc::AudioReceiveStream::Config& config,
                      const rtc::scoped_refptr<webrtc::AudioState>& audio_state);
   ~AudioReceiveStream() override;
@@ -41,14 +45,19 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream {
   // webrtc::AudioReceiveStream implementation.
   webrtc::AudioReceiveStream::Stats GetStats() const override;
 
+  void SetSink(rtc::scoped_ptr<AudioSinkInterface> sink) override;
+
   const webrtc::AudioReceiveStream::Config& config() const;
 
  private:
+  VoiceEngine* voice_engine() const;
+
   rtc::ThreadChecker thread_checker_;
-  RemoteBitrateEstimator* const remote_bitrate_estimator_;
+  RemoteBitrateEstimator* remote_bitrate_estimator_ = nullptr;
   const webrtc::AudioReceiveStream::Config config_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
   rtc::scoped_ptr<RtpHeaderParser> rtp_header_parser_;
+  rtc::scoped_ptr<voe::ChannelProxy> channel_proxy_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(AudioReceiveStream);
 };

@@ -6,8 +6,12 @@
 
 #include "public/fpdf_ext.h"
 
-#include "../include/fsdk_define.h"
 #include "core/include/fxcrt/fx_xml.h"
+#include "fpdfsdk/include/fsdk_define.h"
+
+#ifdef PDF_ENABLE_XFA
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_doc.h"
+#endif  // PDF_ENABLE_XFA
 
 #define FPDFSDK_UNSUPPORT_CALL 100
 
@@ -16,7 +20,6 @@ class CFSDK_UnsupportInfo_Adapter {
   CFSDK_UnsupportInfo_Adapter(UNSUPPORT_INFO* unsp_info) {
     m_unsp_info = unsp_info;
   }
-  //  FX_BOOL NeedToPauseNow();
   void ReportError(int nErrorType);
 
  private:
@@ -96,7 +99,7 @@ FX_BOOL CheckSharedForm(const CXML_Element* pElement, CFX_ByteString cbName) {
     CFX_ByteString space, name;
     CFX_WideString value;
     pElement->GetAttrByIndex(i, space, name, value);
-    if (space == FX_BSTRC("xmlns") && name == FX_BSTRC("adhocwf") &&
+    if (space == "xmlns" && name == "adhocwf" &&
         value == L"http://ns.adobe.com/AcrobatAdhocWorkflow/1.0/") {
       CXML_Element* pVersion = pElement->GetElement("adhocwf", cbName);
       if (!pVersion)
@@ -175,12 +178,14 @@ void CheckUnSupportError(CPDF_Document* pDoc, FX_DWORD err_code) {
   if (pElement)
     CheckSharedForm(pElement, "workflowType");
 
+#ifndef PDF_ENABLE_XFA
   // XFA Forms
   CPDF_InterForm* pInterForm = new CPDF_InterForm(pDoc, FALSE);
   if (pInterForm->HasXFAForm()) {
     FPDF_UnSupportError(FPDF_UNSP_DOC_XFAFORM);
   }
   delete pInterForm;
+#endif  // PDF_ENABLE_XFA
 }
 
 DLLEXPORT int FPDFDoc_GetPageMode(FPDF_DOCUMENT document) {

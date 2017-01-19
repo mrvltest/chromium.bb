@@ -355,7 +355,6 @@ int ssl3_connect(SSL *s) {
           s->state = SSL3_ST_CW_CERT_VRFY_A;
         } else {
           s->state = SSL3_ST_CW_CHANGE_A;
-          s->s3->change_cipher_spec = 0;
         }
 
         s->init_num = 0;
@@ -370,7 +369,6 @@ int ssl3_connect(SSL *s) {
         }
         s->state = SSL3_ST_CW_CHANGE_A;
         s->init_num = 0;
-        s->s3->change_cipher_spec = 0;
         break;
 
       case SSL3_ST_CW_CHANGE_A:
@@ -484,9 +482,12 @@ int ssl3_connect(SSL *s) {
         break;
 
       case SSL3_ST_CR_CHANGE:
-        /* At this point, the next message must be entirely behind a
-         * ChangeCipherSpec. */
-        if (!ssl3_expect_change_cipher_spec(s)) {
+        ret = s->method->ssl_read_change_cipher_spec(s);
+        if (ret <= 0) {
+          goto end;
+        }
+
+        if (!ssl3_do_change_cipher_spec(s)) {
           ret = -1;
           goto end;
         }
@@ -1003,8 +1004,9 @@ int ssl3_get_server_certificate(SSL *s) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_CERT_LENGTH_MISMATCH);
       goto f_err;
     }
+    /* A u24 length cannot overflow a long. */
     data = CBS_data(&certificate);
-    x = d2i_X509(NULL, &data, CBS_len(&certificate));
+    x = d2i_X509(NULL, &data, (long)CBS_len(&certificate));
     if (x == NULL) {
       al = SSL_AD_BAD_CERTIFICATE;
       OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
@@ -1410,7 +1412,8 @@ int ssl3_get_certificate_request(SSL *s) {
 
     data = CBS_data(&distinguished_name);
 
-    xn = d2i_X509_NAME(NULL, &data, CBS_len(&distinguished_name));
+    /* A u16 length cannot overflow a long. */
+    xn = d2i_X509_NAME(NULL, &data, (long)CBS_len(&distinguished_name));
     if (xn == NULL) {
       ssl3_send_alert(s, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
       OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
@@ -1662,7 +1665,6 @@ int ssl3_send_client_key_exchange(SSL *s) {
 
     /* Depending on the key exchange method, compute |pms| and |pms_len|. */
     if (alg_k & SSL_kRSA) {
-      RSA *rsa;
       size_t enc_pms_len;
 
       pms_len = SSL_MAX_MASTER_KEY_LENGTH;
@@ -1673,16 +1675,18 @@ int ssl3_send_client_key_exchange(SSL *s) {
       }
 
       pkey = X509_get_pubkey(s->session->peer);
-      if (pkey == NULL ||
-          pkey->type != EVP_PKEY_RSA ||
-          pkey->pkey.rsa == NULL) {
+      if (pkey == NULL) {
+        goto err;
+      }
+
+      RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+      if (rsa == NULL) {
         OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
         EVP_PKEY_free(pkey);
         goto err;
       }
 
       s->session->key_exchange_info = EVP_PKEY_bits(pkey);
-      rsa = pkey->pkey.rsa;
       EVP_PKEY_free(pkey);
 
       pms[0] = s->client_version >> 8;
@@ -1707,8 +1711,7 @@ int ssl3_send_client_key_exchange(SSL *s) {
       n += enc_pms_len;
 
       /* Log the premaster secret, if logging is enabled. */
-      if (!ssl_ctx_log_rsa_client_key_exchange(s->ctx, p, enc_pms_len, pms,
-                                               pms_len)) {
+      if (!ssl_log_rsa_client_key_exchange(s, p, enc_pms_len, pms, pms_len)) {
         goto err;
       }
 
@@ -2160,13 +2163,13 @@ int ssl3_send_channel_id(SSL *ssl) {
   }
   ssl->rwstate = SSL_NOTHING;
 
-  if (EVP_PKEY_id(ssl->tlsext_channel_id_private) != EVP_PKEY_EC) {
+  EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(ssl->tlsext_channel_id_private);
+  if (ec_key == NULL) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return -1;
   }
 
   int ret = -1;
-  EC_KEY *ec_key = ssl->tlsext_channel_id_private->pkey.ec;
   BIGNUM *x = BN_new();
   BIGNUM *y = BN_new();
   ECDSA_SIG *sig = NULL;

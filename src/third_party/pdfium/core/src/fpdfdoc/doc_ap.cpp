@@ -11,8 +11,7 @@
 #include "pdf_vt.h"
 
 FX_BOOL FPDF_GenerateAP(CPDF_Document* pDoc, CPDF_Dictionary* pAnnotDict) {
-  if (!pAnnotDict ||
-      pAnnotDict->GetConstString("Subtype") != FX_BSTRC("Widget")) {
+  if (!pAnnotDict || pAnnotDict->GetConstString("Subtype") != "Widget") {
     return FALSE;
   }
   CFX_ByteString field_type = FPDF_GetFieldAttr(pAnnotDict, "FT")->GetString();
@@ -124,7 +123,7 @@ CFX_ByteString CPVT_FontMap::GetPDFFontAlias(int32_t nFontIndex) {
   return "";
 }
 CPVT_Provider::CPVT_Provider(IPVT_FontMap* pFontMap) : m_pFontMap(pFontMap) {
-  ASSERT(m_pFontMap != NULL);
+  ASSERT(m_pFontMap);
 }
 CPVT_Provider::~CPVT_Provider() {}
 int32_t CPVT_Provider::GetCharWidth(int32_t nFontIndex,
@@ -292,16 +291,16 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
   CPVT_Color crText = ParseColor(DA);
   FX_BOOL bUseFormRes = FALSE;
   CPDF_Dictionary* pFontDict = NULL;
-  CPDF_Dictionary* pDRDict = pAnnotDict->GetDict(FX_BSTRC("DR"));
-  if (pDRDict == NULL) {
-    pDRDict = pFormDict->GetDict(FX_BSTRC("DR"));
+  CPDF_Dictionary* pDRDict = pAnnotDict->GetDict("DR");
+  if (!pDRDict) {
+    pDRDict = pFormDict->GetDict("DR");
     bUseFormRes = TRUE;
   }
   CPDF_Dictionary* pDRFontDict = NULL;
   if (pDRDict && (pDRFontDict = pDRDict->GetDict("Font"))) {
     pFontDict = pDRFontDict->GetDict(sFontName.Mid(1));
     if (!pFontDict && !bUseFormRes) {
-      pDRDict = pFormDict->GetDict(FX_BSTRC("DR"));
+      pDRDict = pFormDict->GetDict("DR");
       pDRFontDict = pDRDict->GetDict("Font");
       if (pDRFontDict) {
         pFontDict = pDRFontDict->GetDict(sFontName.Mid(1));
@@ -312,14 +311,11 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
     return FALSE;
   }
   if (!pFontDict) {
-    pFontDict = CPDF_Dictionary::Create();
-    if (pFontDict == NULL) {
-      return FALSE;
-    }
-    pFontDict->SetAtName(FX_BSTRC("Type"), "Font");
-    pFontDict->SetAtName(FX_BSTRC("Subtype"), "Type1");
-    pFontDict->SetAtName(FX_BSTRC("BaseFont"), "Helvetica");
-    pFontDict->SetAtName(FX_BSTRC("Encoding"), "WinAnsiEncoding");
+    pFontDict = new CPDF_Dictionary;
+    pFontDict->SetAtName("Type", "Font");
+    pFontDict->SetAtName("Subtype", "Type1");
+    pFontDict->SetAtName("BaseFont", "Helvetica");
+    pFontDict->SetAtName("Encoding", "WinAnsiEncoding");
     pDoc->AddIndirectObject(pFontDict);
     pDRFontDict->SetAtReference(sFontName.Mid(1), pDoc, pFontDict);
   }
@@ -333,25 +329,25 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
     nRotate = pMKDict->GetInteger("R");
   }
   CPDF_Rect rcBBox;
-  CPDF_Matrix matrix;
+  CFX_Matrix matrix;
   switch (nRotate % 360) {
     case 0:
       rcBBox = CPDF_Rect(0, 0, rcAnnot.right - rcAnnot.left,
                          rcAnnot.top - rcAnnot.bottom);
       break;
     case 90:
-      matrix = CPDF_Matrix(0, 1, -1, 0, rcAnnot.right - rcAnnot.left, 0);
+      matrix = CFX_Matrix(0, 1, -1, 0, rcAnnot.right - rcAnnot.left, 0);
       rcBBox = CPDF_Rect(0, 0, rcAnnot.top - rcAnnot.bottom,
                          rcAnnot.right - rcAnnot.left);
       break;
     case 180:
-      matrix = CPDF_Matrix(-1, 0, 0, -1, rcAnnot.right - rcAnnot.left,
-                           rcAnnot.top - rcAnnot.bottom);
+      matrix = CFX_Matrix(-1, 0, 0, -1, rcAnnot.right - rcAnnot.left,
+                          rcAnnot.top - rcAnnot.bottom);
       rcBBox = CPDF_Rect(0, 0, rcAnnot.right - rcAnnot.left,
                          rcAnnot.top - rcAnnot.bottom);
       break;
     case 270:
-      matrix = CPDF_Matrix(0, -1, 1, 0, 0, rcAnnot.top - rcAnnot.bottom);
+      matrix = CFX_Matrix(0, -1, 1, 0, 0, rcAnnot.top - rcAnnot.bottom);
       rcBBox = CPDF_Rect(0, 0, rcAnnot.top - rcAnnot.bottom,
                          rcAnnot.right - rcAnnot.left);
       break;
@@ -419,11 +415,8 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
                 rcBBox.right - fBorderWidth, rcBBox.top - fBorderWidth);
   rcBody.Normalize();
   CPDF_Dictionary* pAPDict = pAnnotDict->GetDict("AP");
-  if (pAPDict == NULL) {
-    pAPDict = CPDF_Dictionary::Create();
-    if (pAPDict == NULL) {
-      return FALSE;
-    }
+  if (!pAPDict) {
+    pAPDict = new CPDF_Dictionary;
     pAnnotDict->SetAt("AP", pAPDict);
   }
   CPDF_Stream* pNormalStream = pAPDict->GetStream("N");
@@ -440,10 +433,7 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
     if (pStreamResList) {
       CPDF_Dictionary* pStreamResFontList = pStreamResList->GetDict("Font");
       if (!pStreamResFontList) {
-        pStreamResFontList = CPDF_Dictionary::Create();
-        if (pStreamResFontList == NULL) {
-          return FALSE;
-        }
+        pStreamResFontList = new CPDF_Dictionary;
         pStreamResList->SetAt("Font", pStreamResFontList);
       }
       if (!pStreamResFontList->KeyExist(sFontName)) {
@@ -688,10 +678,7 @@ static FX_BOOL GenerateWidgetAP(CPDF_Document* pDoc,
       if (pStreamResList) {
         CPDF_Dictionary* pStreamResFontList = pStreamResList->GetDict("Font");
         if (!pStreamResFontList) {
-          pStreamResFontList = CPDF_Dictionary::Create();
-          if (pStreamResFontList == NULL) {
-            return FALSE;
-          }
+          pStreamResFontList = new CPDF_Dictionary;
           pStreamResList->SetAt("Font", pStreamResFontList);
         }
         if (!pStreamResFontList->KeyExist(sFontName)) {

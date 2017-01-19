@@ -6,8 +6,14 @@
 
 #include "public/fpdf_edit.h"
 
-#include "../include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_define.h"
 #include "public/fpdf_formfill.h"
+
+#ifdef PDF_ENABLE_XFA
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_app.h"
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_doc.h"
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_page.h"
+#endif  // PDF_ENABLE_XFA
 
 #if _FX_OS_ == _FX_ANDROID_
 #include "time.h"
@@ -37,7 +43,7 @@ DLLEXPORT FPDF_DOCUMENT STDCALL FPDF_CreateNewDocument() {
   pInfoDict = pDoc->GetInfo();
   if (pInfoDict) {
     if (FSDK_IsSandBoxPolicyEnabled(FPDF_POLICY_MACHINETIME_ACCESS))
-      pInfoDict->SetAt("CreationDate", new CPDF_String(DateStr));
+      pInfoDict->SetAt("CreationDate", new CPDF_String(DateStr, FALSE));
     pInfoDict->SetAt("Creator", new CPDF_String(L"PDFium"));
   }
 
@@ -78,9 +84,15 @@ DLLEXPORT FPDF_PAGE STDCALL FPDFPage_New(FPDF_DOCUMENT document,
   pPageDict->SetAt("Rotate", new CPDF_Number(0));
   pPageDict->SetAt("Resources", new CPDF_Dictionary);
 
+#ifdef PDF_ENABLE_XFA
+  CPDFXFA_Page* pPage =
+      new CPDFXFA_Page((CPDFXFA_Document*)document, page_index);
+  pPage->LoadPDFPage(pPageDict);
+#else   // PDF_ENABLE_XFA
   CPDF_Page* pPage = new CPDF_Page;
   pPage->Load(pDoc, pPageDict);
   pPage->ParseContent();
+#endif  // PDF_ENABLE_XFA
 
   return pPage;
 }
@@ -247,8 +259,8 @@ DLLEXPORT void STDCALL FPDFPageObj_Transform(FPDF_PAGEOBJECT page_object,
   if (!pPageObj)
     return;
 
-  CFX_AffineMatrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
-                          (FX_FLOAT)e, (FX_FLOAT)f);
+  CFX_Matrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
+                    (FX_FLOAT)e, (FX_FLOAT)f);
   pPageObj->Transform(matrix);
 }
 DLLEXPORT void STDCALL FPDFPage_TransformAnnots(FPDF_PAGE page,
@@ -267,13 +279,13 @@ DLLEXPORT void STDCALL FPDFPage_TransformAnnots(FPDF_PAGE page,
     // transformAnnots Rectangle
     CPDF_Rect rect;
     pAnnot->GetRect(rect);
-    CFX_AffineMatrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
-                            (FX_FLOAT)e, (FX_FLOAT)f);
+    CFX_Matrix matrix((FX_FLOAT)a, (FX_FLOAT)b, (FX_FLOAT)c, (FX_FLOAT)d,
+                      (FX_FLOAT)e, (FX_FLOAT)f);
     rect.Transform(&matrix);
     CPDF_Array* pRectArray = NULL;
     pRectArray = pAnnot->GetAnnotDict()->GetArray("Rect");
     if (!pRectArray)
-      pRectArray = CPDF_Array::Create();
+      pRectArray = new CPDF_Array;
     pRectArray->SetAt(0, new CPDF_Number(rect.left));
     pRectArray->SetAt(1, new CPDF_Number(rect.bottom));
     pRectArray->SetAt(2, new CPDF_Number(rect.right));

@@ -6,7 +6,9 @@
 
 #include "public/fpdf_flatten.h"
 
-#include "../include/fsdk_define.h"
+#include <algorithm>
+
+#include "fpdfsdk/include/fsdk_define.h"
 
 typedef CFX_ArrayTemplate<CPDF_Dictionary*> CPDF_ObjectArray;
 typedef CFX_ArrayTemplate<CPDF_Rect> CPDF_RectArray;
@@ -252,11 +254,11 @@ void SetPageContents(CFX_ByteString key,
   }
 }
 
-CFX_AffineMatrix GetMatrix(CPDF_Rect rcAnnot,
-                           CPDF_Rect rcStream,
-                           CFX_AffineMatrix matrix) {
+CFX_Matrix GetMatrix(CPDF_Rect rcAnnot,
+                     CPDF_Rect rcStream,
+                     const CFX_Matrix& matrix) {
   if (rcStream.IsEmpty())
-    return CFX_AffineMatrix();
+    return CFX_Matrix();
 
   matrix.TransformRect(rcStream);
   rcStream.Normalize();
@@ -266,7 +268,7 @@ CFX_AffineMatrix GetMatrix(CPDF_Rect rcAnnot,
 
   FX_FLOAT e = rcAnnot.left - rcStream.left * a;
   FX_FLOAT f = rcAnnot.bottom - rcStream.bottom * d;
-  return CFX_AffineMatrix(a, 0, 0, d, e, f);
+  return CFX_Matrix(a, 0, 0, d, e, f);
 }
 
 void GetOffset(FX_FLOAT& fa,
@@ -275,7 +277,7 @@ void GetOffset(FX_FLOAT& fa,
                FX_FLOAT& ff,
                CPDF_Rect rcAnnot,
                CPDF_Rect rcStream,
-               CFX_AffineMatrix matrix) {
+               const CFX_Matrix& matrix) {
   FX_FLOAT fStreamWidth = 0.0f;
   FX_FLOAT fStreamHeight = 0.0f;
 
@@ -300,8 +302,8 @@ void GetOffset(FX_FLOAT& fa,
   FX_FLOAT x4 = matrix.a * rcStream.right + matrix.c * rcStream.top + matrix.e;
   FX_FLOAT y4 = matrix.b * rcStream.right + matrix.d * rcStream.top + matrix.f;
 
-  FX_FLOAT left = FX_MIN(FX_MIN(x1, x2), FX_MIN(x3, x4));
-  FX_FLOAT bottom = FX_MIN(FX_MIN(y1, y2), FX_MIN(y3, y4));
+  FX_FLOAT left = std::min(std::min(x1, x2), std::min(x3, x4));
+  FX_FLOAT bottom = std::min(std::min(y1, y2), std::min(y3, y4));
 
   fa = (rcAnnot.right - rcAnnot.left) / fStreamWidth;
   fd = (rcAnnot.top - rcAnnot.bottom) / fStreamHeight;
@@ -440,10 +442,9 @@ DLLEXPORT int STDCALL FPDFPage_Flatten(FPDF_PAGE page, int nFlag) {
       if (!sAnnotState.IsEmpty()) {
         pAPStream = pAPDic->GetStream(sAnnotState);
       } else {
-        FX_POSITION pos = pAPDic->GetStartPos();
-        if (pos) {
-          CFX_ByteString sKey;
-          CPDF_Object* pFirstObj = pAPDic->GetNextElement(pos, sKey);
+        auto it = pAPDic->begin();
+        if (it != pAPDic->end()) {
+          CPDF_Object* pFirstObj = it->second;
           if (pFirstObj) {
             if (pFirstObj->IsReference())
               pFirstObj = pFirstObj->GetDirect();
@@ -458,7 +459,7 @@ DLLEXPORT int STDCALL FPDFPage_Flatten(FPDF_PAGE page, int nFlag) {
       continue;
 
     CPDF_Dictionary* pAPDic = pAPStream->GetDict();
-    CFX_AffineMatrix matrix = pAPDic->GetMatrix("Matrix");
+    CFX_Matrix matrix = pAPDic->GetMatrix("Matrix");
 
     CPDF_Rect rcStream;
     if (pAPDic->KeyExist("Rect"))
@@ -506,7 +507,7 @@ DLLEXPORT int STDCALL FPDFPage_Flatten(FPDF_PAGE page, int nFlag) {
       matrix.f = 0.0f;
     }
 
-    CFX_AffineMatrix m = GetMatrix(rcAnnot, rcStream, matrix);
+    CFX_Matrix m = GetMatrix(rcAnnot, rcStream, matrix);
     sTemp.Format("q %f 0 0 %f %f %f cm /%s Do Q\n", m.a, m.d, m.e, m.f,
                  sFormName.c_str());
     sStream += sTemp;
