@@ -1478,7 +1478,11 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
   cpi->td.mb.e_mbd.bd = (int)cm->bit_depth;
 #endif  // CONFIG_VP9_HIGHBITDEPTH
 
-  rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
+  if ((oxcf->pass == 0) && (oxcf->rc_mode == VPX_Q)) {
+    rc->baseline_gf_interval = FIXED_GF_INTERVAL;
+  } else {
+    rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
+  }
 
   cpi->refresh_golden_frame = 0;
   cpi->refresh_last_frame = 1;
@@ -1570,7 +1574,30 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
 #endif
 #define log2f(x) (log (x) / (float) M_LOG2_E)
 
+/***********************************************************************
+ * Read before modifying 'cal_nmvjointsadcost' or 'cal_nmvsadcosts'    *
+ ***********************************************************************
+ * The following 2 functions ('cal_nmvjointsadcost' and                *
+ * 'cal_nmvsadcosts') are used to calculate cost lookup tables         *
+ * used by 'vp9_diamond_search_sad'. The C implementation of the       *
+ * function is generic, but the AVX intrinsics optimised version       *
+ * relies on the following properties of the computed tables:          *
+ * For cal_nmvjointsadcost:                                            *
+ *   - mvjointsadcost[1] == mvjointsadcost[2] == mvjointsadcost[3]     *
+ * For cal_nmvsadcosts:                                                *
+ *   - For all i: mvsadcost[0][i] == mvsadcost[1][i]                   *
+ *         (Equal costs for both components)                           *
+ *   - For all i: mvsadcost[0][i] == mvsadcost[0][-i]                  *
+ *         (Cost function is even)                                     *
+ * If these do not hold, then the AVX optimised version of the         *
+ * 'vp9_diamond_search_sad' function cannot be used as it is, in which *
+ * case you can revert to using the C function instead.                *
+ ***********************************************************************/
+
 static void cal_nmvjointsadcost(int *mvjointsadcost) {
+  /*********************************************************************
+   * Warning: Read the comments above before modifying this function   *
+   *********************************************************************/
   mvjointsadcost[0] = 600;
   mvjointsadcost[1] = 300;
   mvjointsadcost[2] = 300;
@@ -1578,6 +1605,9 @@ static void cal_nmvjointsadcost(int *mvjointsadcost) {
 }
 
 static void cal_nmvsadcosts(int *mvsadcost[2]) {
+  /*********************************************************************
+   * Warning: Read the comments above before modifying this function   *
+   *********************************************************************/
   int i = 1;
 
   mvsadcost[0][0] = 0;
@@ -1739,6 +1769,10 @@ VP9_COMP *vp9_create_compressor(VP9EncoderConfig *oxcf,
 
   cpi->first_time_stamp_ever = INT64_MAX;
 
+  /*********************************************************************
+   * Warning: Read the comments around 'cal_nmvjointsadcost' and       *
+   * 'cal_nmvsadcosts' before modifying how these tables are computed. *
+   *********************************************************************/
   cal_nmvjointsadcost(cpi->td.mb.nmvjointsadcost);
   cpi->td.mb.nmvcost[0] = &cpi->nmvcosts[0][MV_MAX];
   cpi->td.mb.nmvcost[1] = &cpi->nmvcosts[1][MV_MAX];
@@ -2763,6 +2797,22 @@ void vp9_update_reference_frames(VP9_COMP *cpi) {
                                    cpi->resize_pending);
   }
 #endif
+  if (is_one_pass_cbr_svc(cpi)) {
+    // Keep track of frame index for each reference frame.
+    SVC *const svc = &cpi->svc;
+    if (cm->frame_type == KEY_FRAME) {
+      svc->ref_frame_index[cpi->lst_fb_idx] = svc->current_superframe;
+      svc->ref_frame_index[cpi->gld_fb_idx] = svc->current_superframe;
+      svc->ref_frame_index[cpi->alt_fb_idx] = svc->current_superframe;
+    } else {
+      if (cpi->refresh_last_frame)
+        svc->ref_frame_index[cpi->lst_fb_idx] = svc->current_superframe;
+      if (cpi->refresh_golden_frame)
+        svc->ref_frame_index[cpi->gld_fb_idx] = svc->current_superframe;
+      if (cpi->refresh_alt_ref_frame)
+        svc->ref_frame_index[cpi->alt_fb_idx] = svc->current_superframe;
+    }
+  }
 }
 
 static void loopfilter_frame(VP9_COMP *cpi, VP9_COMMON *cm) {
@@ -2965,7 +3015,7 @@ static void output_frame_level_debug_stats(VP9_COMP *cpi) {
   recon_err = vp9_get_y_sse(cpi->Source, get_frame_new_buffer(cm));
 
   if (cpi->twopass.total_left_stats.coded_error != 0.0)
-    fprintf(f, "%10u %dx%d %d %d %10d %10d %10d %10d"
+    fprintf(f, "%10u %dx%d %10d %10d %d %d %10d %10d %10d %10d"
        "%10"PRId64" %10"PRId64" %5d %5d %10"PRId64" "
        "%10"PRId64" %10"PRId64" %10d "
        "%7.2lf %7.2lf %7.2lf %7.2lf %7.2lf"
@@ -2974,6 +3024,8 @@ static void output_frame_level_debug_stats(VP9_COMP *cpi) {
         "%10lf %8u %10"PRId64" %10d %10d %10d\n",
         cpi->common.current_video_frame,
         cm->width, cm->height,
+        cpi->td.rd_counts.m_search_count,
+        cpi->td.rd_counts.ex_search_count,
         cpi->rc.source_alt_ref_pending,
         cpi->rc.source_alt_ref_active,
         cpi->rc.this_frame_target,
@@ -3077,7 +3129,7 @@ static void set_size_dependent_vars(VP9_COMP *cpi, int *q,
   if (oxcf->pass == 2 && cpi->sf.static_segmentation)
     configure_static_seg_features(cpi);
 
-#if CONFIG_VP9_POSTPROC
+#if CONFIG_VP9_POSTPROC && !(CONFIG_VP9_TEMPORAL_DENOISING)
   if (oxcf->noise_sensitivity > 0) {
     int l = 0;
     switch (oxcf->noise_sensitivity) {
@@ -3650,12 +3702,16 @@ YV12_BUFFER_CONFIG *vp9_scale_if_required(VP9_COMMON *cm,
   if (cm->mi_cols * MI_SIZE != unscaled->y_width ||
       cm->mi_rows * MI_SIZE != unscaled->y_height) {
 #if CONFIG_VP9_HIGHBITDEPTH
-    if (use_normative_scaler)
+    if (use_normative_scaler &&
+        unscaled->y_width <= (scaled->y_width << 1) &&
+        unscaled->y_height <= (scaled->y_height << 1))
       scale_and_extend_frame(unscaled, scaled, (int)cm->bit_depth);
     else
       scale_and_extend_frame_nonnormative(unscaled, scaled, (int)cm->bit_depth);
 #else
-    if (use_normative_scaler)
+    if (use_normative_scaler &&
+        unscaled->y_width <= (scaled->y_width << 1) &&
+        unscaled->y_height <= (scaled->y_height << 1))
       scale_and_extend_frame(unscaled, scaled);
     else
       scale_and_extend_frame_nonnormative(unscaled, scaled);

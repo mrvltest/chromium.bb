@@ -9,8 +9,8 @@
 
 #include <map>
 
-#include "../fxcrt/fx_system.h"
-#include "../fxge/fx_font.h"
+#include "core/include/fxcrt/fx_system.h"
+#include "core/include/fxge/fx_font.h"
 #include "fpdf_parser.h"
 
 class CFX_CTTGSUBTable;
@@ -346,21 +346,23 @@ class CPDF_Type1Font : public CPDF_SimpleFont {
   CPDF_Type1Font();
 
   int GetBase14Font() { return m_Base14Font; }
-  virtual int GlyphFromCharCodeExt(FX_DWORD charcode);
 
  protected:
-  virtual FX_BOOL _Load();
+  // CPDF_SimpleFont:
+  int GlyphFromCharCodeExt(FX_DWORD charcode) override;
+  FX_BOOL _Load() override;
+  void LoadGlyphMap() override;
 
   int m_Base14Font;
-  virtual void LoadGlyphMap();
 };
 class CPDF_TrueTypeFont : public CPDF_SimpleFont {
  public:
   CPDF_TrueTypeFont();
 
  protected:
-  virtual FX_BOOL _Load();
-  virtual void LoadGlyphMap();
+  // CPDF_SimpleFont:
+  FX_BOOL _Load() override;
+  void LoadGlyphMap() override;
 };
 
 class CPDF_Type3Char {
@@ -375,7 +377,7 @@ class CPDF_Type3Char {
   CFX_DIBitmap* m_pBitmap;
   FX_BOOL m_bColored;
   int m_Width;
-  CFX_AffineMatrix m_ImageMatrix;
+  CFX_Matrix m_ImageMatrix;
   FX_RECT m_BBox;
 };
 
@@ -393,11 +395,11 @@ class CPDF_Type3Font : public CPDF_SimpleFont {
     return GetCharWidthF(charcode);
   }
   void GetCharBBox(FX_DWORD charcode, FX_RECT& rect, int level = 0) override;
-  CFX_AffineMatrix& GetFontMatrix() { return m_FontMatrix; }
+  CFX_Matrix& GetFontMatrix() { return m_FontMatrix; }
   void CheckType3FontMetrics();
 
  protected:
-  CFX_AffineMatrix m_FontMatrix;
+  CFX_Matrix m_FontMatrix;
 
  private:
   FX_BOOL _Load() override;
@@ -428,33 +430,33 @@ class CPDF_CIDFont : public CPDF_Font {
 
   static FX_FLOAT CIDTransformToFloat(uint8_t ch);
 
-  FX_BOOL LoadGB2312();
+  // CPDF_Font:
   int GlyphFromCharCode(FX_DWORD charcode, FX_BOOL* pVertGlyph = NULL) override;
   int GetCharWidthF(FX_DWORD charcode, int level = 0) override;
   void GetCharBBox(FX_DWORD charcode, FX_RECT& rect, int level = 0) override;
-  FX_WORD CIDFromCharCode(FX_DWORD charcode) const;
-
-  FX_BOOL IsTrueType() const { return !m_bType1; }
-
-  virtual FX_DWORD GetNextChar(const FX_CHAR* pString,
-                               int nStrLen,
-                               int& offset) const override;
+  FX_DWORD GetNextChar(const FX_CHAR* pString,
+                       int nStrLen,
+                       int& offset) const override;
   int CountChar(const FX_CHAR* pString, int size) const override;
   int AppendChar(FX_CHAR* str, FX_DWORD charcode) const override;
   int GetCharSize(FX_DWORD charcode) const override;
-  const uint8_t* GetCIDTransform(FX_WORD CID) const;
   FX_BOOL IsVertWriting() const override;
+  FX_BOOL IsUnicodeCompatible() const override;
+  FX_BOOL _Load() override;
+  FX_WCHAR _UnicodeFromCharCode(FX_DWORD charcode) const override;
+  FX_DWORD _CharCodeFromUnicode(FX_WCHAR Unicode) const override;
+
+  FX_BOOL LoadGB2312();
+  FX_WORD CIDFromCharCode(FX_DWORD charcode) const;
+  FX_BOOL IsTrueType() const { return !m_bType1; }
+  const uint8_t* GetCIDTransform(FX_WORD CID) const;
   short GetVertWidth(FX_WORD CID) const;
   void GetVertOrigin(FX_WORD CID, short& vx, short& vy) const;
-  FX_BOOL IsUnicodeCompatible() const override;
   virtual FX_BOOL IsFontStyleFromCharCode(FX_DWORD charcode) const;
 
  protected:
   friend class CPDF_Font;
 
-  FX_BOOL _Load() override;
-  FX_WCHAR _UnicodeFromCharCode(FX_DWORD charcode) const override;
-  FX_DWORD _CharCodeFromUnicode(FX_WCHAR Unicode) const override;
   int GetGlyphIndex(FX_DWORD unicodeb, FX_BOOL* pVertGlyph);
   void LoadMetricsArray(CPDF_Array* pArray,
                         CFX_DWordArray& result,
@@ -603,7 +605,7 @@ class CPDF_Color {
 
   ~CPDF_Color();
 
-  FX_BOOL IsNull() const { return m_pBuffer == NULL; }
+  FX_BOOL IsNull() const { return !m_pBuffer; }
 
   FX_BOOL IsEqual(const CPDF_Color& other) const;
 
@@ -634,24 +636,27 @@ class CPDF_Color {
   void ReleaseColorSpace();
   FX_FLOAT* m_pBuffer;
 };
-#define PATTERN_TILING 1
-#define PATTERN_SHADING 2
+
 class CPDF_Pattern {
  public:
+  enum PatternType { TILING = 1, SHADING };
+
   virtual ~CPDF_Pattern();
+
   void SetForceClear(FX_BOOL bForceClear) { m_bForceClear = bForceClear; }
 
-  CPDF_Object* m_pPatternObj;
-
-  int m_PatternType;
-
-  CFX_AffineMatrix m_Pattern2Form;
-  CFX_AffineMatrix m_ParentMatrix;
-
-  CPDF_Document* m_pDocument;
+  const PatternType m_PatternType;
+  CPDF_Document* const m_pDocument;
+  CPDF_Object* const m_pPatternObj;
+  CFX_Matrix m_Pattern2Form;
+  CFX_Matrix m_ParentMatrix;
 
  protected:
-  CPDF_Pattern(const CFX_AffineMatrix* pParentMatrix);
+  CPDF_Pattern(PatternType type,
+               CPDF_Document* pDoc,
+               CPDF_Object* pObj,
+               const CFX_Matrix* pParentMatrix);
+
   FX_BOOL m_bForceClear;
 };
 
@@ -659,7 +664,7 @@ class CPDF_TilingPattern : public CPDF_Pattern {
  public:
   CPDF_TilingPattern(CPDF_Document* pDoc,
                      CPDF_Object* pPatternObj,
-                     const CFX_AffineMatrix* parentMatrix);
+                     const CFX_Matrix* parentMatrix);
 
   ~CPDF_TilingPattern() override;
 
@@ -693,7 +698,7 @@ class CPDF_ShadingPattern : public CPDF_Pattern {
   CPDF_ShadingPattern(CPDF_Document* pDoc,
                       CPDF_Object* pPatternObj,
                       FX_BOOL bShading,
-                      const CFX_AffineMatrix* parentMatrix);
+                      const CFX_Matrix* parentMatrix);
 
   ~CPDF_ShadingPattern() override;
 
@@ -703,30 +708,21 @@ class CPDF_ShadingPattern : public CPDF_Pattern {
            m_ShadingType == kCoonsPatchMeshShading ||
            m_ShadingType == kTensorProductPatchMeshShading;
   }
-
-  CPDF_Object* m_pShadingObj;
-
-  FX_BOOL m_bShadingObj;
-
   FX_BOOL Load();
 
-  FX_BOOL Reload();
-
   ShadingType m_ShadingType;
+  FX_BOOL m_bShadingObj;
+  CPDF_Object* m_pShadingObj;
 
-  CPDF_ColorSpace* m_pCS;  // Still keep m_pCS as some CPDF_ColorSpace (name
-                           // object) are not managed as counted objects. Refer
-                           // to CPDF_DocPageData::GetColorSpace.
+  // Still keep |m_pCS| as some CPDF_ColorSpace (name object) are not managed
+  // as counted objects. Refer to CPDF_DocPageData::GetColorSpace.
+  CPDF_ColorSpace* m_pCS;
 
   CPDF_CountedColorSpace* m_pCountedCS;
-
   CPDF_Function* m_pFunctions[4];
-
   int m_nFuncs;
-
- protected:
-  void Clear();
 };
+
 struct CPDF_MeshVertex {
   FX_FLOAT x, y;
   FX_FLOAT r, g, b;
@@ -744,11 +740,11 @@ class CPDF_MeshStream {
 
   void GetColor(FX_FLOAT& r, FX_FLOAT& g, FX_FLOAT& b);
 
-  FX_DWORD GetVertex(CPDF_MeshVertex& vertex, CFX_AffineMatrix* pObject2Bitmap);
+  FX_DWORD GetVertex(CPDF_MeshVertex& vertex, CFX_Matrix* pObject2Bitmap);
 
   FX_BOOL GetVertexRow(CPDF_MeshVertex* vertex,
                        int count,
-                       CFX_AffineMatrix* pObject2Bitmap);
+                       CFX_Matrix* pObject2Bitmap);
   CPDF_Function** m_pFuncs;
   CPDF_ColorSpace* m_pCS;
   FX_DWORD m_nFuncs, m_nCoordBits, m_nCompBits, m_nFlagBits, m_nComps;

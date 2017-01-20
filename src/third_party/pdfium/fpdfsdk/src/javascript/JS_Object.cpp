@@ -6,10 +6,10 @@
 
 #include "JS_Object.h"
 
-#include "../../include/fsdk_mgr.h"  // For CPDFDoc_Environment.
-#include "../../include/javascript/IJavaScript.h"
 #include "JS_Context.h"
 #include "JS_Define.h"
+#include "fpdfsdk/include/fsdk_mgr.h"  // For CPDFDoc_Environment.
+#include "fpdfsdk/include/javascript/IJavaScript.h"
 
 namespace {
 
@@ -86,8 +86,6 @@ int CJS_Object::MsgBox(CPDFDoc_Environment* pApp,
 }
 
 void CJS_Object::Alert(CJS_Context* pContext, const FX_WCHAR* swMsg) {
-  ASSERT(pContext != NULL);
-
   if (pContext->IsMsgBoxEnabled()) {
     CPDFDoc_Environment* pApp = pContext->GetReaderApp();
     if (pApp)

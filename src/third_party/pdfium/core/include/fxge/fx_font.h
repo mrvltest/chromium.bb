@@ -8,10 +8,10 @@
 #define CORE_INCLUDE_FXGE_FX_FONT_H_
 
 #include <map>
+#include <memory>
 
-#include "../fxcrt/fx_system.h"
+#include "core/include/fxcrt/fx_system.h"
 #include "fx_dib.h"
-#include "third_party/base/nonstd_unique_ptr.h"
 
 typedef struct FT_FaceRec_* FXFT_Face;
 typedef void* FXFT_Library;
@@ -34,6 +34,9 @@ class IFX_SystemFontInfo;
 #define FXFONT_BOLD 0x40000
 #define FXFONT_USEEXTERNATTR 0x80000
 #define FXFONT_CIDFONT 0x100000
+#ifdef PDF_ENABLE_XFA
+#define FXFONT_EXACTMATCH 0x80000000
+#endif  // PDF_ENABLE_XFA
 #define FXFONT_ANSI_CHARSET 0
 #define FXFONT_DEFAULT_CHARSET 1
 #define FXFONT_SYMBOL_CHARSET 2
@@ -69,7 +72,20 @@ class CFX_Font {
                  FX_BOOL bVertical = FALSE);
   FX_BOOL LoadEmbedded(const uint8_t* data, FX_DWORD size);
   FXFT_Face GetFace() const { return m_Face; }
+
+#ifdef PDF_ENABLE_XFA
+  FX_BOOL LoadFile(IFX_FileRead* pFile,
+                   int nFaceIndex = 0,
+                   int* pFaceCount = NULL);
+
+  FX_BOOL LoadClone(const CFX_Font* pFont);
+  CFX_SubstFont* GetSubstFont() const { return m_pSubstFont; }
+  void SetFace(FXFT_Face face) { m_Face = face; }
+  void SetSubstFont(CFX_SubstFont* subst) { m_pSubstFont = subst; }
+#else   // PDF_ENABLE_XFA
   const CFX_SubstFont* GetSubstFont() const { return m_pSubstFont; }
+#endif  // PDF_ENABLE_XFA
+
   CFX_PathData* LoadGlyphPath(FX_DWORD glyph_index, int dest_width = 0);
   int GetGlyphWidth(FX_DWORD glyph_index);
   int GetAscent() const;
@@ -115,22 +131,67 @@ class CFX_Font {
   FX_BOOL m_bDwLoaded;
   FX_BOOL m_bEmbedded;
   FX_BOOL m_bVertical;
+
+#ifdef PDF_ENABLE_XFA
+ protected:
+  FX_BOOL m_bLogic;
+  void* m_pOwnedStream;
+#endif  // PDF_ENABLE_XFA
 };
 
 #define ENCODING_INTERNAL 0
 #define ENCODING_UNICODE 1
 
+#ifdef PDF_ENABLE_XFA
+#define FXFM_ENC_TAG(a, b, c, d)                                          \
+  (((FX_DWORD)(a) << 24) | ((FX_DWORD)(b) << 16) | ((FX_DWORD)(c) << 8) | \
+   (FX_DWORD)(d))
+#define FXFM_ENCODING_NONE FXFM_ENC_TAG(0, 0, 0, 0)
+#define FXFM_ENCODING_MS_SYMBOL FXFM_ENC_TAG('s', 'y', 'm', 'b')
+#define FXFM_ENCODING_UNICODE FXFM_ENC_TAG('u', 'n', 'i', 'c')
+#define FXFM_ENCODING_MS_SJIS FXFM_ENC_TAG('s', 'j', 'i', 's')
+#define FXFM_ENCODING_MS_GB2312 FXFM_ENC_TAG('g', 'b', ' ', ' ')
+#define FXFM_ENCODING_MS_BIG5 FXFM_ENC_TAG('b', 'i', 'g', '5')
+#define FXFM_ENCODING_MS_WANSUNG FXFM_ENC_TAG('w', 'a', 'n', 's')
+#define FXFM_ENCODING_MS_JOHAB FXFM_ENC_TAG('j', 'o', 'h', 'a')
+#define FXFM_ENCODING_ADOBE_STANDARD FXFM_ENC_TAG('A', 'D', 'O', 'B')
+#define FXFM_ENCODING_ADOBE_EXPERT FXFM_ENC_TAG('A', 'D', 'B', 'E')
+#define FXFM_ENCODING_ADOBE_CUSTOM FXFM_ENC_TAG('A', 'D', 'B', 'C')
+#define FXFM_ENCODING_ADOBE_LATIN_1 FXFM_ENC_TAG('l', 'a', 't', '1')
+#define FXFM_ENCODING_OLD_LATIN_2 FXFM_ENC_TAG('l', 'a', 't', '2')
+#define FXFM_ENCODING_APPLE_ROMAN FXFM_ENC_TAG('a', 'r', 'm', 'n')
+#endif  // PDF_ENABLE_XFA
+
 class CFX_UnicodeEncoding {
  public:
   explicit CFX_UnicodeEncoding(CFX_Font* pFont);
-  ~CFX_UnicodeEncoding();
+  virtual ~CFX_UnicodeEncoding();
 
-  FX_DWORD GlyphFromCharCode(FX_DWORD charcode);
+  virtual FX_DWORD GlyphFromCharCode(FX_DWORD charcode);
 
- private:
+ protected:
   // Unowned, not nullptr.
   CFX_Font* m_pFont;
 };
+
+#ifdef PDF_ENABLE_XFA
+class CFX_UnicodeEncodingEx : public CFX_UnicodeEncoding {
+ public:
+  CFX_UnicodeEncodingEx(CFX_Font* pFont, FX_DWORD EncodingID);
+  ~CFX_UnicodeEncodingEx() override;
+
+  // CFX_UnicodeEncoding:
+  FX_DWORD GlyphFromCharCode(FX_DWORD charcode) override;
+
+  FX_DWORD CharCodeFromUnicode(FX_WCHAR Unicode) const;
+
+ private:
+  FX_DWORD m_nEncodingID;
+};
+CFX_UnicodeEncodingEx* FX_CreateFontEncodingEx(
+    CFX_Font* pFont,
+    FX_DWORD nEncodingID = FXFM_ENCODING_NONE);
+#endif  // PDF_ENABLE_XFA
 
 #define FXFONT_SUBST_MM 0x01
 #define FXFONT_SUBST_GLYPHPATH 0x04
@@ -175,6 +236,8 @@ class CFX_FontMgr {
   CFX_FontMgr();
   ~CFX_FontMgr();
 
+  void InitFTLibrary();
+
   FXFT_Face GetCachedFace(const CFX_ByteString& face_name,
                           int weight,
                           FX_BOOL bItalic,
@@ -210,9 +273,7 @@ class CFX_FontMgr {
   FXFT_Library GetFTLibrary() const { return m_FTLibrary; }
 
  private:
-  void InitFTLibrary();
-
-  nonstd::unique_ptr<CFX_FontMapper> m_pBuiltinMapper;
+  std::unique_ptr<CFX_FontMapper> m_pBuiltinMapper;
   std::map<CFX_ByteString, CTTFontDesc*> m_FaceMap;
   FXFT_Library m_FTLibrary;
 };
@@ -257,6 +318,12 @@ class CFX_FontMapper {
                           int italic_angle,
                           int CharsetCP,
                           CFX_SubstFont* pSubstFont);
+#ifdef PDF_ENABLE_XFA
+  FXFT_Face FindSubstFontByUnicode(FX_DWORD dwUnicode,
+                                   FX_DWORD flags,
+                                   int weight,
+                                   int italic_angle);
+#endif  // PDF_ENABLE_XFA
   FX_BOOL IsBuiltinFace(const FXFT_Face face) const;
 
  private:
@@ -294,6 +361,14 @@ class IFX_SystemFontInfo {
                         int pitch_family,
                         const FX_CHAR* face,
                         int& iExact) = 0;
+#ifdef PDF_ENABLE_XFA
+  virtual void* MapFontByUnicode(FX_DWORD dwUnicode,
+                                 int weight,
+                                 FX_BOOL bItalic,
+                                 int pitch_family) {
+    return NULL;
+  }
+#endif  // PDF_ENABLE_XFA
   virtual void* GetFont(const FX_CHAR* face) = 0;
   virtual FX_DWORD GetFontData(void* hFont,
                                FX_DWORD table,
@@ -324,6 +399,12 @@ class CFX_FolderFontInfo : public IFX_SystemFontInfo {
                 int pitch_family,
                 const FX_CHAR* face,
                 int& bExact) override;
+#ifdef PDF_ENABLE_XFA
+  void* MapFontByUnicode(FX_DWORD dwUnicode,
+                         int weight,
+                         FX_BOOL bItalic,
+                         int pitch_family) override;
+#endif  // PDF_ENABLE_XFA
   void* GetFont(const FX_CHAR* face) override;
   FX_DWORD GetFontData(void* hFont,
                        FX_DWORD table,
@@ -392,7 +473,7 @@ class CFX_FaceCache {
   const CFX_GlyphBitmap* LoadGlyphBitmap(CFX_Font* pFont,
                                          FX_DWORD glyph_index,
                                          FX_BOOL bFontStyle,
-                                         const CFX_AffineMatrix* pMatrix,
+                                         const CFX_Matrix* pMatrix,
                                          int dest_width,
                                          int anti_alias,
                                          int& text_flags);
@@ -404,16 +485,16 @@ class CFX_FaceCache {
   CFX_GlyphBitmap* RenderGlyph(CFX_Font* pFont,
                                FX_DWORD glyph_index,
                                FX_BOOL bFontStyle,
-                               const CFX_AffineMatrix* pMatrix,
+                               const CFX_Matrix* pMatrix,
                                int dest_width,
                                int anti_alias);
   CFX_GlyphBitmap* RenderGlyph_Nativetext(CFX_Font* pFont,
                                           FX_DWORD glyph_index,
-                                          const CFX_AffineMatrix* pMatrix,
+                                          const CFX_Matrix* pMatrix,
                                           int dest_width,
                                           int anti_alias);
   CFX_GlyphBitmap* LookUpGlyphBitmap(CFX_Font* pFont,
-                                     const CFX_AffineMatrix* pMatrix,
+                                     const CFX_Matrix* pMatrix,
                                      CFX_ByteStringC& FaceGlyphsKey,
                                      FX_DWORD glyph_index,
                                      FX_BOOL bFontStyle,
@@ -424,7 +505,7 @@ class CFX_FaceCache {
 
   FXFT_Face const m_Face;
   std::map<CFX_ByteString, CFX_SizeGlyphCache*> m_SizeMap;
-  CFX_MapPtrToPtr m_PathMap;
+  std::map<FX_DWORD, CFX_PathData*> m_PathMap;
   CFX_DIBitmap* m_pBitmap;
 };
 

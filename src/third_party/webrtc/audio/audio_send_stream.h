@@ -14,14 +14,22 @@
 #include "webrtc/audio_send_stream.h"
 #include "webrtc/audio_state.h"
 #include "webrtc/base/thread_checker.h"
+#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
-namespace internal {
+class CongestionController;
+class VoiceEngine;
 
+namespace voe {
+class ChannelProxy;
+}  // namespace voe
+
+namespace internal {
 class AudioSendStream final : public webrtc::AudioSendStream {
  public:
   AudioSendStream(const webrtc::AudioSendStream::Config& config,
-                  const rtc::scoped_refptr<webrtc::AudioState>& audio_state);
+                  const rtc::scoped_refptr<webrtc::AudioState>& audio_state,
+                  CongestionController* congestion_controller);
   ~AudioSendStream() override;
 
   // webrtc::SendStream implementation.
@@ -31,14 +39,19 @@ class AudioSendStream final : public webrtc::AudioSendStream {
   bool DeliverRtcp(const uint8_t* packet, size_t length) override;
 
   // webrtc::AudioSendStream implementation.
+  bool SendTelephoneEvent(int payload_type, uint8_t event,
+                          uint32_t duration_ms) override;
   webrtc::AudioSendStream::Stats GetStats() const override;
 
   const webrtc::AudioSendStream::Config& config() const;
 
  private:
+  VoiceEngine* voice_engine() const;
+
   rtc::ThreadChecker thread_checker_;
   const webrtc::AudioSendStream::Config config_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
+  rtc::scoped_ptr<voe::ChannelProxy> channel_proxy_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(AudioSendStream);
 };

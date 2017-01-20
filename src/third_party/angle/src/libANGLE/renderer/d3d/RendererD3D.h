@@ -12,6 +12,7 @@
 #include "common/debug.h"
 #include "common/MemoryBuffer.h"
 #include "libANGLE/Data.h"
+#include "libANGLE/Device.h"
 #include "libANGLE/formatutils.h"
 #include "libANGLE/renderer/Renderer.h"
 #include "libANGLE/renderer/d3d/VertexDataManager.h"
@@ -29,15 +30,17 @@ class ConfigSet;
 
 namespace gl
 {
-class InfoLog;
-struct LinkedVarying;
-class Texture;
 class DebugAnnotator;
+class InfoLog;
+class Texture;
+struct LinkedVarying;
 }
 
 namespace rx
 {
 struct D3DUniform;
+struct D3DVarying;
+class DeviceD3D;
 class EGLImageD3D;
 class ImageD3D;
 class IndexBuffer;
@@ -53,7 +56,8 @@ enum ShaderType
 {
     SHADER_VERTEX,
     SHADER_PIXEL,
-    SHADER_GEOMETRY
+    SHADER_GEOMETRY,
+    SHADER_TYPE_MAX
 };
 
 struct DeviceIdentifier
@@ -139,7 +143,11 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     // Direct3D Specific methods
     virtual DeviceIdentifier getAdapterIdentifier() const = 0;
 
-    virtual SwapChainD3D *createSwapChain(NativeWindow nativeWindow, HANDLE shareHandle, GLenum backBufferFormat, GLenum depthBufferFormat) = 0;
+    virtual SwapChainD3D *createSwapChain(NativeWindow nativeWindow,
+                                          HANDLE shareHandle,
+                                          GLenum backBufferFormat,
+                                          GLenum depthBufferFormat,
+                                          EGLint orientation) = 0;
 
     virtual gl::Error generateSwizzle(gl::Texture *texture) = 0;
     virtual gl::Error setSamplerState(gl::SamplerType type, int index, gl::Texture *texture, const gl::SamplerState &sampler) = 0;
@@ -149,15 +157,7 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
                                         const std::vector<GLint> &vertexUniformBuffers,
                                         const std::vector<GLint> &fragmentUniformBuffers) = 0;
 
-    virtual gl::Error setRasterizerState(const gl::RasterizerState &rasterState) = 0;
-    virtual gl::Error setBlendState(const gl::Framebuffer *framebuffer, const gl::BlendState &blendState, const gl::ColorF &blendColor,
-                                    unsigned int sampleMask) = 0;
-    virtual gl::Error setDepthStencilState(const gl::DepthStencilState &depthStencilState, int stencilRef,
-                                           int stencilBackRef, bool frontFaceCCW) = 0;
-
-    virtual void setScissorRectangle(const gl::Rectangle &scissor, bool enabled) = 0;
-    virtual void setViewport(const gl::Rectangle &viewport, float zNear, float zFar, GLenum drawMode, GLenum frontFace,
-                             bool ignoreViewport) = 0;
+    virtual gl::Error updateState(const gl::Data &data, GLenum drawMode) = 0;
 
     virtual gl::Error applyRenderTarget(const gl::Framebuffer *frameBuffer) = 0;
     virtual gl::Error applyUniforms(const ProgramD3D &programD3D,
@@ -200,12 +200,18 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     virtual gl::Error createRenderTargetCopy(RenderTargetD3D *source, RenderTargetD3D **outRT) = 0;
 
     // Shader operations
-    virtual gl::Error loadExecutable(const void *function, size_t length, ShaderType type,
-                                     const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                     bool separatedOutputBuffers, ShaderExecutableD3D **outExecutable) = 0;
-    virtual gl::Error compileToExecutable(gl::InfoLog &infoLog, const std::string &shaderHLSL, ShaderType type,
-                                          const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                          bool separatedOutputBuffers, const D3DCompilerWorkarounds &workarounds,
+    virtual gl::Error loadExecutable(const void *function,
+                                     size_t length,
+                                     ShaderType type,
+                                     const std::vector<D3DVarying> &streamOutVaryings,
+                                     bool separatedOutputBuffers,
+                                     ShaderExecutableD3D **outExecutable) = 0;
+    virtual gl::Error compileToExecutable(gl::InfoLog &infoLog,
+                                          const std::string &shaderHLSL,
+                                          ShaderType type,
+                                          const std::vector<D3DVarying> &streamOutVaryings,
+                                          bool separatedOutputBuffers,
+                                          const D3DCompilerWorkarounds &workarounds,
                                           ShaderExecutableD3D **outExectuable) = 0;
     virtual UniformStorageD3D *createUniformStorage(size_t storageSize) = 0;
 
@@ -226,11 +232,6 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     virtual gl::Error fastCopyBufferToTexture(const gl::PixelUnpackState &unpack, unsigned int offset, RenderTargetD3D *destRenderTarget,
                                               GLenum destinationFormat, GLenum sourcePixelsType, const gl::Box &destArea) = 0;
 
-    void syncState(const gl::State & /*state*/, const gl::State::DirtyBits &bitmask) override
-    {
-        // TODO(jmadill): implement state sync for D3D renderers;
-    }
-
     // Device lost
     void notifyDeviceLost() override;
     virtual bool resetDevice() = 0;
@@ -247,6 +248,8 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     // In D3D11, faster than calling setTexture a jillion times
     virtual gl::Error clearTextures(gl::SamplerType samplerType, size_t rangeStart, size_t rangeEnd) = 0;
 
+    virtual egl::Error getEGLDevice(DeviceImpl **device) = 0;
+
   protected:
     virtual bool getLUID(LUID *adapterLuid) const = 0;
     virtual gl::Error applyShadersImpl(const gl::Data &data, GLenum drawMode) = 0;
@@ -255,6 +258,7 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
 
     virtual void createAnnotator() = 0;
 
+    static unsigned int GetBlendSampleMask(const gl::Data &data, int samples);
     // dirtyPointer is a special value that will make the comparison with any valid pointer fail and force the renderer to re-apply the state.
     static const uintptr_t DirtyPointer;
 
@@ -299,7 +303,6 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     gl::Error generateSwizzles(const gl::Data &data, gl::SamplerType type);
     gl::Error generateSwizzles(const gl::Data &data);
 
-    gl::Error applyRenderTarget(const gl::Data &data, GLenum drawMode, bool ignoreViewport);
     gl::Error applyState(const gl::Data &data, GLenum drawMode);
     gl::Error applyShaders(const gl::Data &data, GLenum drawMode);
     gl::Error applyTextures(const gl::Data &data, gl::SamplerType shaderType,

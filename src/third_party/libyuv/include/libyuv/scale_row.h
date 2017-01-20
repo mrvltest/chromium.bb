@@ -56,10 +56,10 @@ extern "C" {
 #define HAS_SCALEARGBROWDOWNEVEN_SSE2
 #define HAS_SCALECOLSUP2_SSE2
 #define HAS_SCALEFILTERCOLS_SSSE3
-#define HAS_SCALEROWDOWN2_SSE2
+#define HAS_SCALEROWDOWN2_SSSE3
 #define HAS_SCALEROWDOWN34_SSSE3
 #define HAS_SCALEROWDOWN38_SSSE3
-#define HAS_SCALEROWDOWN4_SSE2
+#define HAS_SCALEROWDOWN4_SSSE3
 #define HAS_SCALEADDROW_SSE2
 #endif
 
@@ -69,11 +69,6 @@ extern "C" {
 #if !defined(LIBYUV_DISABLE_X86) && (defined(VISUALC_HAS_AVX2) || \
     defined(CLANG_HAS_AVX2) || defined(GCC_HAS_AVX2))
 #define HAS_SCALEADDROW_AVX2
-#endif
-
-// The following are available for Visual C and clangcl 32 bit:
-#if !defined(LIBYUV_DISABLE_X86) && defined(_M_IX86) && \
-    (defined(VISUALC_HAS_AVX2) || defined(CLANG_HAS_AVX2))
 #define HAS_SCALEROWDOWN2_AVX2
 #define HAS_SCALEROWDOWN4_AVX2
 #endif
@@ -151,6 +146,8 @@ void ScaleRowDown2Linear_16_C(const uint16* src_ptr, ptrdiff_t src_stride,
                               uint16* dst, int dst_width);
 void ScaleRowDown2Box_C(const uint8* src_ptr, ptrdiff_t src_stride,
                         uint8* dst, int dst_width);
+void ScaleRowDown2Box_Odd_C(const uint8* src_ptr, ptrdiff_t src_stride,
+                            uint8* dst, int dst_width);
 void ScaleRowDown2Box_16_C(const uint16* src_ptr, ptrdiff_t src_stride,
                            uint16* dst, int dst_width);
 void ScaleRowDown4_C(const uint8* src_ptr, ptrdiff_t src_stride,
@@ -232,22 +229,22 @@ void ScaleARGBFilterCols64_C(uint8* dst_argb, const uint8* src_argb,
                              int dst_width, int x, int dx);
 
 // Specialized scalers for x86.
-void ScaleRowDown2_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                        uint8* dst_ptr, int dst_width);
-void ScaleRowDown2Linear_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                              uint8* dst_ptr, int dst_width);
-void ScaleRowDown2Box_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                           uint8* dst_ptr, int dst_width);
+void ScaleRowDown2_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                         uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Linear_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                               uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Box_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                            uint8* dst_ptr, int dst_width);
 void ScaleRowDown2_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                         uint8* dst_ptr, int dst_width);
 void ScaleRowDown2Linear_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                               uint8* dst_ptr, int dst_width);
 void ScaleRowDown2Box_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                            uint8* dst_ptr, int dst_width);
-void ScaleRowDown4_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                        uint8* dst_ptr, int dst_width);
-void ScaleRowDown4Box_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                           uint8* dst_ptr, int dst_width);
+void ScaleRowDown4_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                         uint8* dst_ptr, int dst_width);
+void ScaleRowDown4Box_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                            uint8* dst_ptr, int dst_width);
 void ScaleRowDown4_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                         uint8* dst_ptr, int dst_width);
 void ScaleRowDown4Box_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
@@ -269,22 +266,26 @@ void ScaleRowDown38_3_Box_SSSE3(const uint8* src_ptr,
 void ScaleRowDown38_2_Box_SSSE3(const uint8* src_ptr,
                                 ptrdiff_t src_stride,
                                 uint8* dst_ptr, int dst_width);
-void ScaleRowDown2_Any_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                            uint8* dst_ptr, int dst_width);
-void ScaleRowDown2Linear_Any_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                                  uint8* dst_ptr, int dst_width);
-void ScaleRowDown2Box_Any_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                               uint8* dst_ptr, int dst_width);
+void ScaleRowDown2_Any_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                             uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Linear_Any_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                                   uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Box_Any_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                                uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Box_Odd_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                                uint8* dst_ptr, int dst_width);
 void ScaleRowDown2_Any_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                             uint8* dst_ptr, int dst_width);
 void ScaleRowDown2Linear_Any_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                                   uint8* dst_ptr, int dst_width);
 void ScaleRowDown2Box_Any_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
-                           uint8* dst_ptr, int dst_width);
-void ScaleRowDown4_Any_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
-                            uint8* dst_ptr, int dst_width);
-void ScaleRowDown4Box_Any_SSE2(const uint8* src_ptr, ptrdiff_t src_stride,
                                uint8* dst_ptr, int dst_width);
+void ScaleRowDown2Box_Odd_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
+                               uint8* dst_ptr, int dst_width);
+void ScaleRowDown4_Any_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                             uint8* dst_ptr, int dst_width);
+void ScaleRowDown4Box_Any_SSSE3(const uint8* src_ptr, ptrdiff_t src_stride,
+                                uint8* dst_ptr, int dst_width);
 void ScaleRowDown4_Any_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
                             uint8* dst_ptr, int dst_width);
 void ScaleRowDown4Box_Any_AVX2(const uint8* src_ptr, ptrdiff_t src_stride,
@@ -435,6 +436,8 @@ void ScaleRowDown2_Any_NEON(const uint8* src_ptr, ptrdiff_t src_stride,
 void ScaleRowDown2Linear_Any_NEON(const uint8* src_ptr, ptrdiff_t src_stride,
                                   uint8* dst, int dst_width);
 void ScaleRowDown2Box_Any_NEON(const uint8* src_ptr, ptrdiff_t src_stride,
+                               uint8* dst, int dst_width);
+void ScaleRowDown2Box_Odd_NEON(const uint8* src_ptr, ptrdiff_t src_stride,
                                uint8* dst, int dst_width);
 void ScaleRowDown4_Any_NEON(const uint8* src_ptr, ptrdiff_t src_stride,
                             uint8* dst_ptr, int dst_width);

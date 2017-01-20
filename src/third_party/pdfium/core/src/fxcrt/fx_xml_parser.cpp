@@ -6,6 +6,7 @@
 
 #include "xml_int.h"
 
+#include "core/include/fxcrt/fx_ext.h"
 #include "core/include/fxcrt/fx_xml.h"
 
 CXML_Parser::~CXML_Parser() {
@@ -199,15 +200,15 @@ FX_DWORD CXML_Parser::GetCharRef() {
           m_dwIndex++;
           if (ch == ';') {
             CFX_ByteStringC ref = buf.GetByteString();
-            if (ref == FX_BSTRC("gt")) {
+            if (ref == "gt") {
               code = '>';
-            } else if (ref == FX_BSTRC("lt")) {
+            } else if (ref == "lt") {
               code = '<';
-            } else if (ref == FX_BSTRC("amp")) {
+            } else if (ref == "amp") {
               code = '&';
-            } else if (ref == FX_BSTRC("apos")) {
+            } else if (ref == "apos") {
               code = '\'';
-            } else if (ref == FX_BSTRC("quot")) {
+            } else if (ref == "quot") {
               code = '"';
             }
             iState = 10;
@@ -228,9 +229,8 @@ FX_DWORD CXML_Parser::GetCharRef() {
             iState = 10;
             break;
           }
-          if (g_FXCRT_XML_IsDigital(ch)) {
-            code = code * 10 + ch - '0';
-          }
+          if (g_FXCRT_XML_IsDigital(ch))
+            code = code * 10 + FXSYS_toDecimalDigit(ch);
           break;
         case 4:
           m_dwIndex++;
@@ -242,7 +242,7 @@ FX_DWORD CXML_Parser::GetCharRef() {
               g_FXCRT_XML_ByteTypes[ch] & FXCRTM_XML_CHARTYPE_HexChar;
           if (nHex) {
             if (nHex == FXCRTM_XML_CHARTYPE_HexDigital) {
-              code = (code << 4) + ch - '0';
+              code = (code << 4) + FXSYS_toDecimalDigit(ch);
             } else if (nHex == FXCRTM_XML_CHARTYPE_HexLowerLetter) {
               code = (code << 4) + ch - 87;
             } else {
@@ -327,12 +327,12 @@ void CXML_Parser::GetTagName(CFX_ByteString& space,
         case 1:
           if (ch == '?') {
             m_dwIndex++;
-            SkipLiterals(FX_BSTRC("?>"));
+            SkipLiterals("?>");
             iState = 0;
             break;
           } else if (ch == '!') {
             m_dwIndex++;
-            SkipLiterals(FX_BSTRC("-->"));
+            SkipLiterals("-->");
             iState = 0;
             break;
           }
@@ -441,7 +441,7 @@ CXML_Element* CXML_Parser::ParseElement(CXML_Element* pParent,
           if (ch == '!') {
             iState = 2;
           } else if (ch == '?') {
-            SkipLiterals(FX_BSTRC("?>"));
+            SkipLiterals("?>");
             SkipWhiteSpaces();
             iState = 0;
           } else if (ch == '/') {
@@ -463,7 +463,7 @@ CXML_Element* CXML_Parser::ParseElement(CXML_Element* pParent,
             iState = 0;
             m_dwIndex--;
             CXML_Element* pSubElement = ParseElement(pElement, TRUE);
-            if (pSubElement == NULL) {
+            if (!pSubElement) {
               break;
             }
             pSubElement->m_pParent = pElement;
@@ -474,12 +474,12 @@ CXML_Element* CXML_Parser::ParseElement(CXML_Element* pParent,
           break;
         case 2:
           if (ch == '[') {
-            SkipLiterals(FX_BSTRC("]]>"));
+            SkipLiterals("]]>");
           } else if (ch == '-') {
             m_dwIndex++;
-            SkipLiterals(FX_BSTRC("-->"));
+            SkipLiterals("-->");
           } else {
-            SkipLiterals(FX_BSTRC(">"));
+            SkipLiterals(">");
           }
           decoder.Clear();
           SkipWhiteSpaces();
@@ -607,9 +607,9 @@ CFX_ByteString CXML_Element::GetNamespaceURI(
   const CXML_Element* pElement = this;
   do {
     if (qName.IsEmpty()) {
-      pwsSpace = pElement->m_AttrMap.Lookup(FX_BSTRC(""), FX_BSTRC("xmlns"));
+      pwsSpace = pElement->m_AttrMap.Lookup("", "xmlns");
     } else {
-      pwsSpace = pElement->m_AttrMap.Lookup(FX_BSTRC("xmlns"), qName);
+      pwsSpace = pElement->m_AttrMap.Lookup("xmlns", qName);
     }
     if (pwsSpace) {
       break;
@@ -767,7 +767,7 @@ FX_DWORD CXML_Element::FindElement(CXML_Element* pChild) const {
 }
 const CFX_WideString* CXML_AttrMap::Lookup(const CFX_ByteStringC& space,
                                            const CFX_ByteStringC& name) const {
-  if (m_pMap == NULL) {
+  if (!m_pMap) {
     return NULL;
   }
   for (int i = 0; i < m_pMap->GetSize(); i++) {
@@ -803,7 +803,7 @@ void CXML_AttrMap::SetAt(const CFX_ByteStringC& space,
 }
 void CXML_AttrMap::RemoveAt(const CFX_ByteStringC& space,
                             const CFX_ByteStringC& name) {
-  if (m_pMap == NULL) {
+  if (!m_pMap) {
     return;
   }
   for (int i = 0; i < m_pMap->GetSize(); i++) {
@@ -816,10 +816,9 @@ void CXML_AttrMap::RemoveAt(const CFX_ByteStringC& space,
   }
 }
 int CXML_AttrMap::GetSize() const {
-  return m_pMap == NULL ? 0 : m_pMap->GetSize();
+  return m_pMap ? m_pMap->GetSize() : 0;
 }
 CXML_AttrItem& CXML_AttrMap::GetAt(int index) const {
-  ASSERT(m_pMap != NULL);
   return (*m_pMap)[index];
 }
 void CXML_AttrMap::RemoveAll() {

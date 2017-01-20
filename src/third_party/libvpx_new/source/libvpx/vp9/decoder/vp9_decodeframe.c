@@ -587,7 +587,12 @@ static void dec_build_inter_predictors(VP9Decoder *const pbi, MACROBLOCKD *xd,
     // Co-ordinate of containing block to pixel precision.
     int x_start = (-xd->mb_to_left_edge >> (3 + pd->subsampling_x));
     int y_start = (-xd->mb_to_top_edge >> (3 + pd->subsampling_y));
-
+#if CONFIG_BETTER_HW_COMPATIBILITY
+    assert(xd->mi[0]->mbmi.sb_type != BLOCK_4X8 &&
+           xd->mi[0]->mbmi.sb_type != BLOCK_8X4);
+    assert(mv_q4.row == mv->row * (1 << (1 - pd->subsampling_y)) &&
+           mv_q4.col == mv->col * (1 << (1 - pd->subsampling_x)));
+#endif
     // Co-ordinate of the block to 1/16th pixel precision.
     x0_16 = (x_start + x) << SUBPEL_BITS;
     y0_16 = (y_start + y) << SUBPEL_BITS;
@@ -1979,6 +1984,8 @@ static size_t read_uncompressed_header(VP9Decoder *pbi,
   if (!cm->error_resilient_mode) {
     cm->refresh_frame_context = vpx_rb_read_bit(rb);
     cm->frame_parallel_decoding_mode = vpx_rb_read_bit(rb);
+    if (!cm->frame_parallel_decoding_mode)
+      vp9_zero(cm->counts);
   } else {
     cm->refresh_frame_context = 0;
     cm->frame_parallel_decoding_mode = 1;
@@ -2082,43 +2089,6 @@ static int read_compressed_header(VP9Decoder *pbi, const uint8_t *data,
   return vpx_reader_has_error(&r);
 }
 
-#ifdef NDEBUG
-#define debug_check_frame_counts(cm) (void)0
-#else  // !NDEBUG
-// Counts should only be incremented when frame_parallel_decoding_mode and
-// error_resilient_mode are disabled.
-static void debug_check_frame_counts(const VP9_COMMON *const cm) {
-  FRAME_COUNTS zero_counts;
-  vp9_zero(zero_counts);
-  assert(cm->frame_parallel_decoding_mode || cm->error_resilient_mode);
-  assert(!memcmp(cm->counts.y_mode, zero_counts.y_mode,
-                 sizeof(cm->counts.y_mode)));
-  assert(!memcmp(cm->counts.uv_mode, zero_counts.uv_mode,
-                 sizeof(cm->counts.uv_mode)));
-  assert(!memcmp(cm->counts.partition, zero_counts.partition,
-                 sizeof(cm->counts.partition)));
-  assert(!memcmp(cm->counts.coef, zero_counts.coef,
-                 sizeof(cm->counts.coef)));
-  assert(!memcmp(cm->counts.eob_branch, zero_counts.eob_branch,
-                 sizeof(cm->counts.eob_branch)));
-  assert(!memcmp(cm->counts.switchable_interp, zero_counts.switchable_interp,
-                 sizeof(cm->counts.switchable_interp)));
-  assert(!memcmp(cm->counts.inter_mode, zero_counts.inter_mode,
-                 sizeof(cm->counts.inter_mode)));
-  assert(!memcmp(cm->counts.intra_inter, zero_counts.intra_inter,
-                 sizeof(cm->counts.intra_inter)));
-  assert(!memcmp(cm->counts.comp_inter, zero_counts.comp_inter,
-                 sizeof(cm->counts.comp_inter)));
-  assert(!memcmp(cm->counts.single_ref, zero_counts.single_ref,
-                 sizeof(cm->counts.single_ref)));
-  assert(!memcmp(cm->counts.comp_ref, zero_counts.comp_ref,
-                 sizeof(cm->counts.comp_ref)));
-  assert(!memcmp(&cm->counts.tx, &zero_counts.tx, sizeof(cm->counts.tx)));
-  assert(!memcmp(cm->counts.skip, zero_counts.skip, sizeof(cm->counts.skip)));
-  assert(!memcmp(&cm->counts.mv, &zero_counts.mv, sizeof(cm->counts.mv)));
-}
-#endif  // NDEBUG
-
 static struct vpx_read_bit_buffer *init_read_bit_buffer(
     VP9Decoder *pbi,
     struct vpx_read_bit_buffer *rb,
@@ -2202,8 +2172,6 @@ void vp9_decode_frame(VP9Decoder *pbi,
     vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,
                        "Uninitialized entropy context.");
 
-  vp9_zero(cm->counts);
-
   xd->corrupted = 0;
   new_fb->corrupted = read_compressed_header(pbi, data, first_partition_size);
   if (new_fb->corrupted)
@@ -2259,8 +2227,6 @@ void vp9_decode_frame(VP9Decoder *pbi,
         vp9_adapt_mode_probs(cm);
         vp9_adapt_mv_probs(cm, cm->allow_high_precision_mv);
       }
-    } else {
-      debug_check_frame_counts(cm);
     }
   } else {
     vpx_internal_error(&cm->error, VPX_CODEC_CORRUPT_FRAME,

@@ -14,6 +14,74 @@
 #include <ctime>
 #endif
 
+CFX_CRTFileStream::CFX_CRTFileStream(IFXCRT_FileAccess* pFA)
+    : m_pFile(pFA), m_dwCount(1) {}
+
+CFX_CRTFileStream::~CFX_CRTFileStream() {
+  if (m_pFile) {
+    m_pFile->Release();
+  }
+}
+
+IFX_FileStream* CFX_CRTFileStream::Retain() {
+  m_dwCount++;
+  return this;
+}
+
+void CFX_CRTFileStream::Release() {
+  FX_DWORD nCount = --m_dwCount;
+  if (!nCount) {
+    delete this;
+  }
+}
+
+FX_FILESIZE CFX_CRTFileStream::GetSize() {
+  return m_pFile->GetSize();
+}
+
+FX_BOOL CFX_CRTFileStream::IsEOF() {
+  return GetPosition() >= GetSize();
+}
+
+FX_FILESIZE CFX_CRTFileStream::GetPosition() {
+  return m_pFile->GetPosition();
+}
+
+FX_BOOL CFX_CRTFileStream::ReadBlock(void* buffer,
+                                     FX_FILESIZE offset,
+                                     size_t size) {
+  return (FX_BOOL)m_pFile->ReadPos(buffer, size, offset);
+}
+
+size_t CFX_CRTFileStream::ReadBlock(void* buffer, size_t size) {
+  return m_pFile->Read(buffer, size);
+}
+
+FX_BOOL CFX_CRTFileStream::WriteBlock(const void* buffer,
+                                      FX_FILESIZE offset,
+                                      size_t size) {
+  return (FX_BOOL)m_pFile->WritePos(buffer, size, offset);
+}
+
+FX_BOOL CFX_CRTFileStream::Flush() {
+  return m_pFile->Flush();
+}
+
+#ifdef PDF_ENABLE_XFA
+IFX_FileAccess* FX_CreateDefaultFileAccess(const CFX_WideStringC& wsPath) {
+  if (wsPath.GetLength() == 0)
+    return NULL;
+
+  CFX_CRTFileAccess* pFA = NULL;
+  pFA = new CFX_CRTFileAccess;
+  if (NULL == pFA)
+    return NULL;
+
+  pFA->Init(wsPath);
+  return pFA;
+}
+#endif  // PDF_ENABLE_XFA
+
 IFX_FileStream* FX_CreateFileStream(const FX_CHAR* filename, FX_DWORD dwModes) {
   IFXCRT_FileAccess* pFA = FXCRT_FileAccess_Create();
   if (!pFA) {
@@ -51,9 +119,7 @@ IFX_MemoryStream* FX_CreateMemoryStream(uint8_t* pBuffer,
 IFX_MemoryStream* FX_CreateMemoryStream(FX_BOOL bConsecutive) {
   return new CFX_MemoryStream(bConsecutive);
 }
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 FX_FLOAT FXSYS_tan(FX_FLOAT a) {
   return (FX_FLOAT)tan(a);
 }
@@ -63,7 +129,7 @@ FX_FLOAT FXSYS_logb(FX_FLOAT b, FX_FLOAT x) {
 FX_FLOAT FXSYS_strtof(const FX_CHAR* pcsStr,
                       int32_t iLength,
                       int32_t* pUsedLen) {
-  FXSYS_assert(pcsStr != NULL);
+  FXSYS_assert(pcsStr);
   if (iLength < 0) {
     iLength = (int32_t)FXSYS_strlen(pcsStr);
   }
@@ -73,7 +139,7 @@ FX_FLOAT FXSYS_strtof(const FX_CHAR* pcsStr,
 FX_FLOAT FXSYS_wcstof(const FX_WCHAR* pwsStr,
                       int32_t iLength,
                       int32_t* pUsedLen) {
-  FXSYS_assert(pwsStr != NULL);
+  FXSYS_assert(pwsStr);
   if (iLength < 0) {
     iLength = (int32_t)FXSYS_wcslen(pwsStr);
   }
@@ -119,7 +185,7 @@ FX_FLOAT FXSYS_wcstof(const FX_WCHAR* pwsStr,
 FX_WCHAR* FXSYS_wcsncpy(FX_WCHAR* dstStr,
                         const FX_WCHAR* srcStr,
                         size_t count) {
-  FXSYS_assert(dstStr != NULL && srcStr != NULL && count > 0);
+  FXSYS_assert(dstStr && srcStr && count > 0);
   for (size_t i = 0; i < count; ++i)
     if ((dstStr[i] = srcStr[i]) == L'\0') {
       break;
@@ -127,7 +193,7 @@ FX_WCHAR* FXSYS_wcsncpy(FX_WCHAR* dstStr,
   return dstStr;
 }
 int32_t FXSYS_wcsnicmp(const FX_WCHAR* s1, const FX_WCHAR* s2, size_t count) {
-  FXSYS_assert(s1 != NULL && s2 != NULL && count > 0);
+  FXSYS_assert(s1 && s2 && count > 0);
   FX_WCHAR wch1 = 0, wch2 = 0;
   while (count-- > 0) {
     wch1 = (FX_WCHAR)FXSYS_tolower(*s1++);
@@ -139,7 +205,7 @@ int32_t FXSYS_wcsnicmp(const FX_WCHAR* s1, const FX_WCHAR* s2, size_t count) {
   return wch1 - wch2;
 }
 int32_t FXSYS_strnicmp(const FX_CHAR* s1, const FX_CHAR* s2, size_t count) {
-  FXSYS_assert(s1 != NULL && s2 != NULL && count > 0);
+  FXSYS_assert(s1 && s2 && count > 0);
   FX_CHAR ch1 = 0, ch2 = 0;
   while (count-- > 0) {
     ch1 = (FX_CHAR)FXSYS_tolower(*s1++);
@@ -153,7 +219,7 @@ int32_t FXSYS_strnicmp(const FX_CHAR* s1, const FX_CHAR* s2, size_t count) {
 FX_DWORD FX_HashCode_String_GetA(const FX_CHAR* pStr,
                                  int32_t iLength,
                                  FX_BOOL bIgnoreCase) {
-  FXSYS_assert(pStr != NULL);
+  FXSYS_assert(pStr);
   if (iLength < 0) {
     iLength = (int32_t)FXSYS_strlen(pStr);
   }
@@ -173,7 +239,7 @@ FX_DWORD FX_HashCode_String_GetA(const FX_CHAR* pStr,
 FX_DWORD FX_HashCode_String_GetW(const FX_WCHAR* pStr,
                                  int32_t iLength,
                                  FX_BOOL bIgnoreCase) {
-  FXSYS_assert(pStr != NULL);
+  FXSYS_assert(pStr);
   if (iLength < 0) {
     iLength = (int32_t)FXSYS_wcslen(pStr);
   }
@@ -190,12 +256,7 @@ FX_DWORD FX_HashCode_String_GetW(const FX_WCHAR* pStr,
   }
   return dwHashCode;
 }
-#ifdef __cplusplus
-}
-#endif
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 void* FX_Random_MT_Start(FX_DWORD dwSeed) {
   FX_LPMTRANDOMCONTEXT pContext = FX_Alloc(FX_MTRANDOMCONTEXT, 1);
   pContext->mt[0] = dwSeed;
@@ -208,7 +269,7 @@ void* FX_Random_MT_Start(FX_DWORD dwSeed) {
   return pContext;
 }
 FX_DWORD FX_Random_MT_Generate(void* pContext) {
-  FXSYS_assert(pContext != NULL);
+  FXSYS_assert(pContext);
   FX_LPMTRANDOMCONTEXT pMTC = (FX_LPMTRANDOMCONTEXT)pContext;
   FX_DWORD v;
   static FX_DWORD mag[2] = {0, MT_Matrix_A};
@@ -239,7 +300,7 @@ FX_DWORD FX_Random_MT_Generate(void* pContext) {
   return v;
 }
 void FX_Random_MT_Close(void* pContext) {
-  FXSYS_assert(pContext != NULL);
+  FXSYS_assert(pContext);
   FX_Free(pContext);
 }
 void FX_Random_GenerateMT(FX_DWORD* pBuffer, int32_t iCount) {
@@ -282,8 +343,7 @@ void FX_Random_GenerateBase(FX_DWORD* pBuffer, int32_t iCount) {
 #if _FXM_PLATFORM_ == _FXM_PLATFORM_WINDOWS_
 FX_BOOL FX_GenerateCryptoRandom(FX_DWORD* pBuffer, int32_t iCount) {
   HCRYPTPROV hCP = NULL;
-  if (!::CryptAcquireContext(&hCP, NULL, NULL, PROV_RSA_FULL, 0) ||
-      hCP == NULL) {
+  if (!::CryptAcquireContext(&hCP, NULL, NULL, PROV_RSA_FULL, 0) || !hCP) {
     return FALSE;
   }
   ::CryptGenRandom(hCP, iCount * sizeof(FX_DWORD), (uint8_t*)pBuffer);
@@ -298,6 +358,38 @@ void FX_Random_GenerateCrypto(FX_DWORD* pBuffer, int32_t iCount) {
   FX_Random_GenerateBase(pBuffer, iCount);
 #endif
 }
-#ifdef __cplusplus
-}
+
+#ifdef PDF_ENABLE_XFA
+void FX_GUID_CreateV4(FX_LPGUID pGUID) {
+#if (_FX_OS_ == _FX_WIN32_DESKTOP_ || _FX_OS_ == _FX_WIN32_MOBILE_ || \
+     _FX_OS_ == _FX_WIN64_)
+#ifdef _FX_WINAPI_PARTITION_DESKTOP_
+  if (!FX_GenerateCryptoRandom((FX_DWORD*)pGUID, 4)) {
+    FX_Random_GenerateMT((FX_DWORD*)pGUID, 4);
+  }
+#else
+  FX_Random_GenerateMT((FX_DWORD*)pGUID, 4);
 #endif
+#else
+  FX_Random_GenerateMT((FX_DWORD*)pGUID, 4);
+#endif
+  uint8_t& b = ((uint8_t*)pGUID)[6];
+  b = (b & 0x0F) | 0x40;
+}
+const FX_CHAR* gs_FX_pHexChars = "0123456789ABCDEF";
+void FX_GUID_ToString(FX_LPCGUID pGUID,
+                      CFX_ByteString& bsStr,
+                      FX_BOOL bSeparator) {
+  FX_CHAR* pBuf = bsStr.GetBuffer(40);
+  uint8_t b;
+  for (int32_t i = 0; i < 16; i++) {
+    b = ((const uint8_t*)pGUID)[i];
+    *pBuf++ = gs_FX_pHexChars[b >> 4];
+    *pBuf++ = gs_FX_pHexChars[b & 0x0F];
+    if (bSeparator && (i == 3 || i == 5 || i == 7 || i == 9)) {
+      *pBuf++ = L'-';
+    }
+  }
+  bsStr.ReleaseBuffer(bSeparator ? 36 : 32);
+}
+#endif  // PDF_ENABLE_XFA

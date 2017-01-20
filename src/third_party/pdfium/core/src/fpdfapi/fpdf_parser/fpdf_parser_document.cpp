@@ -4,12 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "core/include/fpdfapi/fpdf_module.h"
 #include "core/include/fpdfapi/fpdf_parser.h"
 
+#include "core/include/fpdfapi/fpdf_module.h"
+
 CPDF_Document::CPDF_Document(CPDF_Parser* pParser)
-    : CPDF_IndirectObjects(pParser) {
-  ASSERT(pParser != NULL);
+    : CPDF_IndirectObjectHolder(pParser) {
+  ASSERT(pParser);
   m_pRootDict = NULL;
   m_pInfoDict = NULL;
   m_bLinearized = FALSE;
@@ -34,15 +35,17 @@ CPDF_DocRenderData* CPDF_Document::GetValidateRenderData() {
 }
 void CPDF_Document::LoadDoc() {
   m_LastObjNum = m_pParser->GetLastObjNum();
-  CPDF_Object* pRootObj = GetIndirectObject(m_pParser->GetRootObjNum());
-  if (pRootObj == NULL) {
+  CPDF_Object* pRootObj =
+      GetIndirectObject(m_pParser->GetRootObjNum(), nullptr);
+  if (!pRootObj) {
     return;
   }
   m_pRootDict = pRootObj->GetDict();
-  if (m_pRootDict == NULL) {
+  if (!m_pRootDict) {
     return;
   }
-  CPDF_Object* pInfoObj = GetIndirectObject(m_pParser->GetInfoObjNum());
+  CPDF_Object* pInfoObj =
+      GetIndirectObject(m_pParser->GetInfoObjNum(), nullptr);
   if (pInfoObj) {
     m_pInfoDict = pInfoObj->GetDict();
   }
@@ -56,29 +59,30 @@ void CPDF_Document::LoadDoc() {
 void CPDF_Document::LoadAsynDoc(CPDF_Dictionary* pLinearized) {
   m_bLinearized = TRUE;
   m_LastObjNum = m_pParser->GetLastObjNum();
-  CPDF_Object* indirectObj = GetIndirectObject(m_pParser->GetRootObjNum());
-  m_pRootDict = indirectObj ? indirectObj->GetDict() : NULL;
-  if (m_pRootDict == NULL) {
+  CPDF_Object* pIndirectObj =
+      GetIndirectObject(m_pParser->GetRootObjNum(), nullptr);
+  m_pRootDict = pIndirectObj ? pIndirectObj->GetDict() : nullptr;
+  if (!m_pRootDict) {
     return;
   }
-  indirectObj = GetIndirectObject(m_pParser->GetInfoObjNum());
-  m_pInfoDict = indirectObj ? indirectObj->GetDict() : NULL;
+  pIndirectObj = GetIndirectObject(m_pParser->GetInfoObjNum(), nullptr);
+  m_pInfoDict = pIndirectObj ? pIndirectObj->GetDict() : nullptr;
   CPDF_Array* pIDArray = m_pParser->GetIDArray();
   if (pIDArray) {
     m_ID1 = pIDArray->GetString(0);
     m_ID2 = pIDArray->GetString(1);
   }
   FX_DWORD dwPageCount = 0;
-  CPDF_Object* pCount = pLinearized->GetElement(FX_BSTRC("N"));
+  CPDF_Object* pCount = pLinearized->GetElement("N");
   if (ToNumber(pCount))
     dwPageCount = pCount->GetInteger();
 
   m_PageList.SetSize(dwPageCount);
-  CPDF_Object* pNo = pLinearized->GetElement(FX_BSTRC("P"));
+  CPDF_Object* pNo = pLinearized->GetElement("P");
   if (ToNumber(pNo))
     m_dwFirstPageNo = pNo->GetInteger();
 
-  CPDF_Object* pObjNum = pLinearized->GetElement(FX_BSTRC("O"));
+  CPDF_Object* pObjNum = pLinearized->GetElement("O");
   if (ToNumber(pObjNum))
     m_dwFirstPageObjNum = pObjNum->GetInteger();
 }
@@ -99,8 +103,8 @@ CPDF_Dictionary* CPDF_Document::_FindPDFPage(CPDF_Dictionary* pPages,
                                              int iPage,
                                              int nPagesToGo,
                                              int level) {
-  CPDF_Array* pKidList = pPages->GetArray(FX_BSTRC("Kids"));
-  if (pKidList == NULL) {
+  CPDF_Array* pKidList = pPages->GetArray("Kids");
+  if (!pKidList) {
     if (nPagesToGo == 0) {
       return pPages;
     }
@@ -112,21 +116,21 @@ CPDF_Dictionary* CPDF_Document::_FindPDFPage(CPDF_Dictionary* pPages,
   int nKids = pKidList->GetCount();
   for (int i = 0; i < nKids; i++) {
     CPDF_Dictionary* pKid = pKidList->GetDict(i);
-    if (pKid == NULL) {
+    if (!pKid) {
       nPagesToGo--;
       continue;
     }
     if (pKid == pPages) {
       continue;
     }
-    if (!pKid->KeyExist(FX_BSTRC("Kids"))) {
+    if (!pKid->KeyExist("Kids")) {
       if (nPagesToGo == 0) {
         return pKid;
       }
       m_PageList.SetAt(iPage - nPagesToGo, pKid->GetObjNum());
       nPagesToGo--;
     } else {
-      int nPages = pKid->GetInteger(FX_BSTRC("Count"));
+      int nPages = pKid->GetInteger("Count");
       if (nPagesToGo < nPages) {
         return _FindPDFPage(pKid, iPage, nPagesToGo, level + 1);
       }
@@ -142,21 +146,23 @@ CPDF_Dictionary* CPDF_Document::GetPage(int iPage) {
 
   if (m_bLinearized && (iPage == (int)m_dwFirstPageNo)) {
     if (CPDF_Dictionary* pDict =
-            ToDictionary(GetIndirectObject(m_dwFirstPageObjNum)))
+            ToDictionary(GetIndirectObject(m_dwFirstPageObjNum, nullptr)))
       return pDict;
   }
 
   int objnum = m_PageList.GetAt(iPage);
   if (objnum) {
-    if (CPDF_Dictionary* pDict = ToDictionary(GetIndirectObject(objnum)))
+    if (CPDF_Dictionary* pDict =
+            ToDictionary(GetIndirectObject(objnum, nullptr))) {
       return pDict;
+    }
   }
 
   CPDF_Dictionary* pRoot = GetRoot();
   if (!pRoot)
     return nullptr;
 
-  CPDF_Dictionary* pPages = pRoot->GetDict(FX_BSTRC("Pages"));
+  CPDF_Dictionary* pPages = pRoot->GetDict("Pages");
   if (!pPages)
     return nullptr;
 
@@ -173,15 +179,15 @@ int CPDF_Document::_FindPageIndex(CPDF_Dictionary* pNode,
                                   FX_DWORD objnum,
                                   int& index,
                                   int level) {
-  if (pNode->KeyExist(FX_BSTRC("Kids"))) {
-    CPDF_Array* pKidList = pNode->GetArray(FX_BSTRC("Kids"));
-    if (pKidList == NULL) {
+  if (pNode->KeyExist("Kids")) {
+    CPDF_Array* pKidList = pNode->GetArray("Kids");
+    if (!pKidList) {
       return -1;
     }
     if (level >= FX_MAX_PAGE_LEVEL) {
       return -1;
     }
-    FX_DWORD count = pNode->GetInteger(FX_BSTRC("Count"));
+    FX_DWORD count = pNode->GetInteger("Count");
     if (count <= skip_count) {
       skip_count -= count;
       index += count;
@@ -199,7 +205,7 @@ int CPDF_Document::_FindPageIndex(CPDF_Dictionary* pNode,
     }
     for (FX_DWORD i = 0; i < pKidList->GetCount(); i++) {
       CPDF_Dictionary* pKid = pKidList->GetDict(i);
-      if (pKid == NULL) {
+      if (!pKid) {
         continue;
       }
       if (pKid == pNode) {
@@ -237,11 +243,11 @@ int CPDF_Document::GetPageIndex(FX_DWORD objnum) {
     }
   }
   CPDF_Dictionary* pRoot = GetRoot();
-  if (pRoot == NULL) {
+  if (!pRoot) {
     return -1;
   }
-  CPDF_Dictionary* pPages = pRoot->GetDict(FX_BSTRC("Pages"));
-  if (pPages == NULL) {
+  CPDF_Dictionary* pPages = pRoot->GetDict("Pages");
+  if (!pPages) {
     return -1;
   }
   int index = 0;
@@ -254,39 +260,39 @@ static int _CountPages(CPDF_Dictionary* pPages, int level) {
   if (level > 128) {
     return 0;
   }
-  int count = pPages->GetInteger(FX_BSTRC("Count"));
+  int count = pPages->GetInteger("Count");
   if (count > 0 && count < FPDF_PAGE_MAX_NUM) {
     return count;
   }
-  CPDF_Array* pKidList = pPages->GetArray(FX_BSTRC("Kids"));
-  if (pKidList == NULL) {
+  CPDF_Array* pKidList = pPages->GetArray("Kids");
+  if (!pKidList) {
     return 0;
   }
   count = 0;
   for (FX_DWORD i = 0; i < pKidList->GetCount(); i++) {
     CPDF_Dictionary* pKid = pKidList->GetDict(i);
-    if (pKid == NULL) {
+    if (!pKid) {
       continue;
     }
-    if (!pKid->KeyExist(FX_BSTRC("Kids"))) {
+    if (!pKid->KeyExist("Kids")) {
       count++;
     } else {
       count += _CountPages(pKid, level + 1);
     }
   }
-  pPages->SetAtInteger(FX_BSTRC("Count"), count);
+  pPages->SetAtInteger("Count", count);
   return count;
 }
 int CPDF_Document::_GetPageCount() const {
   CPDF_Dictionary* pRoot = GetRoot();
-  if (pRoot == NULL) {
+  if (!pRoot) {
     return 0;
   }
-  CPDF_Dictionary* pPages = pRoot->GetDict(FX_BSTRC("Pages"));
-  if (pPages == NULL) {
+  CPDF_Dictionary* pPages = pRoot->GetDict("Pages");
+  if (!pPages) {
     return 0;
   }
-  if (!pPages->KeyExist(FX_BSTRC("Kids"))) {
+  if (!pPages->KeyExist("Kids")) {
     return 1;
   }
   return _CountPages(pPages, 0);
@@ -299,8 +305,8 @@ FX_BOOL CPDF_Document::IsContentUsedElsewhere(FX_DWORD objnum,
       continue;
     }
     CPDF_Object* pContents =
-        pPageDict ? pPageDict->GetElement(FX_BSTRC("Contents")) : NULL;
-    if (pContents == NULL) {
+        pPageDict ? pPageDict->GetElement("Contents") : NULL;
+    if (!pContents) {
       continue;
     }
     if (pContents->GetDirectType() == PDFOBJ_ARRAY) {
@@ -317,29 +323,22 @@ FX_BOOL CPDF_Document::IsContentUsedElsewhere(FX_DWORD objnum,
   return FALSE;
 }
 FX_DWORD CPDF_Document::GetUserPermissions(FX_BOOL bCheckRevision) const {
-  if (m_pParser == NULL) {
+  if (!m_pParser) {
     return (FX_DWORD)-1;
   }
   return m_pParser->GetPermissions(bCheckRevision);
 }
 FX_BOOL CPDF_Document::IsOwner() const {
-  if (m_pParser == NULL) {
-    return TRUE;
-  }
-  return m_pParser->IsOwner();
+  return !m_pParser || m_pParser->IsOwner();
 }
 FX_BOOL CPDF_Document::IsFormStream(FX_DWORD objnum, FX_BOOL& bForm) const {
-  {
-    CPDF_Object* pObj;
-    if (m_IndirectObjs.Lookup((void*)(uintptr_t)objnum, (void*&)pObj)) {
-      CPDF_Stream* pStream = pObj->AsStream();
-      bForm = pStream &&
-              pStream->GetDict()->GetString(FX_BSTRC("Subtype")) ==
-                  FX_BSTRC("Form");
-      return TRUE;
-    }
+  auto it = m_IndirectObjs.find(objnum);
+  if (it != m_IndirectObjs.end()) {
+    CPDF_Stream* pStream = it->second->AsStream();
+    bForm = pStream && pStream->GetDict()->GetString("Subtype") == "Form";
+    return TRUE;
   }
-  if (m_pParser == NULL) {
+  if (!m_pParser) {
     bForm = FALSE;
     return TRUE;
   }

@@ -4,12 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "../fpdf_page/pageint.h"
 #include "core/include/fpdfapi/fpdf_module.h"
 #include "core/include/fpdfapi/fpdf_page.h"
 #include "core/include/fpdfapi/fpdf_serial.h"
+#include "core/src/fpdfapi/fpdf_page/pageint.h"
 
-CFX_ByteTextBuf& operator<<(CFX_ByteTextBuf& ar, CFX_AffineMatrix& matrix) {
+CFX_ByteTextBuf& operator<<(CFX_ByteTextBuf& ar, CFX_Matrix& matrix) {
   ar << matrix.a << " " << matrix.b << " " << matrix.c << " " << matrix.d << " "
      << matrix.e << " " << matrix.f;
   return ar;
@@ -37,7 +37,7 @@ void CPDF_PageContentGenerate::GenerateContent() {
   CFX_ByteTextBuf buf;
   CPDF_Dictionary* pPageDict = m_pPage->m_pFormDict;
   for (int i = 0; i < m_pageObjects.GetSize(); ++i) {
-    CPDF_PageObject* pPageObj = (CPDF_PageObject*)m_pageObjects[i];
+    CPDF_PageObject* pPageObj = m_pageObjects[i];
     if (!pPageObj || pPageObj->m_Type != PDFPAGE_IMAGE) {
       continue;
     }
@@ -45,7 +45,7 @@ void CPDF_PageContentGenerate::GenerateContent() {
   }
   CPDF_Object* pContent =
       pPageDict ? pPageDict->GetElementValue("Contents") : NULL;
-  if (pContent != NULL) {
+  if (pContent) {
     pPageDict->RemoveAt("Contents");
   }
   CPDF_Stream* pStream = new CPDF_Stream(NULL, 0, NULL);
@@ -56,13 +56,13 @@ void CPDF_PageContentGenerate::GenerateContent() {
 CFX_ByteString CPDF_PageContentGenerate::RealizeResource(
     CPDF_Object* pResourceObj,
     const FX_CHAR* szType) {
-  if (m_pPage->m_pResources == NULL) {
+  if (!m_pPage->m_pResources) {
     m_pPage->m_pResources = new CPDF_Dictionary;
     int objnum = m_pDocument->AddIndirectObject(m_pPage->m_pResources);
     m_pPage->m_pFormDict->SetAtReference("Resources", m_pDocument, objnum);
   }
   CPDF_Dictionary* pResList = m_pPage->m_pResources->GetDict(szType);
-  if (pResList == NULL) {
+  if (!pResList) {
     pResList = new CPDF_Dictionary;
     m_pPage->m_pResources->SetAt(szType, pResList);
   }
@@ -106,7 +106,7 @@ void CPDF_PageContentGenerate::ProcessForm(CFX_ByteTextBuf& buf,
     return;
   }
   CPDF_Stream* pStream = new CPDF_Stream(NULL, 0, NULL);
-  CPDF_Dictionary* pFormDict = CPDF_Dictionary::Create();
+  CPDF_Dictionary* pFormDict = new CPDF_Dictionary;
   pFormDict->SetAtName("Type", "XObject");
   pFormDict->SetAtName("Subtype", "Form");
   CFX_FloatRect bbox = m_pPage->GetPageBBox();

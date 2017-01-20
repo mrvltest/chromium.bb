@@ -80,7 +80,71 @@
 #        },
 #      ],
     },
-
+    {
+      # GN version: //ppapi:power_saver_test_plugin
+      'target_name': 'power_saver_test_plugin',
+      'type': 'loadable_module',
+      'sources': [
+        'tests/power_saver_test_plugin.cc',
+        'tests/test_utils.cc',
+      ],
+      'dependencies': [
+        'ppapi.gyp:ppapi_cpp',
+        'ppapi_internal.gyp:ppapi_shared',
+      ],
+      'conditions': [
+        ['OS=="mac"', {
+          'mac_bundle': 1,
+          'product_name': 'power_saver_test_plugin',
+          'product_extension': 'plugin',
+        }],
+      ],
+    },
+    {
+      # GN version: //ppapi:blink_test_plugin
+      'target_name': 'blink_test_plugin',
+      'type': 'loadable_module',
+      'sources': [
+        'tests/blink_test_plugin.cc',
+      ],
+      'dependencies': [
+        'ppapi.gyp:ppapi_cpp',
+        'ppapi_internal.gyp:ppapi_shared',
+      ],
+      'conditions': [
+        ['OS=="mac"', {
+          'mac_bundle': 1,
+          'product_name': 'blink_test_plugin',
+          'product_extension': 'plugin',
+        }],
+      ],
+    },
+    {
+      # GN version: //ppapi/proxy:test_support
+      #             //ppapi/shared_impl:test_support
+      'target_name': 'ppapi_unittest_shared',
+      'type': 'static_library',
+      'dependencies': [
+        'ppapi_proxy',
+        'ppapi_shared',
+        '../base/base.gyp:test_support_base',
+        '../ipc/ipc.gyp:ipc',
+        '../ipc/ipc.gyp:test_support_ipc',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'sources': [
+        # Note: sources list duplicated in GN build.
+        'proxy/ppapi_proxy_test.cc',
+        'proxy/ppapi_proxy_test.h',
+        'proxy/resource_message_test_sink.cc',
+        'proxy/resource_message_test_sink.h',
+        'shared_impl/test_globals.cc',
+        'shared_impl/test_globals.h',
+        'shared_impl/test_utils.cc',
+        'shared_impl/test_utils.h',
+      ],
+    },
     {
       # GN version: //ppapi:ppapi_perftests
       'target_name': 'ppapi_perftests',
@@ -275,6 +339,16 @@
       ],
       'sources': [
         'examples/audio/audio.cc',
+      ],
+    },
+    {
+      'target_name': 'ppapi_example_audio_encode',
+      'dependencies': [
+        'ppapi_example_skeleton',
+        'ppapi.gyp:ppapi_cpp',
+      ],
+      'sources': [
+        'examples/audio_encode/audio_encode.cc',
       ],
     },
     {
