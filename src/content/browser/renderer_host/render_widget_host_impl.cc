@@ -722,6 +722,8 @@ void RenderWidgetHostImpl::GotFocus() {
 
 void RenderWidgetHostImpl::LostFocus() {
   Blur();
+  if (owner_delegate_)
+	  owner_delegate_->RenderWidgetLostFocus();
 }
 
 void RenderWidgetHostImpl::Focus() {
