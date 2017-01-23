@@ -6,8 +6,8 @@
 
 #include "app.h"
 
-#include "../../include/fsdk_mgr.h"  // For CPDFDoc_Environment.
-#include "../../include/javascript/IJavaScript.h"
+#include <memory>
+
 #include "Document.h"
 #include "JS_Context.h"
 #include "JS_Define.h"
@@ -15,8 +15,9 @@
 #include "JS_Object.h"
 #include "JS_Runtime.h"
 #include "JS_Value.h"
+#include "fpdfsdk/include/fsdk_mgr.h"  // For CPDFDoc_Environment.
+#include "fpdfsdk/include/javascript/IJavaScript.h"
 #include "resource.h"
-#include "third_party/base/nonstd_unique_ptr.h"
 
 BEGIN_JS_STATIC_CONST(CJS_TimerObj)
 END_JS_STATIC_CONST()
@@ -47,6 +48,9 @@ CJS_Timer* TimerObj::GetTimer() const {
 #define JS_STR_PLATFORM L"WIN"
 #define JS_STR_LANGUANGE L"ENU"
 #define JS_NUM_VIEWERVERSION 8
+#ifdef PDF_ENABLE_XFA
+#define JS_NUM_VIEWERVERSION_XFA 11
+#endif  // PDF_ENABLE_XFA
 #define JS_NUM_FORMSVERSION 7
 
 BEGIN_JS_STATIC_CONST(CJS_App)
@@ -126,7 +130,7 @@ FX_BOOL app::activeDocs(IJS_Context* cc,
           pRuntime->GetIsolate(), pRuntime, CJS_Document::g_nObjDefnID);
       pJSDocument =
           (CJS_Document*)FXJS_GetPrivate(pRuntime->GetIsolate(), pObj);
-      ASSERT(pJSDocument != NULL);
+      ASSERT(pJSDocument);
     }
     aDocs.SetElement(0, CJS_Value(pRuntime, pJSDocument));
   }
@@ -196,7 +200,15 @@ FX_BOOL app::viewerVersion(IJS_Context* cc,
                            CFX_WideString& sError) {
   if (!vp.IsGetting())
     return FALSE;
-
+#ifdef PDF_ENABLE_XFA
+  CJS_Context* pContext = (CJS_Context*)cc;
+  CPDFSDK_Document* pCurDoc = pContext->GetReaderDocument();
+  CPDFXFA_Document* pDoc = pCurDoc->GetXFADocument();
+  if (pDoc->GetDocType() == 1 || pDoc->GetDocType() == 2) {
+    vp << JS_NUM_VIEWERVERSION_XFA;
+    return TRUE;
+  }
+#endif  // PDF_ENABLE_XFA
   vp << JS_NUM_VIEWERVERSION;
   return TRUE;
 }
@@ -204,23 +216,41 @@ FX_BOOL app::viewerVersion(IJS_Context* cc,
 FX_BOOL app::platform(IJS_Context* cc,
                       CJS_PropValue& vp,
                       CFX_WideString& sError) {
-  if (vp.IsGetting()) {
-    vp << JS_STR_PLATFORM;
+  if (!vp.IsGetting())
+    return FALSE;
+#ifdef PDF_ENABLE_XFA
+  CPDFDoc_Environment* pEnv =
+      static_cast<CJS_Context*>(cc)->GetJSRuntime()->GetReaderApp();
+  if (!pEnv)
+    return FALSE;
+  CFX_WideString platfrom = pEnv->FFI_GetPlatform();
+  if (!platfrom.IsEmpty()) {
+    vp << platfrom;
     return TRUE;
   }
-
-  return FALSE;
+#endif
+  vp << JS_STR_PLATFORM;
+  return TRUE;
 }
 
 FX_BOOL app::language(IJS_Context* cc,
                       CJS_PropValue& vp,
                       CFX_WideString& sError) {
-  if (vp.IsGetting()) {
-    vp << JS_STR_LANGUANGE;
+  if (!vp.IsGetting())
+    return FALSE;
+#ifdef PDF_ENABLE_XFA
+  CPDFDoc_Environment* pEnv =
+      static_cast<CJS_Context*>(cc)->GetJSRuntime()->GetReaderApp();
+  if (!pEnv)
+    return FALSE;
+  CFX_WideString language = pEnv->FFI_GetLanguage();
+  if (!language.IsEmpty()) {
+    vp << language;
     return TRUE;
   }
-
-  return FALSE;
+#endif
+  vp << JS_STR_LANGUANGE;
+  return TRUE;
 }
 
 // creates a new fdf object that contains no data
@@ -421,9 +451,7 @@ FX_BOOL app::setTimeOut(IJS_Context* cc,
   }
 
   CJS_Context* pContext = (CJS_Context*)cc;
-  ASSERT(pContext != NULL);
   CJS_Runtime* pRuntime = pContext->GetJSRuntime();
-  ASSERT(pRuntime != NULL);
 
   CFX_WideString script = params.size() > 0 ? params[0].ToCFXWideString() : L"";
   if (script.IsEmpty()) {
@@ -532,8 +560,6 @@ FX_BOOL app::execMenuItem(IJS_Context* cc,
 }
 
 void app::TimerProc(CJS_Timer* pTimer) {
-  ASSERT(pTimer != NULL);
-
   CJS_Runtime* pRuntime = pTimer->GetRuntime();
 
   switch (pTimer->GetType()) {
@@ -775,13 +801,10 @@ FX_BOOL app::response(IJS_Context* cc,
   }
 
   CJS_Context* pContext = (CJS_Context*)cc;
-  ASSERT(pContext != NULL);
-
   CPDFDoc_Environment* pApp = pContext->GetReaderApp();
-  ASSERT(pApp != NULL);
 
   const int MAX_INPUT_BYTES = 2048;
-  nonstd::unique_ptr<char[]> pBuff(new char[MAX_INPUT_BYTES + 2]);
+  std::unique_ptr<char[]> pBuff(new char[MAX_INPUT_BYTES + 2]);
   memset(pBuff.get(), 0, MAX_INPUT_BYTES + 2);
   int nLengthBytes = pApp->JS_appResponse(
       swQuestion.c_str(), swTitle.c_str(), swDefault.c_str(), swLabel.c_str(),

@@ -28,7 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include "core/inspector/WorkerConsoleAgent.h"
 
 #include "bindings/core/v8/ScriptController.h"
@@ -74,13 +73,13 @@ ConsoleMessageStorage* WorkerConsoleAgent::messageStorage()
 void WorkerConsoleAgent::enableStackCapturingIfNeeded()
 {
     if (ScriptController::s_stackCaptureControlledByInspector)
-        ScriptController::setCaptureCallStackForUncaughtExceptions_bb(true);
+        ScriptController::setCaptureCallStackForUncaughtExceptions_bb(m_workerGlobalScope->thread()->isolate(), true);
 }
 
 void WorkerConsoleAgent::disableStackCapturingIfNeeded()
 {
     if (ScriptController::s_stackCaptureControlledByInspector)
-        ScriptController::setCaptureCallStackForUncaughtExceptions_bb(false);
+        ScriptController::setCaptureCallStackForUncaughtExceptions_bb(m_workerGlobalScope->thread()->isolate(), false);
 }
 
 } // namespace blink

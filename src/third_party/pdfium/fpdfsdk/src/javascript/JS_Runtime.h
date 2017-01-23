@@ -11,10 +11,10 @@
 #include <utility>
 #include <vector>
 
-#include "../../include/javascript/IJavaScript.h"
-#include "../../include/jsapi/fxjs_v8.h"
 #include "JS_EventHandler.h"
 #include "core/include/fxcrt/fx_basic.h"
+#include "fpdfsdk/include/javascript/IJavaScript.h"
+#include "fpdfsdk/include/jsapi/fxjs_v8.h"
 
 class CJS_Context;
 
@@ -57,6 +57,13 @@ class CJS_Runtime : public IJS_Runtime {
 
   v8::Isolate* GetIsolate() const { return m_isolate; }
   v8::Local<v8::Context> NewJSContext();
+
+#ifdef PDF_ENABLE_XFA
+  FX_BOOL GetHValueByName(const CFX_ByteStringC& utf8Name,
+                          FXJSE_HVALUE hValue) override;
+  FX_BOOL SetHValueByName(const CFX_ByteStringC& utf8Name,
+                          FXJSE_HVALUE hValue) override;
+#endif  // PDF_ENABLE_XFA
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);

@@ -56,7 +56,6 @@ public:
     int orientation() const override;
     Console* console() const override;
     DOMSelection* getSelection() override;
-    void focus(ExecutionContext* = 0) override;
     void blur() override;
     void print() override;
     void stop() override;
@@ -80,6 +79,8 @@ public:
     void cancelAnimationFrame(int id) override;
     int requestIdleCallback(IdleRequestCallback*, const IdleRequestOptions&) override;
     void cancelIdleCallback(int id) override;
+
+    void frameDetached();
 
 private:
     explicit RemoteDOMWindow(RemoteFrame&);

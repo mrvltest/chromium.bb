@@ -4,6 +4,8 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include <algorithm>
+
 #include "core/include/fpdfdoc/fpdf_doc.h"
 
 CPDF_FormControl::CPDF_FormControl(CPDF_FormField* pField,
@@ -20,18 +22,16 @@ CFX_ByteString CPDF_FormControl::GetOnStateName() {
          GetType() == CPDF_FormField::RadioButton);
   CFX_ByteString csOn;
   CPDF_Dictionary* pAP = m_pWidgetDict->GetDict("AP");
-  if (pAP == NULL) {
+  if (!pAP) {
     return csOn;
   }
   CPDF_Dictionary* pN = pAP->GetDict("N");
-  if (pN == NULL) {
+  if (!pN) {
     return csOn;
   }
-  FX_POSITION pos = pN->GetStartPos();
-  while (pos) {
-    pN->GetNextElement(pos, csOn);
-    if (csOn != "Off") {
-      return csOn;
+  for (const auto& it : *pN) {
+    if (it.first != "Off") {
+      return it.first;
     }
   }
   return CFX_ByteString();
@@ -51,14 +51,12 @@ void CPDF_FormControl::SetOnStateName(const CFX_ByteString& csOn) {
     m_pWidgetDict->SetAtName("AS", csValue);
   }
   CPDF_Dictionary* pAP = m_pWidgetDict->GetDict("AP");
-  if (pAP == NULL) {
+  if (!pAP) {
     return;
   }
-  FX_POSITION pos1 = pAP->GetStartPos();
-  while (pos1) {
-    CFX_ByteString csKey1;
-    CPDF_Object* pObj1 = pAP->GetNextElement(pos1, csKey1);
-    if (pObj1 == NULL) {
+  for (const auto& it : *pAP) {
+    CPDF_Object* pObj1 = it.second;
+    if (!pObj1) {
       continue;
     }
     CPDF_Object* pObjDirect1 = pObj1->GetDirect();
@@ -66,11 +64,12 @@ void CPDF_FormControl::SetOnStateName(const CFX_ByteString& csOn) {
     if (!pSubDict)
       continue;
 
-    FX_POSITION pos2 = pSubDict->GetStartPos();
-    while (pos2) {
-      CFX_ByteString csKey2;
-      CPDF_Object* pObj2 = pSubDict->GetNextElement(pos2, csKey2);
-      if (pObj2 == NULL) {
+    auto subdict_it = pSubDict->begin();
+    while (subdict_it != pSubDict->end()) {
+      const CFX_ByteString& csKey2 = subdict_it->first;
+      CPDF_Object* pObj2 = subdict_it->second;
+      ++subdict_it;
+      if (!pObj2) {
         continue;
       }
       if (csKey2 != "Off") {
@@ -124,7 +123,7 @@ FX_BOOL CPDF_FormControl::IsDefaultChecked() {
   ASSERT(GetType() == CPDF_FormField::CheckBox ||
          GetType() == CPDF_FormField::RadioButton);
   CPDF_Object* pDV = FPDF_GetFieldAttr(m_pField->m_pDict, "DV");
-  if (pDV == NULL) {
+  if (!pDV) {
     return FALSE;
   }
   CFX_ByteString csDV = pDV->GetString();
@@ -149,7 +148,7 @@ void CPDF_FormControl::CheckControl(FX_BOOL bChecked) {
 CPDF_Stream* FPDFDOC_GetAnnotAP(CPDF_Dictionary* pAnnotDict,
                                 CPDF_Annot::AppearanceMode mode);
 void CPDF_FormControl::DrawControl(CFX_RenderDevice* pDevice,
-                                   CFX_AffineMatrix* pMatrix,
+                                   CFX_Matrix* pMatrix,
                                    CPDF_Page* pPage,
                                    CPDF_Annot::AppearanceMode mode,
                                    const CPDF_RenderOptions* pOptions) {
@@ -157,41 +156,39 @@ void CPDF_FormControl::DrawControl(CFX_RenderDevice* pDevice,
     return;
   }
   CPDF_Stream* pStream = FPDFDOC_GetAnnotAP(m_pWidgetDict, mode);
-  if (pStream == NULL) {
+  if (!pStream) {
     return;
   }
   CFX_FloatRect form_bbox = pStream->GetDict()->GetRect("BBox");
-  CFX_AffineMatrix form_matrix = pStream->GetDict()->GetMatrix("Matrix");
+  CFX_Matrix form_matrix = pStream->GetDict()->GetMatrix("Matrix");
   form_matrix.TransformRect(form_bbox);
   CFX_FloatRect arect = m_pWidgetDict->GetRect("Rect");
-  CFX_AffineMatrix matrix;
+  CFX_Matrix matrix;
   matrix.MatchRect(arect, form_bbox);
   matrix.Concat(*pMatrix);
   CPDF_Form form(m_pField->m_pForm->m_pDocument,
                  m_pField->m_pForm->m_pFormDict->GetDict("DR"), pStream);
   form.ParseContent(NULL, NULL, NULL, NULL);
-  CPDF_RenderContext context;
-  context.Create(pPage);
+  CPDF_RenderContext context(pPage);
   context.DrawObjectList(pDevice, &form, &matrix, pOptions);
 }
-const FX_CHAR* g_sHighlightingMode[] = {"N", "I", "O", "P", "T", ""};
+static const FX_CHAR* const g_sHighlightingMode[] = {
+    // Must match order of HiglightingMode enum.
+    "N", "I", "O", "P", "T", nullptr};
 CPDF_FormControl::HighlightingMode CPDF_FormControl::GetHighlightingMode() {
-  if (m_pWidgetDict == NULL) {
+  if (!m_pWidgetDict) {
     return Invert;
   }
   CFX_ByteString csH = m_pWidgetDict->GetString("H", "I");
-  int i = 0;
-  while (g_sHighlightingMode[i][0] != '\0') {
-    if (csH.Equal(g_sHighlightingMode[i])) {
-      return (HighlightingMode)i;
-    }
-    i++;
+  for (int i = 0; g_sHighlightingMode[i]; ++i) {
+    if (csH.Equal(g_sHighlightingMode[i]))
+      return static_cast<HighlightingMode>(i);
   }
   return Invert;
 }
 
 CPDF_ApSettings CPDF_FormControl::GetMK() const {
-  return CPDF_ApSettings(m_pWidgetDict ? m_pWidgetDict->GetDict(FX_BSTRC("MK"))
+  return CPDF_ApSettings(m_pWidgetDict ? m_pWidgetDict->GetDict("MK")
                                        : nullptr);
 }
 
@@ -317,10 +314,9 @@ int CPDF_FormControl::GetControlAlignment() {
     return m_pWidgetDict->GetInteger("Q", 0);
   }
   CPDF_Object* pObj = FPDF_GetFieldAttr(m_pField->m_pDict, "Q");
-  if (pObj == NULL) {
-    return m_pField->m_pForm->GetFormAlignment();
-  }
-  return pObj->GetInteger();
+  if (pObj)
+    return pObj->GetInteger();
+  return m_pField->m_pForm->GetFormAlignment();
 }
 
 CPDF_ApSettings::CPDF_ApSettings(CPDF_Dictionary* pDict) : m_pDict(pDict) {}
@@ -330,7 +326,7 @@ bool CPDF_ApSettings::HasMKEntry(const CFX_ByteStringC& csEntry) const {
 }
 
 int CPDF_ApSettings::GetRotation() const {
-  return m_pDict ? m_pDict->GetInteger(FX_BSTRC("R")) : 0;
+  return m_pDict ? m_pDict->GetInteger("R") : 0;
 }
 
 FX_ARGB CPDF_ApSettings::GetColor(int& iColorType,
@@ -361,9 +357,9 @@ FX_ARGB CPDF_ApSettings::GetColor(int& iColorType,
     FX_FLOAT m = pEntry->GetNumber(1);
     FX_FLOAT y = pEntry->GetNumber(2);
     FX_FLOAT k = pEntry->GetNumber(3);
-    FX_FLOAT r = 1.0f - FX_MIN(1.0f, c + k);
-    FX_FLOAT g = 1.0f - FX_MIN(1.0f, m + k);
-    FX_FLOAT b = 1.0f - FX_MIN(1.0f, y + k);
+    FX_FLOAT r = 1.0f - std::min(1.0f, c + k);
+    FX_FLOAT g = 1.0f - std::min(1.0f, m + k);
+    FX_FLOAT b = 1.0f - std::min(1.0f, y + k);
     color = ArgbEncode(255, (int)(r * 255), (int)(g * 255), (int)(b * 255));
   }
   return color;
@@ -386,11 +382,11 @@ void CPDF_ApSettings::GetOriginalColor(int& iColorType,
   for (int i = 0; i < 4; i++) {
     fc[i] = 0;
   }
-  if (m_pDict == NULL) {
+  if (!m_pDict) {
     return;
   }
   CPDF_Array* pEntry = m_pDict->GetArray(csEntry);
-  if (pEntry == NULL) {
+  if (!pEntry) {
     return;
   }
   FX_DWORD dwCount = pEntry->GetCount();
@@ -421,10 +417,9 @@ CPDF_Stream* CPDF_ApSettings::GetIcon(const CFX_ByteStringC& csEntry) const {
 }
 
 CPDF_IconFit CPDF_ApSettings::GetIconFit() const {
-  return m_pDict ? m_pDict->GetDict(FX_BSTRC("IF")) : nullptr;
+  return m_pDict ? m_pDict->GetDict("IF") : nullptr;
 }
 
 int CPDF_ApSettings::GetTextPosition() const {
-  return m_pDict ? m_pDict->GetInteger(FX_BSTRC("TP"), TEXTPOS_CAPTION)
-                 : TEXTPOS_CAPTION;
+  return m_pDict ? m_pDict->GetInteger("TP", TEXTPOS_CAPTION) : TEXTPOS_CAPTION;
 }

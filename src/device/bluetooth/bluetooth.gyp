@@ -89,6 +89,8 @@
         'bluetooth_low_energy_win.h',
         'bluetooth_remote_gatt_characteristic_android.cc',
         'bluetooth_remote_gatt_characteristic_android.h',
+        'bluetooth_remote_gatt_descriptor_android.cc',
+        'bluetooth_remote_gatt_descriptor_android.h',
         'bluetooth_remote_gatt_service_android.cc',
         'bluetooth_remote_gatt_service_android.h',
         'bluetooth_rfcomm_channel_mac.mm',
@@ -313,5 +315,36 @@
     },
   ],
   'conditions': [
+    ['OS == "android"', {
+      'targets': [
+        {
+          'target_name': 'device_bluetooth_jni_headers',
+          'type': 'none',
+          'sources': [
+            'android/java/src/org/chromium/device/bluetooth/ChromeBluetoothAdapter.java',
+            'android/java/src/org/chromium/device/bluetooth/ChromeBluetoothDevice.java',
+            'android/java/src/org/chromium/device/bluetooth/ChromeBluetoothRemoteGattCharacteristic.java',
+            'android/java/src/org/chromium/device/bluetooth/ChromeBluetoothRemoteGattDescriptor.java',
+            'android/java/src/org/chromium/device/bluetooth/ChromeBluetoothRemoteGattService.java',
+            'android/java/src/org/chromium/device/bluetooth/Wrappers.java',
+          ],
+          'variables': {
+            'jni_gen_package': 'device_bluetooth',
+          },
+          'includes': [ '../../build/jni_generator.gypi' ],
+        },
+        {
+          'target_name': 'device_bluetooth_java',
+          'type': 'none',
+          'dependencies': [
+            '../../base/base.gyp:base',
+          ],
+          'variables': {
+            'java_in_dir': '../../device/bluetooth/android/java',
+          },
+          'includes': [ '../../build/java.gypi' ],
+        },
+      ],
+    }],
   ],
 }

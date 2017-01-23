@@ -4,9 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "../include/fsdk_define.h"
-#include "../include/fsdk_mgr.h"
-#include "../include/fsdk_baseannot.h"
+#include <algorithm>
+
+#include "core/include/fxcrt/fx_ext.h"
+#include "fpdfsdk/include/fsdk_baseannot.h"
+#include "fpdfsdk/include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_mgr.h"
+
+#ifdef PDF_ENABLE_XFA
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_doc.h"
+#endif  // PDF_ENABLE_XFA
 
 int _gAfxGetTimeZoneInSeconds(FX_CHAR tzhour, uint8_t tzminute) {
   return (int)tzhour * 3600 + (int)tzminute * (tzhour >= 0 ? 60 : -60);
@@ -216,12 +223,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     int i = 0;
     int j, k;
     FX_CHAR ch;
-    while (i < strLength) {
-      ch = dtStr[i];
-      if (ch >= '0' && ch <= '9')
-        break;
-      i++;
-    }
+    while (i < strLength && !std::isdigit(dtStr[i]))
+      ++i;
+
     if (i >= strLength)
       return *this;
 
@@ -229,9 +233,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 4) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -243,9 +247,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -257,9 +261,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -271,9 +275,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -285,9 +289,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -299,9 +303,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -320,9 +324,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -337,9 +341,9 @@ CPDFSDK_DateTime& CPDFSDK_DateTime::FromPDFDateTimeString(
     k = 0;
     while (i < strLength && j < 2) {
       ch = dtStr[i];
-      k = k * 10 + ch - '0';
+      k = k * 10 + FXSYS_toDecimalDigit(ch);
       j++;
-      if (ch < '0' || ch > '9')
+      if (!std::isdigit(ch))
         break;
       i++;
     }
@@ -530,8 +534,6 @@ void CPDFSDK_Annot::SetTabOrder(int iTabOrder) {
 }
 
 CPDF_Dictionary* CPDFSDK_BAAnnot::GetAnnotDict() const {
-  ASSERT(m_pAnnot != NULL);
-
   return m_pAnnot->GetAnnotDict();
 }
 
@@ -543,17 +545,12 @@ void CPDFSDK_BAAnnot::SetRect(const CPDF_Rect& rect) {
 }
 
 CPDF_Rect CPDFSDK_BAAnnot::GetRect() const {
-  ASSERT(m_pAnnot != NULL);
-
   CPDF_Rect rect;
   m_pAnnot->GetRect(rect);
-
   return rect;
 }
 
 CFX_ByteString CPDFSDK_BAAnnot::GetType() const {
-  ASSERT(m_pAnnot != NULL);
-
   return m_pAnnot->GetSubType();
 }
 
@@ -562,12 +559,9 @@ CFX_ByteString CPDFSDK_BAAnnot::GetSubType() const {
 }
 
 void CPDFSDK_BAAnnot::DrawAppearance(CFX_RenderDevice* pDevice,
-                                     const CPDF_Matrix* pUser2Device,
+                                     const CFX_Matrix* pUser2Device,
                                      CPDF_Annot::AppearanceMode mode,
                                      const CPDF_RenderOptions* pOptions) {
-  ASSERT(m_pPageView != NULL);
-  ASSERT(m_pAnnot != NULL);
-
   m_pAnnot->DrawAppearance(m_pPageView->GetPDFPage(), pDevice, pUser2Device,
                            mode, pOptions);
 }
@@ -578,7 +572,7 @@ FX_BOOL CPDFSDK_BAAnnot::IsAppearanceValid() {
 
 FX_BOOL CPDFSDK_BAAnnot::IsAppearanceValid(CPDF_Annot::AppearanceMode mode) {
   CPDF_Dictionary* pAP = m_pAnnot->GetAnnotDict()->GetDict("AP");
-  if (pAP == NULL)
+  if (!pAP)
     return FALSE;
 
   // Choose the right sub-ap
@@ -592,21 +586,16 @@ FX_BOOL CPDFSDK_BAAnnot::IsAppearanceValid(CPDF_Annot::AppearanceMode mode) {
 
   // Get the AP stream or subdirectory
   CPDF_Object* psub = pAP->GetElementValue(ap_entry);
-  if (psub == NULL)
-    return FALSE;
-
-  return TRUE;
+  return !!psub;
 }
 
 void CPDFSDK_BAAnnot::DrawBorder(CFX_RenderDevice* pDevice,
-                                 const CPDF_Matrix* pUser2Device,
+                                 const CFX_Matrix* pUser2Device,
                                  const CPDF_RenderOptions* pOptions) {
-  ASSERT(m_pAnnot != NULL);
   m_pAnnot->DrawBorder(pDevice, pUser2Device, pOptions);
 }
 
 void CPDFSDK_BAAnnot::ClearCachedAP() {
-  ASSERT(m_pAnnot != NULL);
   m_pAnnot->ClearCachedAP();
 }
 
@@ -832,9 +821,9 @@ FX_BOOL CPDFSDK_BAAnnot::GetColor(FX_COLORREF& color) const {
       FX_FLOAT y = pEntry->GetNumber(2);
       FX_FLOAT k = pEntry->GetNumber(3);
 
-      FX_FLOAT r = 1.0f - FX_MIN(1.0f, c + k);
-      FX_FLOAT g = 1.0f - FX_MIN(1.0f, m + k);
-      FX_FLOAT b = 1.0f - FX_MIN(1.0f, y + k);
+      FX_FLOAT r = 1.0f - std::min(1.0f, c + k);
+      FX_FLOAT g = 1.0f - std::min(1.0f, m + k);
+      FX_FLOAT b = 1.0f - std::min(1.0f, y + k);
 
       color = FXSYS_RGB((int)(r * 255), (int)(g * 255), (int)(b * 255));
 
@@ -847,7 +836,7 @@ FX_BOOL CPDFSDK_BAAnnot::GetColor(FX_COLORREF& color) const {
 
 void CPDFSDK_BAAnnot::WriteAppearance(const CFX_ByteString& sAPType,
                                       const CPDF_Rect& rcBBox,
-                                      const CPDF_Matrix& matrix,
+                                      const CFX_Matrix& matrix,
                                       const CFX_ByteString& sContents,
                                       const CFX_ByteString& sAPState) {
   CPDF_Dictionary* pAPDict = m_pAnnot->GetAnnotDict()->GetDict("AP");
@@ -946,8 +935,6 @@ CPDF_AAction CPDFSDK_BAAnnot::GetAAction() const {
 }
 
 void CPDFSDK_BAAnnot::SetAAction(const CPDF_AAction& aa) {
-  ASSERT(aa != NULL);
-
   if ((CPDF_AAction&)aa != m_pAnnot->GetAnnotDict()->GetDict("AA"))
     m_pAnnot->GetAnnotDict()->SetAt("AA", (CPDF_AAction&)aa);
 }
@@ -968,14 +955,26 @@ CPDF_Action CPDFSDK_BAAnnot::GetAAction(CPDF_AAction::AActionType eAAT) {
   return CPDF_Action();
 }
 
+#ifdef PDF_ENABLE_XFA
+FX_BOOL CPDFSDK_BAAnnot::IsXFAField() {
+  return FALSE;
+}
+#endif  // PDF_ENABLE_XFA
+
 void CPDFSDK_BAAnnot::Annot_OnDraw(CFX_RenderDevice* pDevice,
-                                   CPDF_Matrix* pUser2Device,
+                                   CFX_Matrix* pUser2Device,
                                    CPDF_RenderOptions* pOptions) {
   m_pAnnot->GetAPForm(m_pPageView->GetPDFPage(), CPDF_Annot::Normal);
   m_pAnnot->DrawAppearance(m_pPageView->GetPDFPage(), pDevice, pUser2Device,
                            CPDF_Annot::Normal, NULL);
+}
 
-  return;
+UnderlyingPageType* CPDFSDK_Annot::GetUnderlyingPage() {
+#ifdef PDF_ENABLE_XFA
+  return GetPDFXFAPage();
+#else   // PDF_ENABLE_XFA
+  return GetPDFPage();
+#endif  // PDF_ENABLE_XFA
 }
 
 CPDF_Page* CPDFSDK_Annot::GetPDFPage() {
@@ -983,3 +982,11 @@ CPDF_Page* CPDFSDK_Annot::GetPDFPage() {
     return m_pPageView->GetPDFPage();
   return NULL;
 }
+
+#ifdef PDF_ENABLE_XFA
+CPDFXFA_Page* CPDFSDK_Annot::GetPDFXFAPage() {
+  if (m_pPageView)
+    return m_pPageView->GetPDFXFAPage();
+  return NULL;
+}
+#endif  // PDF_ENABLE_XFA

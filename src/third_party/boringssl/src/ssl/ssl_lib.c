@@ -274,7 +274,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
     goto err;
   }
 
-  CRYPTO_new_ex_data(&g_ex_data_class_ssl_ctx, ret, &ret->ex_data);
+  CRYPTO_new_ex_data(&ret->ex_data);
 
   ret->max_send_fragment = SSL3_RT_MAX_PLAIN_LENGTH;
 
@@ -284,10 +284,6 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method) {
       !RAND_bytes(ret->tlsext_tick_aes_key, 16)) {
     ret->options |= SSL_OP_NO_TICKET;
   }
-
-  /* Default is to connect to non-RI servers. When RI is more widely deployed
-   * might change this. */
-  ret->options |= SSL_OP_LEGACY_SERVER_CONNECT;
 
   /* Lock the SSL_CTX to the specified version, for compatibility with legacy
    * uses of SSL_METHOD. */
@@ -343,7 +339,6 @@ void SSL_CTX_free(SSL_CTX *ctx) {
   OPENSSL_free(ctx->ocsp_response);
   OPENSSL_free(ctx->signed_cert_timestamp_list);
   EVP_PKEY_free(ctx->tlsext_channel_id_private);
-  BIO_free(ctx->keylog_bio);
 
   OPENSSL_free(ctx);
 }
@@ -429,7 +424,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
 
   s->rwstate = SSL_NOTHING;
 
-  CRYPTO_new_ex_data(&g_ex_data_class_ssl, s, &s->ex_data);
+  CRYPTO_new_ex_data(&s->ex_data);
 
   s->psk_identity_hint = NULL;
   if (ctx->psk_identity_hint) {
@@ -974,61 +969,6 @@ void ssl_cipher_preference_list_free(
   sk_SSL_CIPHER_free(cipher_list->ciphers);
   OPENSSL_free(cipher_list->in_group_flags);
   OPENSSL_free(cipher_list);
-}
-
-struct ssl_cipher_preference_list_st *ssl_cipher_preference_list_dup(
-    struct ssl_cipher_preference_list_st *cipher_list) {
-  struct ssl_cipher_preference_list_st *ret = NULL;
-  size_t n = sk_SSL_CIPHER_num(cipher_list->ciphers);
-
-  ret = OPENSSL_malloc(sizeof(struct ssl_cipher_preference_list_st));
-  if (!ret) {
-    goto err;
-  }
-
-  ret->ciphers = NULL;
-  ret->in_group_flags = NULL;
-  ret->ciphers = sk_SSL_CIPHER_dup(cipher_list->ciphers);
-  if (!ret->ciphers) {
-    goto err;
-  }
-  ret->in_group_flags = BUF_memdup(cipher_list->in_group_flags, n);
-  if (!ret->in_group_flags) {
-    goto err;
-  }
-
-  return ret;
-
-err:
-  ssl_cipher_preference_list_free(ret);
-  return NULL;
-}
-
-struct ssl_cipher_preference_list_st *ssl_cipher_preference_list_from_ciphers(
-    STACK_OF(SSL_CIPHER) *ciphers) {
-  struct ssl_cipher_preference_list_st *ret = NULL;
-  size_t n = sk_SSL_CIPHER_num(ciphers);
-
-  ret = OPENSSL_malloc(sizeof(struct ssl_cipher_preference_list_st));
-  if (!ret) {
-    goto err;
-  }
-  ret->ciphers = NULL;
-  ret->in_group_flags = NULL;
-  ret->ciphers = sk_SSL_CIPHER_dup(ciphers);
-  if (!ret->ciphers) {
-    goto err;
-  }
-  ret->in_group_flags = OPENSSL_malloc(n);
-  if (!ret->in_group_flags) {
-    goto err;
-  }
-  memset(ret->in_group_flags, 0, n);
-  return ret;
-
-err:
-  ssl_cipher_preference_list_free(ret);
-  return NULL;
 }
 
 X509_VERIFY_PARAM *SSL_CTX_get0_param(SSL_CTX *ctx) { return ctx->param; }
@@ -1790,8 +1730,8 @@ void ssl_get_compatible_server_ciphers(SSL *s, uint32_t *out_mask_k,
   }
 
   /* If we are considering an ECC cipher suite that uses an ephemeral EC
-   * key, check it. */
-  if (tls1_check_ec_tmp_key(s)) {
+   * key, check for a shared curve. */
+  if (tls1_get_shared_curve(s) != NID_undef) {
     mask_k |= SSL_kECDHE;
   }
 
@@ -2065,11 +2005,11 @@ void SSL_set_verify_result(SSL *ssl, long result) {
 
 long SSL_get_verify_result(const SSL *ssl) { return ssl->verify_result; }
 
-int SSL_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+int SSL_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
                          CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func) {
   int index;
   if (!CRYPTO_get_ex_new_index(&g_ex_data_class_ssl, &index, argl, argp,
-                               new_func, dup_func, free_func)) {
+                               dup_func, free_func)) {
     return -1;
   }
   return index;
@@ -2083,12 +2023,12 @@ void *SSL_get_ex_data(const SSL *ssl, int idx) {
   return CRYPTO_get_ex_data(&ssl->ex_data, idx);
 }
 
-int SSL_CTX_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+int SSL_CTX_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
                              CRYPTO_EX_dup *dup_func,
                              CRYPTO_EX_free *free_func) {
   int index;
   if (!CRYPTO_get_ex_new_index(&g_ex_data_class_ssl_ctx, &index, argl, argp,
-                               new_func, dup_func, free_func)) {
+                               dup_func, free_func)) {
     return -1;
   }
   return index;
@@ -2131,18 +2071,6 @@ void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx,
 void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*callback)(SSL *ssl, int is_export,
                                                        int keylength)) {
   ssl->cert->dh_tmp_cb = callback;
-}
-
-void SSL_CTX_set_tmp_ecdh_callback(SSL_CTX *ctx,
-                                   EC_KEY *(*callback)(SSL *ssl, int is_export,
-                                                       int keylength)) {
-  ctx->cert->ecdh_tmp_cb = callback;
-}
-
-void SSL_set_tmp_ecdh_callback(SSL *ssl,
-                               EC_KEY *(*callback)(SSL *ssl, int is_export,
-                                                   int keylength)) {
-  ssl->cert->ecdh_tmp_cb = callback;
 }
 
 int SSL_CTX_use_psk_identity_hint(SSL_CTX *ctx, const char *identity_hint) {
@@ -2252,9 +2180,9 @@ void SSL_set_msg_callback_arg(SSL *ssl, void *arg) {
   ssl->msg_callback_arg = arg;
 }
 
-void SSL_CTX_set_keylog_bio(SSL_CTX *ctx, BIO *keylog_bio) {
-  BIO_free(ctx->keylog_bio);
-  ctx->keylog_bio = keylog_bio;
+void SSL_CTX_set_keylog_callback(SSL_CTX *ctx,
+                                 void (*cb)(const SSL *ssl, const char *line)) {
+  ctx->keylog_callback = cb;
 }
 
 static int cbb_add_hex(CBB *cbb, const uint8_t *in, size_t in_len) {
@@ -2274,18 +2202,12 @@ static int cbb_add_hex(CBB *cbb, const uint8_t *in, size_t in_len) {
   return 1;
 }
 
-int ssl_ctx_log_rsa_client_key_exchange(SSL_CTX *ctx,
-                                        const uint8_t *encrypted_premaster,
-                                        size_t encrypted_premaster_len,
-                                        const uint8_t *premaster,
-                                        size_t premaster_len) {
-  BIO *bio = ctx->keylog_bio;
-  CBB cbb;
-  uint8_t *out;
-  size_t out_len;
-  int ret;
-
-  if (bio == NULL) {
+int ssl_log_rsa_client_key_exchange(const SSL *ssl,
+                                    const uint8_t *encrypted_premaster,
+                                    size_t encrypted_premaster_len,
+                                    const uint8_t *premaster,
+                                    size_t premaster_len) {
+  if (ssl->ctx->keylog_callback == NULL) {
     return 1;
   }
 
@@ -2294,7 +2216,9 @@ int ssl_ctx_log_rsa_client_key_exchange(SSL_CTX *ctx,
     return 0;
   }
 
-  CBB_zero(&cbb);
+  CBB cbb;
+  uint8_t *out;
+  size_t out_len;
   if (!CBB_init(&cbb, 4 + 16 + 1 + premaster_len * 2 + 1) ||
       !CBB_add_bytes(&cbb, (const uint8_t *)"RSA ", 4) ||
       /* Only the first 8 bytes of the encrypted premaster secret are
@@ -2302,30 +2226,21 @@ int ssl_ctx_log_rsa_client_key_exchange(SSL_CTX *ctx,
       !cbb_add_hex(&cbb, encrypted_premaster, 8) ||
       !CBB_add_bytes(&cbb, (const uint8_t *)" ", 1) ||
       !cbb_add_hex(&cbb, premaster, premaster_len) ||
-      !CBB_add_bytes(&cbb, (const uint8_t *)"\n", 1) ||
+      !CBB_add_u8(&cbb, 0 /* NUL */) ||
       !CBB_finish(&cbb, &out, &out_len)) {
     CBB_cleanup(&cbb);
     return 0;
   }
 
-  CRYPTO_MUTEX_lock_write(&ctx->lock);
-  ret = BIO_write(bio, out, out_len) >= 0 && BIO_flush(bio);
-  CRYPTO_MUTEX_unlock(&ctx->lock);
-
+  ssl->ctx->keylog_callback(ssl, (const char *)out);
   OPENSSL_free(out);
-  return ret;
+  return 1;
 }
 
-int ssl_ctx_log_master_secret(SSL_CTX *ctx, const uint8_t *client_random,
-                              size_t client_random_len, const uint8_t *master,
-                              size_t master_len) {
-  BIO *bio = ctx->keylog_bio;
-  CBB cbb;
-  uint8_t *out;
-  size_t out_len;
-  int ret;
-
-  if (bio == NULL) {
+int ssl_log_master_secret(const SSL *ssl, const uint8_t *client_random,
+                          size_t client_random_len, const uint8_t *master,
+                          size_t master_len) {
+  if (ssl->ctx->keylog_callback == NULL) {
     return 1;
   }
 
@@ -2334,24 +2249,23 @@ int ssl_ctx_log_master_secret(SSL_CTX *ctx, const uint8_t *client_random,
     return 0;
   }
 
-  CBB_zero(&cbb);
+  CBB cbb;
+  uint8_t *out;
+  size_t out_len;
   if (!CBB_init(&cbb, 14 + 64 + 1 + master_len * 2 + 1) ||
       !CBB_add_bytes(&cbb, (const uint8_t *)"CLIENT_RANDOM ", 14) ||
       !cbb_add_hex(&cbb, client_random, 32) ||
       !CBB_add_bytes(&cbb, (const uint8_t *)" ", 1) ||
       !cbb_add_hex(&cbb, master, master_len) ||
-      !CBB_add_bytes(&cbb, (const uint8_t *)"\n", 1) ||
+      !CBB_add_u8(&cbb, 0 /* NUL */) ||
       !CBB_finish(&cbb, &out, &out_len)) {
     CBB_cleanup(&cbb);
     return 0;
   }
 
-  CRYPTO_MUTEX_lock_write(&ctx->lock);
-  ret = BIO_write(bio, out, out_len) >= 0 && BIO_flush(bio);
-  CRYPTO_MUTEX_unlock(&ctx->lock);
-
+  ssl->ctx->keylog_callback(ssl, (const char *)out);
   OPENSSL_free(out);
-  return ret;
+  return 1;
 }
 
 int SSL_is_init_finished(const SSL *ssl) {
@@ -2386,9 +2300,7 @@ int ssl3_can_false_start(const SSL *s) {
       (s->s3->alpn_selected || s->s3->next_proto_neg_seen) &&
       cipher != NULL &&
       cipher->algorithm_mkey == SSL_kECDHE &&
-      (cipher->algorithm_enc == SSL_AES128GCM ||
-       cipher->algorithm_enc == SSL_AES256GCM ||
-       cipher->algorithm_enc == SSL_CHACHA20POLY1305_OLD);
+      cipher->algorithm_mac == SSL_AEAD;
 }
 
 const SSL3_ENC_METHOD *ssl3_get_enc_method(uint16_t version) {

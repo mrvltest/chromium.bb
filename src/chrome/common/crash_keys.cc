@@ -13,11 +13,25 @@
 
 #if 0
 #include "base/logging.h"
+#endif
+
+#include "base/macros.h"
+
+#if 0
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
+#endif
+
+#include "build/build_config.h"
+
+#if 0
 #include "chrome/common/chrome_switches.h"
+#endif
+
+#include "components/flags_ui/flags_ui_switches.h"
+
+#if 0
 #include "content/public/common/content_switches.h"
 #include "ipc/ipc_switches.h"
 
@@ -33,9 +47,6 @@ namespace crash_keys {
 const char kActiveURL[] = "url-chunk";
 
 const char kFontKeyName[] = "font_key_name";
-
-const char kSwitch[] = "switch-%" PRIuS;
-const char kNumSwitches[] = "num-switches";
 
 const char kExtensionID[] = "extension-%" PRIuS;
 const char kNumExtensionsCount[] = "num-extensions";
@@ -54,6 +65,10 @@ const char kGPUGLVersion[] = "gpu-glver";
 #elif defined(OS_POSIX)
 const char kGPUVendor[] = "gpu-gl-vendor";
 const char kGPURenderer[] = "gpu-gl-renderer";
+#endif
+
+#if defined(OS_WIN)
+const char kHungAudioThreadDetails[] = "hung-audio-thread-details";
 #endif
 
 const char kPrinterInfo[] = "prn-info-%" PRIuS;
@@ -79,7 +94,7 @@ const char kSendAction[] = "sendaction";
 }  // namespace mac
 #endif
 
-#if defined(KASKO)
+#if BUILDFLAG(ENABLE_KASKO)
 const char kKaskoGuid[] = "kasko-guid";
 const char kKaskoEquivalentGuid[] = "kasko-equivalent-guid";
 #endif
@@ -94,14 +109,13 @@ size_t RegisterChromeCrashKeys() {
   base::debug::CrashKey fixed_keys[] = {
 
 #if 0
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_WIN)
     { kMetricsClientId, kSmallSize },
 #else
     { kClientId, kSmallSize },
 #endif
     { kChannel, kSmallSize },
     { kActiveURL, kLargeSize },
-    { kNumSwitches, kSmallSize },
     { kNumVariations, kSmallSize },
     { kVariations, kLargeSize },
     { kNumExtensionsCount, kSmallSize },
@@ -142,7 +156,6 @@ size_t RegisterChromeCrashKeys() {
     { mac::kNSException, kMediumSize },
     { mac::kNSExceptionTrace, kMediumSize },
     { mac::kSendAction, kMediumSize },
-
     { mac::kZombie, kMediumSize },
     { mac::kZombieTrace, kMediumSize },
     // content/:
@@ -152,12 +165,16 @@ size_t RegisterChromeCrashKeys() {
     // media/:
     { "VideoCaptureDeviceQTKit", kSmallSize },
 #endif
-#if defined(KASKO)
+#if BUILDFLAG(ENABLE_KASKO)
     { kKaskoGuid, kSmallSize },
     { kKaskoEquivalentGuid, kSmallSize },
 #endif
     { kBug464926CrashKey, kSmallSize },
     { kViewCount, kSmallSize },
+    // media/:
+#if defined(OS_WIN)
+    { kHungAudioThreadDetails, kSmallSize },
+#endif
     { kZeroEncodeDetails, kSmallSize },
 #endif
   };
@@ -168,23 +185,7 @@ size_t RegisterChromeCrashKeys() {
       fixed_keys, fixed_keys + arraysize(fixed_keys));
 
 #if 0
-  // Register the switches.
-  {
-    // The fixed_keys names are string constants. Use static storage for
-    // formatted key names as well, since they will persist for the duration of
-    // the program.
-    static char formatted_keys[kSwitchesMaxCount][sizeof(kSwitch) + 1] =
-        {{ 0 }};
-    const size_t formatted_key_len = sizeof(formatted_keys[0]);
-    for (size_t i = 0; i < kSwitchesMaxCount; ++i) {
-      // Name the keys using 1-based indexing.
-      int n = base::snprintf(
-          formatted_keys[i], formatted_key_len, kSwitch, i + 1);
-      DCHECK_GT(n, 0);
-      base::debug::CrashKey crash_key = { formatted_keys[i], kSmallSize };
-      keys.push_back(crash_key);
-    }
-  }
+  crash_keys::GetCrashKeysForCommandLineSwitches(&keys);
 
   // Register the extension IDs.
   {
@@ -284,43 +285,8 @@ static bool IsBoringSwitch(const std::string& flag) {
   return false;
 }
 
-void SetSwitchesFromCommandLine(const base::CommandLine* command_line) {
-  DCHECK(command_line);
-  if (!command_line)
-    return;
-
-  const base::CommandLine::StringVector& argv = command_line->argv();
-
-  // Set the number of switches in case size > kNumSwitches.
-  base::debug::SetCrashKeyValue(kNumSwitches,
-      base::StringPrintf("%" PRIuS, argv.size() - 1));
-
-  size_t key_i = 1;  // Key names are 1-indexed.
-
-  // Go through the argv, skipping the exec path.
-  for (size_t i = 1; i < argv.size(); ++i) {
-#if defined(OS_WIN)
-    std::string switch_str = base::WideToUTF8(argv[i]);
-#else
-    std::string switch_str = argv[i];
-#endif
-
-    // Skip uninteresting switches.
-    if (IsBoringSwitch(switch_str))
-      continue;
-
-    // Stop if there are too many switches.
-    if (i > crash_keys::kSwitchesMaxCount)
-      break;
-
-    std::string key = base::StringPrintf(kSwitch, key_i++);
-    base::debug::SetCrashKeyValue(key, switch_str);
-  }
-
-  // Clear any remaining switches.
-  for (; key_i <= kSwitchesMaxCount; ++key_i) {
-    base::debug::ClearCrashKey(base::StringPrintf(kSwitch, key_i));
-  }
+void SetCrashKeysFromCommandLine(const base::CommandLine& command_line) {
+  return SetSwitchesFromCommandLine(command_line, &IsBoringSwitch);
 }
 
 void SetActiveExtensions(const std::set<std::string>& extensions) {

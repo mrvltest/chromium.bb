@@ -105,8 +105,13 @@ extern "C" {
 #define HAS_COPYROW_SSE2
 #define HAS_H422TOARGBROW_SSSE3
 #define HAS_I400TOARGBROW_SSE2
+// The following functions fail on gcc/clang 32 bit with fpic and framepointer.
+// caveat: clangcl uses row_win.cc which works.
+#if defined(NDEBUG) || !(defined(_DEBUG) && defined(__i386__)) || \
+   !defined(__i386__) || defined(_MSC_VER)
+// TODO(fbarchard): fix build error on x86 debug
+// https://code.google.com/p/libyuv/issues/detail?id=524
 #define HAS_I411TOARGBROW_SSSE3
-#if !(defined(_DEBUG) && defined(__i386__))
 // TODO(fbarchard): fix build error on android_full_debug=1
 // https://code.google.com/p/libyuv/issues/detail?id=517
 #define HAS_I422ALPHATOARGBROW_SSSE3
@@ -170,7 +175,6 @@ extern "C" {
 #define HAS_ARGBUNATTENUATEROW_SSE2
 #define HAS_COMPUTECUMULATIVESUMROW_SSE2
 #define HAS_CUMULATIVESUMTOAVERAGEROW_SSE2
-#define HAS_INTERPOLATEROW_SSE2
 #define HAS_INTERPOLATEROW_SSSE3
 #define HAS_RGBCOLORTABLEROW_X86
 #define HAS_SOBELROW_SSE2
@@ -178,6 +182,7 @@ extern "C" {
 #define HAS_SOBELXROW_SSE2
 #define HAS_SOBELXYROW_SSE2
 #define HAS_SOBELYROW_SSE2
+#define HAS_BLENDPLANEROW_SSSE3
 #endif
 
 // The following are available on all x86 platforms, but
@@ -202,6 +207,7 @@ extern "C" {
 // https://code.google.com/p/libyuv/issues/detail?id=517
 #define HAS_I422ALPHATOARGBROW_AVX2
 #endif
+#define HAS_I444TOARGBROW_AVX2
 #define HAS_I422TOARGBROW_AVX2
 #define HAS_I422TORGB24ROW_AVX2
 #define HAS_I422TORGBAROW_AVX2
@@ -227,6 +233,7 @@ extern "C" {
 #define HAS_ARGBMULTIPLYROW_AVX2
 #define HAS_ARGBSUBTRACTROW_AVX2
 #define HAS_ARGBUNATTENUATEROW_AVX2
+#define HAS_BLENDPLANEROW_AVX2
 #endif
 
 // The following are available for AVX2 Visual C and clangcl 32 bit:
@@ -242,7 +249,6 @@ extern "C" {
 #define HAS_I422TOARGB1555ROW_AVX2
 #define HAS_I422TOARGB4444ROW_AVX2
 #define HAS_I422TORGB565ROW_AVX2
-#define HAS_I444TOARGBROW_AVX2
 #define HAS_J400TOARGBROW_AVX2
 #define HAS_NV12TORGB565ROW_AVX2
 #define HAS_RGB565TOARGBROW_AVX2
@@ -1450,6 +1456,18 @@ void ARGBBlendRow_NEON(const uint8* src_argb, const uint8* src_argb1,
 void ARGBBlendRow_C(const uint8* src_argb, const uint8* src_argb1,
                     uint8* dst_argb, int width);
 
+// Unattenuated planar alpha blend.
+void BlendPlaneRow_SSSE3(const uint8* src0, const uint8* src1,
+                         const uint8* alpha, uint8* dst, int width);
+void BlendPlaneRow_Any_SSSE3(const uint8* src0, const uint8* src1,
+                             const uint8* alpha, uint8* dst, int width);
+void BlendPlaneRow_AVX2(const uint8* src0, const uint8* src1,
+                        const uint8* alpha, uint8* dst, int width);
+void BlendPlaneRow_Any_AVX2(const uint8* src0, const uint8* src1,
+                            const uint8* alpha, uint8* dst, int width);
+void BlendPlaneRow_C(const uint8* src0, const uint8* src1,
+                     const uint8* alpha, uint8* dst, int width);
+
 // ARGB multiply images. Same API as Blend, but these require
 // pointer and width alignment for SSE2.
 void ARGBMultiplyRow_C(const uint8* src_argb, const uint8* src_argb1,
@@ -1819,9 +1837,6 @@ void ARGBAffineRow_SSE2(const uint8* src_argb, int src_argb_stride,
 void InterpolateRow_C(uint8* dst_ptr, const uint8* src_ptr,
                       ptrdiff_t src_stride_ptr,
                       int width, int source_y_fraction);
-void InterpolateRow_SSE2(uint8* dst_ptr, const uint8* src_ptr,
-                         ptrdiff_t src_stride_ptr, int width,
-                         int source_y_fraction);
 void InterpolateRow_SSSE3(uint8* dst_ptr, const uint8* src_ptr,
                           ptrdiff_t src_stride_ptr, int width,
                           int source_y_fraction);
@@ -1835,9 +1850,6 @@ void InterpolateRow_MIPS_DSPR2(uint8* dst_ptr, const uint8* src_ptr,
                                ptrdiff_t src_stride_ptr, int width,
                                int source_y_fraction);
 void InterpolateRow_Any_NEON(uint8* dst_ptr, const uint8* src_ptr,
-                             ptrdiff_t src_stride_ptr, int width,
-                             int source_y_fraction);
-void InterpolateRow_Any_SSE2(uint8* dst_ptr, const uint8* src_ptr,
                              ptrdiff_t src_stride_ptr, int width,
                              int source_y_fraction);
 void InterpolateRow_Any_SSSE3(uint8* dst_ptr, const uint8* src_ptr,

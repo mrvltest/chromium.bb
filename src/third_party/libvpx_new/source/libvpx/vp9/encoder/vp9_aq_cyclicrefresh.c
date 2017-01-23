@@ -191,7 +191,8 @@ void vp9_cyclic_refresh_update_segment(VP9_COMP *const cpi,
                                        BLOCK_SIZE bsize,
                                        int64_t rate,
                                        int64_t dist,
-                                       int skip) {
+                                       int skip,
+                                       struct macroblock_plane *const p) {
   const VP9_COMMON *const cm = &cpi->common;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int bw = num_8x8_blocks_wide_lookup[bsize];
@@ -199,11 +200,24 @@ void vp9_cyclic_refresh_update_segment(VP9_COMP *const cpi,
   const int xmis = VPXMIN(cm->mi_cols - mi_col, bw);
   const int ymis = VPXMIN(cm->mi_rows - mi_row, bh);
   const int block_index = mi_row * cm->mi_cols + mi_col;
-  const int refresh_this_block = candidate_refresh_aq(cr, mbmi, rate, dist,
-                                                      bsize);
+  int refresh_this_block = candidate_refresh_aq(cr, mbmi, rate, dist, bsize);
   // Default is to not update the refresh map.
   int new_map_value = cr->map[block_index];
   int x = 0; int y = 0;
+
+  int is_skin = 0;
+  if (refresh_this_block == 0 &&
+      bsize <= BLOCK_16X16 &&
+      cpi->oxcf.content != VP9E_CONTENT_SCREEN) {
+    is_skin = vp9_compute_skin_block(p[0].src.buf,
+                                     p[1].src.buf,
+                                     p[2].src.buf,
+                                     p[0].src.stride,
+                                     p[1].src.stride,
+                                     bsize);
+    if (is_skin)
+      refresh_this_block = 1;
+  }
 
   // If this block is labeled for refresh, check if we should reset the
   // segment_id.

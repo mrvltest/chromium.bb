@@ -136,6 +136,7 @@
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or \
       host_arch=="ppc" or host_arch=="ppc64" or \
+      host_arch=="s390" or host_arch=="s390x" or \
       clang==1', {
       'variables': {
         'host_cxx_is_biarch%': 1,
@@ -146,8 +147,8 @@
       },
     }],
     ['target_arch=="ia32" or target_arch=="x64" or target_arch=="x87" or \
-      target_arch=="ppc" or target_arch=="ppc64" or \
-      clang==1', {
+      target_arch=="ppc" or target_arch=="ppc64" or target_arch=="s390" or \
+      target_arch=="s390x" or clang==1', {
       'variables': {
         'target_cxx_is_biarch%': 1,
        },
@@ -298,6 +299,23 @@
           'V8_TARGET_ARCH_ARM64',
         ],
       }],
+      ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+        'defines': [
+          'V8_TARGET_ARCH_S390',
+        ],
+        'conditions': [
+          ['v8_target_arch=="s390x"', {
+            'defines': [
+              'V8_TARGET_ARCH_S390X',
+            ],
+          }],
+          ['v8_host_byteorder=="little"', {
+            'defines': [
+              'V8_TARGET_ARCH_S390_LE_SIM',
+            ],
+          }],
+          ],
+      }],  # s390
       ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
         'defines': [
           'V8_TARGET_ARCH_PPC',
@@ -358,6 +376,9 @@
               ['ld_r_path!=""', {
                 'ldflags': ['-Wl,--rpath=<(ld_r_path)'],
               }],
+              [ 'clang==1', {
+                'cflags': ['-integrated-as'],
+              }],
             ],
           }],
         ],
@@ -407,7 +428,12 @@
                       'FPU_MODE_FP64',
                     ],
                     'cflags!': ['-mfp32', '-mfpxx'],
-                    'cflags': ['-mips32r6', '-Wa,-mips32r6'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32r6'],
+                      }],
+                    ],
+                    'cflags': ['-mips32r6'],
                     'ldflags': ['-mips32r6'],
                   }],
                   ['mips_arch_variant=="r2"', {
@@ -433,8 +459,11 @@
                         ],
                         'cflags': ['-mfp32'],
                       }],
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32r2'],
+                      }],
                     ],
-                    'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                    'cflags': ['-mips32r2'],
                     'ldflags': ['-mips32r2'],
                   }],
                   ['mips_arch_variant=="r1"', {
@@ -442,7 +471,12 @@
                       'FPU_MODE_FP32',
                     ],
                     'cflags!': ['-mfp64', '-mfpxx'],
-                    'cflags': ['-mips32', '-Wa,-mips32'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32'],
+                      }],
+                    ],
+                    'cflags': ['-mips32'],
                     'ldflags': ['-mips32'],
                   }],
                   ['mips_arch_variant=="rx"', {
@@ -451,7 +485,12 @@
                       'FPU_MODE_FPXX',
                     ],
                     'cflags!': ['-mfp64', '-mfp32'],
-                    'cflags': ['-mips32', '-Wa,-mips32', '-mfpxx'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32'],
+                      }],
+                    ],
+                    'cflags': ['-mips32', '-mfpxx'],
                     'ldflags': ['-mips32'],
                   }],
                 ],
@@ -590,7 +629,12 @@
                       'FPU_MODE_FP64',
                     ],
                     'cflags!': ['-mfp32', '-mfpxx'],
-                    'cflags': ['-mips32r6', '-Wa,-mips32r6'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32r6'],
+                      }],
+                    ],
+                    'cflags': ['-mips32r6'],
                     'ldflags': ['-mips32r6'],
                   }],
                   ['mips_arch_variant=="r2"', {
@@ -616,13 +660,21 @@
                         ],
                         'cflags': ['-mfp32'],
                       }],
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32r2'],
+                      }],
                     ],
-                    'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                    'cflags': ['-mips32r2'],
                     'ldflags': ['-mips32r2'],
                   }],
                   ['mips_arch_variant=="r1"', {
                     'cflags!': ['-mfp64', '-mfpxx'],
-                    'cflags': ['-mips32', '-Wa,-mips32'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32'],
+                      }],
+                    ],
+                    'cflags': ['-mips32'],
                     'ldflags': ['-mips32'],
                   }],
                   ['mips_arch_variant=="rx"', {
@@ -631,7 +683,12 @@
                       'FPU_MODE_FPXX',
                     ],
                     'cflags!': ['-mfp64', '-mfp32'],
-                    'cflags': ['-mips32', '-Wa,-mips32', '-mfpxx'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips32'],
+                      }],
+                    ],
+                    'cflags': ['-mips32', '-mfpxx'],
                     'ldflags': ['-mips32'],
                   }],
                   ['mips_arch_variant=="loongson"', {
@@ -640,7 +697,12 @@
                       'FPU_MODE_FP32',
                     ],
                     'cflags!': ['-mfp64', '-mfpxx'],
-                    'cflags': ['-mips3', '-Wa,-mips3', '-mfp32'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips3'],
+                      }],
+                    ],
+                    'cflags': ['-mips3', '-mfp32'],
                   }],
                 ],
               }, {
@@ -801,12 +863,22 @@
                   }],
                   ['mips_arch_variant=="r6"', {
                     'defines': ['_MIPS_ARCH_MIPS64R6',],
-                    'cflags': ['-mips64r6', '-mabi=64', '-Wa,-mips64r6'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips64r6'],
+                      }],
+                    ],
+                    'cflags': ['-mips64r6', '-mabi=64'],
                     'ldflags': ['-mips64r6', '-mabi=64'],
                   }],
                   ['mips_arch_variant=="r2"', {
                     'defines': ['_MIPS_ARCH_MIPS64R2',],
-                    'cflags': ['-mips64r2', '-mabi=64', '-Wa,-mips64r2'],
+                    'conditions': [
+                      [ 'clang==0', {
+                        'cflags': ['-Wa,-mips64r2'],
+                      }],
+                    ],
+                    'cflags': ['-mips64r2', '-mabi=64'],
                     'ldflags': ['-mips64r2', '-mabi=64'],
                   }],
                 ],
@@ -926,13 +998,21 @@
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="x87" or v8_target_arch=="mips" or \
-         v8_target_arch=="mipsel" or v8_target_arch=="ppc")', {
+         v8_target_arch=="mipsel" or v8_target_arch=="ppc" or \
+         v8_target_arch=="s390")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
               ['host_cxx_is_biarch==1', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ]
+                'conditions': [
+                  ['host_arch=="s390" or host_arch=="s390x"', {
+                    'cflags': [ '-m31' ],
+                    'ldflags': [ '-m31' ]
+                  },{
+                   'cflags': [ '-m32' ],
+                   'ldflags': [ '-m32' ]
+                  }],
+                ],
               }],
             ],
             'xcode_settings': {
@@ -942,8 +1022,15 @@
           ['_toolset=="target"', {
             'conditions': [
               ['target_cxx_is_biarch==1 and nacl_target_arch!="nacl_x64"', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ],
+                'conditions': [
+                  ['host_arch=="s390" or host_arch=="s390x"', {
+                    'cflags': [ '-m31' ],
+                    'ldflags': [ '-m31' ]
+                  },{
+                   'cflags': [ '-m32' ],
+                   'ldflags': [ '-m32' ],
+                  }],
+                ],
               }],
             ],
             'xcode_settings': {
@@ -954,7 +1041,7 @@
       }],
       ['(OS=="linux" or OS=="android") and \
         (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
-         v8_target_arch=="ppc64")', {
+         v8_target_arch=="ppc64" or v8_target_arch=="s390x")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [

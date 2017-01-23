@@ -8,13 +8,12 @@
 #include "components/web_cache/renderer/web_cache_render_process_observer.h"
 #include "content/public/renderer/render_thread.h"
 #include "content/shell/renderer/shell_render_view_observer.h"
-#include "ppapi/shared_impl/ppapi_switches.h"
 #include "third_party/WebKit/public/web/WebView.h"
 #include "v8/include/v8.h"
 
-#include "chrome/renderer/spellchecker/spellcheck.h"
-#include "chrome/renderer/spellchecker/spellcheck_provider.h"
-#include "components/printing/renderer/print_web_view_helper.h"
+#if defined(ENABLE_PLUGINS)
+#include "ppapi/shared_impl/ppapi_switches.h"
+#endif
 
 namespace content {
 
@@ -41,21 +40,21 @@ void ShellContentRendererClient::RenderViewCreated(RenderView* render_view) {
 
 bool ShellContentRendererClient::IsPluginAllowedToUseCompositorAPI(
     const GURL& url) {
-  // SHEZ: Remove test code.
-#if 0
+#if defined(ENABLE_PLUGINS)
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kEnablePepperTesting);
-#endif
+#else
   return false;
+#endif
 }
 
 bool ShellContentRendererClient::IsPluginAllowedToUseDevChannelAPIs() {
-  // SHEZ: Remove test code.
-#if 0
+#if defined(ENABLE_PLUGINS)
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kEnablePepperTesting);
-#endif
+#else
   return false;
+#endif
 }
 
 }  // namespace content

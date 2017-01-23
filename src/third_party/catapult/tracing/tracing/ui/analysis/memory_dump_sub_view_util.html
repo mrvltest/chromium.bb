@@ -129,24 +129,23 @@ tr.exportTo('tr.ui.analysis', function() {
    *
    * @constructor
    */
-  function MemoryColumn(name, title, units, cellGetter, aggregationMode) {
+  function MemoryColumn(name, units, cellGetter, aggregationMode) {
     this.name = name;
-    this.title = title;
     this.units = units;
     this.cell = cellGetter;
 
     // See MemoryColumn.AggregationMode enum in this file.
     this.aggregationMode = aggregationMode;
 
-    // Color of the values returned by this column. This can be either
-    // (1) undefined (no specific color is set), (2) a color string (e.g.
-    // 'blue'), or (3) a function mapping defined attributes to color strings
-    // (the return value can be undefined again).
-    this.color = undefined;
+    // Color of the values returned by this column can be set by assigning a
+    // 'color' field/getter. The value can be either (1) undefined (no specific
+    // color is set), (2) a color string (e.g. 'blue'), or (3) a function
+    // mapping lists of attributes to color strings (the return value can be
+    // undefined again).
   }
 
   MemoryColumn.fromRows = function(rows, cellKey, aggregationMode,
-      opt_titleBuilder) {
+      opt_customColumnConstructorRules) {
     var columnTraits = {};
 
     function gatherTraits(row) {
@@ -184,28 +183,30 @@ tr.exportTo('tr.ui.analysis', function() {
     };
     rows.forEach(gatherTraits);
 
-    var titleBuilder = opt_titleBuilder || tr.b.identity;
-
     var columns = [];
     tr.b.iterItems(columnTraits, function(columnName, columnTraits) {
       var cellGetter = fieldGetter(cellKey, columnName);
-      var title = titleBuilder(columnName);
-      columns.push(MemoryColumn.fromAttributeTraits(
-          columnName, title, columnTraits, cellGetter, aggregationMode));
+      var constructor = undefined;
+      if (opt_customColumnConstructorRules !== undefined) {
+        var matchingRule = MemoryColumn.findMatchingRule(
+            columnName, opt_customColumnConstructorRules);
+        if (matchingRule !== undefined)
+          constructor = matchingRule.columnConstructor;
+      }
+      if (constructor === undefined)
+        constructor = MemoryColumn.constructorFromAttributeTraits(columnTraits);
+      columns.push(new constructor(
+          columnName, columnTraits.units, cellGetter, aggregationMode));
     });
 
     return columns;
   };
 
-  MemoryColumn.fromAttributeTraits = function(name, title, traits, cellGetter,
-      aggregationMode) {
-    var constructor;
+  MemoryColumn.constructorFromAttributeTraits = function(traits) {
     if (traits.constructor === tr.model.ScalarAttribute)
-      constructor = ScalarMemoryColumn;
+      return ScalarMemoryColumn;
     else
-      constructor = MemoryColumn;
-    return new constructor(name, title, traits.units, cellGetter,
-        aggregationMode);
+      return MemoryColumn;
   };
 
   MemoryColumn.spaceEqually = function(columns) {
@@ -213,6 +214,28 @@ tr.exportTo('tr.ui.analysis', function() {
     columns.forEach(function(column) {
       column.width = columnWidth;
     });
+  };
+
+  MemoryColumn.findMatchingRule = function(name, rules) {
+    for (var i = 0; i < rules.length; i++) {
+      var rule = rules[i];
+      if (MemoryColumn.nameMatchesCondition(name, rule.condition))
+        return rule;
+    }
+    return undefined;
+  };
+
+  MemoryColumn.nameMatchesCondition = function(name, condition) {
+    // Rules without conditions match all columns.
+    if (condition === undefined)
+      return true;
+
+    // String conditions must match the column name exactly.
+    if (typeof(condition) === 'string')
+      return name === condition;
+
+    // If the condition is not a string, assume it is a RegExp.
+    return condition.test(name);
   };
 
   /**
@@ -364,6 +387,10 @@ tr.exportTo('tr.ui.analysis', function() {
   };
 
   MemoryColumn.prototype = {
+    get title() {
+      return this.name;
+    },
+
     attrs: function(row) {
       var cell = this.cell(row);
       if (cell === undefined)
@@ -528,15 +555,7 @@ tr.exportTo('tr.ui.analysis', function() {
     },
 
     formatMultipleAttributeValuesMax: function(attrs) {
-      var commonAttr = this.getCommonAttributeOrUndefined(attrs);
-      if (commonAttr === undefined) {
-        return tr.ui.b.createSpan({
-          textContent: '(multiple values)',
-          italic: true
-        });
-      }
-
-      return this.formatSingleAttributeValue(commonAttr);
+      return this.getMaxAttributeValue(attrs);
     },
 
     cmp: function(rowA, rowB) {
@@ -576,13 +595,11 @@ tr.exportTo('tr.ui.analysis', function() {
     /**
      * Compare the values of a pair of single defined attributes.
      *
-     * This method is intended to be overriden by attribute type/unit specific
-     * columns.
+     * This method and/or compareSingleAttributeValues are intended to be
+     * overriden by attribute type/unit specific columns.
      */
     compareSingleAttributes: function(attrA, attrB) {
-      var strA = String(attrA.value);
-      var strB = String(attrB.value);
-      return COLLATOR.compare(strA, strB);
+      return this.compareSingleAttributeValues(attrA.value, attrB.value);
     },
 
     /**
@@ -655,70 +672,32 @@ tr.exportTo('tr.ui.analysis', function() {
     },
 
     compareMultipleAttributesMax: function(attrsA, attrsB) {
-      var commonAttrA = this.getCommonAttributeOrUndefined(attrsA);
-      var commonAttrB = this.getCommonAttributeOrUndefined(attrsB);
-      var hasMultipleValuesA = commonAttrA === undefined;
-      var hasMultipleValuesB = commonAttrB === undefined;
-
-      // Consider attributes with multiple values to be greater than attributes
-      // with single values.
-      if (hasMultipleValuesA && hasMultipleValuesB)
-        return 0;
-      if (hasMultipleValuesA)
-        return 1;
-      if (hasMultipleValuesB)
-        return -1;
-
-      return this.compareSingleAttributes(commonAttrA, commonAttrB);
+      return this.compareSingleAttributeValues(
+          this.getMaxAttributeValue(attrsA), this.getMaxAttributeValue(attrsB));
     },
 
-    /**
-     * If all defined attributes have the same value and units, this method
-     * returns the first defined attribute. Otherwise, it returns undefined.
-     *
-     * This method assumes that at least one attribute in the list is defined.
-     */
-    getCommonAttributeOrUndefined: function(attrs) {
-      var firstDefinedAttribute = undefined;
-      for (var i = 0; i < attrs.length; i++) {
-        var attr = attrs[i];
+    getMaxAttributeValue: function(attrs) {
+      return attrs.reduce(function(accumulator, attr) {
         if (attr === undefined)
-          continue;
-        if (firstDefinedAttribute === undefined) {
-          firstDefinedAttribute = attr;
-          continue;
+          return accumulator;
+        var attrValue = attr.value;
+        if (accumulator === undefined ||
+            this.compareSingleAttributeValues(attrValue, accumulator) > 0) {
+          return attrValue;
         }
-        if (firstDefinedAttribute.value !== attr.value ||
-            firstDefinedAttribute.units !== attr.units) {
-          return undefined;
-        }
-      }
-      return firstDefinedAttribute;
+        return accumulator;
+      }.bind(this), undefined);
+    },
+
+    compareSingleAttributeValues: function(attrValueA, attrValueB) {
+      return COLLATOR.compare(String(attrValueA), String(attrValueB));
     },
 
     getInfos: function(attrs) {
       if (attrs.length !== 1) {
-        // TODO(petrcermak): Somehow aggregate infos for multiple attributes
-        // and get rid of the hack below.
-
-        // Determine if at least one of the attributes has an associated heap
-        // dump.
-        var hasDumpInfo = undefined;
-        attrs.some(function(attr) {
-          if (attr === undefined)
-            return false;
-          return attr.infos.some(function(info) {
-            if (info.type !== tr.model.AttributeInfoType.HAS_HEAP_DUMP)
-              return false;
-            hasDumpInfo = info;
-            return true;
-          });
-        });
-
-        if (hasDumpInfo)
-          return [hasDumpInfo];
-        else
-          return [];
+        // Don't aggregate infos for multiple attributes (it is unclear how
+        // they should be aggregated in the first place).
+        return [];
       }
 
       return attrs[0].infos;
@@ -729,31 +708,16 @@ tr.exportTo('tr.ui.analysis', function() {
         return 0;
 
       // Find the first matching rule.
-      for (var i = 0; i < importanceRules.length; i++) {
-        var importanceRule = importanceRules[i];
-        if (this.matchesNameCondition(importanceRule.condition))
-          return importanceRule.importance;
-      }
+      var matchingRule =
+          MemoryColumn.findMatchingRule(this.name, importanceRules);
+      if (matchingRule !== undefined)
+        return matchingRule.importance;
 
       // No matching rule. Return lower importance than all rules.
       var minImportance = importanceRules[0].importance;
-      for (var i = 1; i < importanceRules.length; i++) {
+      for (var i = 1; i < importanceRules.length; i++)
         minImportance = Math.min(minImportance, importanceRules[i].importance);
-      }
       return minImportance - 1;
-    },
-
-    matchesNameCondition: function(condition) {
-      // Rules without conditions match all columns.
-      if (condition === undefined)
-        return true;
-
-      // String conditions must match the column name exactly.
-      if (typeof(condition) === 'string')
-        return this.name === condition;
-
-      // If the condition is not a string, assume it is a RegExp.
-      return condition.test(this.name);
     }
   };
 
@@ -776,7 +740,7 @@ tr.exportTo('tr.ui.analysis', function() {
     },
 
     formatMultipleAttributeValuesMax: function(attrs) {
-      return this.formatUnits(this.getMaxAttrValue(attrs), false);
+      return this.formatUnits(this.getMaxAttributeValue(attrs), false);
     },
 
     formatUnits: function(value, isDelta) {
@@ -805,8 +769,8 @@ tr.exportTo('tr.ui.analysis', function() {
       return wrapperEl;
     },
 
-    compareSingleAttributes: function(attrA, attrB) {
-      return attrA.value - attrB.value;
+    compareSingleAttributeValues: function(attrValueA, attrValueB) {
+      return attrValueA - attrValueB;
     },
 
     compareMultipleAttributesDiff: function(firstAttrA, lastAttrA, firstAttrB,
@@ -815,24 +779,10 @@ tr.exportTo('tr.ui.analysis', function() {
           this.getDiffAttrValue(firstAttrB, lastAttrB);
     },
 
-    compareMultipleAttributesMax: function(attrsA, attrsB) {
-      return this.getMaxAttrValue(attrsA) - this.getMaxAttrValue(attrsB);
-    },
-
     getDiffAttrValue: function(firstAttr, lastAttr) {
       var firstValue = firstAttr === undefined ? 0 : firstAttr.value;
       var lastValue = lastAttr === undefined ? 0 : lastAttr.value;
       return lastValue - firstValue;
-    },
-
-    getMaxAttrValue: function(attrs) {
-      return attrs.reduce(function(accumulator, attr) {
-        if (attr === undefined)
-          return accumulator;
-        if (accumulator === undefined || attr.value > accumulator)
-          accumulator = attr.value;
-        return accumulator;
-      }, undefined);
     }
   };
 

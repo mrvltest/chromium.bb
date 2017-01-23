@@ -13,6 +13,7 @@
 #include "base/files/file_path.h"
 #endif
 
+#include "build/build_config.h"
 #include "content/public/common/content_client.h"
 
 #if 0

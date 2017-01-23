@@ -6,11 +6,11 @@
 
 #include "pageint.h"
 
-#include "../fpdf_render/render_int.h"
 #include "core/include/fpdfapi/fpdf_module.h"
 #include "core/include/fpdfapi/fpdf_page.h"
 #include "core/include/fpdfapi/fpdf_pageobj.h"
 #include "core/include/fpdfapi/fpdf_render.h"
+#include "core/src/fpdfapi/fpdf_render/render_int.h"
 
 void CPDF_GraphicStates::DefaultStates() {
   m_ColorState.New()->Default();
@@ -103,7 +103,7 @@ CPDF_Rect CPDF_ClipPath::GetClipBox() const {
     FX_BOOL bLayerStarted = FALSE;
     for (int i = 0; i < count; i++) {
       CPDF_TextObject* pTextObj = GetText(i);
-      if (pTextObj == NULL) {
+      if (!pTextObj) {
         if (!bStarted) {
           rect = layer_rect;
           bStarted = TRUE;
@@ -190,7 +190,7 @@ void CPDF_ClipPath::AppendTexts(CPDF_TextObject** pTexts, int count) {
   pData->m_pTextList[pData->m_TextCount + count] = NULL;
   pData->m_TextCount += count + 1;
 }
-void CPDF_ClipPath::Transform(const CPDF_Matrix& matrix) {
+void CPDF_ClipPath::Transform(const CFX_Matrix& matrix) {
   CPDF_ClipPathData* pData = GetModify();
   int i;
   for (i = 0; i < pData->m_PathCount; i++) {
@@ -458,10 +458,9 @@ void CPDF_AllStates::SetLineDash(CPDF_Array* pArray,
 void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
                                   CPDF_StreamContentParser* pParser) {
   CPDF_GeneralStateData* pGeneralState = m_GeneralState.GetModify();
-  FX_POSITION pos = pGS->GetStartPos();
-  while (pos) {
-    CFX_ByteString key_str;
-    CPDF_Object* pElement = pGS->GetNextElement(pos, key_str);
+  for (const auto& it : *pGS) {
+    const CFX_ByteString& key_str = it.first;
+    CPDF_Object* pElement = it.second;
     CPDF_Object* pObject = pElement ? pElement->GetDirect() : nullptr;
     if (!pObject)
       continue;
@@ -507,7 +506,7 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         break;
       }
       case FXBSTR_ID('T', 'R', 0, 0):
-        if (pGS->KeyExist(FX_BSTRC("TR2"))) {
+        if (pGS->KeyExist("TR2")) {
           continue;
         }
       case FXBSTR_ID('T', 'R', '2', 0):
@@ -529,7 +528,7 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         if (ToDictionary(pObject)) {
           pGeneralState->m_pSoftMask = pObject;
           FXSYS_memcpy(pGeneralState->m_SMaskMatrix,
-                       &pParser->GetCurStates()->m_CTM, sizeof(CPDF_Matrix));
+                       &pParser->GetCurStates()->m_CTM, sizeof(CFX_Matrix));
         } else {
           pGeneralState->m_pSoftMask = NULL;
         }
@@ -542,7 +541,7 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         break;
       case FXBSTR_ID('O', 'P', 0, 0):
         pGeneralState->m_StrokeOP = pObject->GetInteger();
-        if (!pGS->KeyExist(FX_BSTRC("op"))) {
+        if (!pGS->KeyExist("op")) {
           pGeneralState->m_FillOP = pObject->GetInteger();
         }
         break;
@@ -553,14 +552,14 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         pGeneralState->m_OPMode = pObject->GetInteger();
         break;
       case FXBSTR_ID('B', 'G', 0, 0):
-        if (pGS->KeyExist(FX_BSTRC("BG2"))) {
+        if (pGS->KeyExist("BG2")) {
           continue;
         }
       case FXBSTR_ID('B', 'G', '2', 0):
         pGeneralState->m_pBG = pObject;
         break;
       case FXBSTR_ID('U', 'C', 'R', 0):
-        if (pGS->KeyExist(FX_BSTRC("UCR2"))) {
+        if (pGS->KeyExist("UCR2")) {
           continue;
         }
       case FXBSTR_ID('U', 'C', 'R', '2'):
@@ -608,8 +607,7 @@ CPDF_ContentMarkItem::~CPDF_ContentMarkItem() {
 FX_BOOL CPDF_ContentMarkItem::HasMCID() const {
   if (m_pParam &&
       (m_ParamType == DirectDict || m_ParamType == PropertiesDict)) {
-    return ToDictionary(static_cast<CPDF_Object*>(m_pParam))
-        ->KeyExist(FX_BSTRC("MCID"));
+    return ToDictionary(static_cast<CPDF_Object*>(m_pParam))->KeyExist("MCID");
   }
   return FALSE;
 }
@@ -626,8 +624,8 @@ int CPDF_ContentMarkData::GetMCID() const {
         type == CPDF_ContentMarkItem::DirectDict) {
       CPDF_Dictionary* pDict =
           ToDictionary(static_cast<CPDF_Object*>(m_Marks[i].GetParam()));
-      if (pDict->KeyExist(FX_BSTRC("MCID"))) {
-        return pDict->GetInteger(FX_BSTRC("MCID"));
+      if (pDict->KeyExist("MCID")) {
+        return pDict->GetInteger("MCID");
       }
     }
   }
@@ -638,7 +636,7 @@ void CPDF_ContentMarkData::AddMark(const CFX_ByteString& name,
                                    FX_BOOL bDirect) {
   CPDF_ContentMarkItem& item = m_Marks.Add();
   item.SetName(name);
-  if (pDict == NULL) {
+  if (!pDict) {
     return;
   }
   item.SetParam(bDirect ? CPDF_ContentMarkItem::DirectDict
@@ -653,7 +651,7 @@ void CPDF_ContentMarkData::DeleteLastMark() {
   m_Marks.RemoveAt(size - 1);
 }
 FX_BOOL CPDF_ContentMark::HasMark(const CFX_ByteStringC& mark) const {
-  if (m_pObject == NULL) {
+  if (!m_pObject) {
     return FALSE;
   }
   for (int i = 0; i < m_pObject->CountItems(); i++) {
@@ -666,7 +664,7 @@ FX_BOOL CPDF_ContentMark::HasMark(const CFX_ByteStringC& mark) const {
 }
 FX_BOOL CPDF_ContentMark::LookupMark(const CFX_ByteStringC& mark,
                                      CPDF_Dictionary*& pDict) const {
-  if (m_pObject == NULL) {
+  if (!m_pObject) {
     return FALSE;
   }
   for (int i = 0; i < m_pObject->CountItems(); i++) {

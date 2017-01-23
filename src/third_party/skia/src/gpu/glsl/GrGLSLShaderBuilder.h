@@ -25,9 +25,6 @@ public:
     GrGLSLShaderBuilder(GrGLSLProgramBuilder* program);
     virtual ~GrGLSLShaderBuilder() {}
 
-    void addInput(const GrGLSLShaderVar& input) { fInputs.push_back(input); }
-    void addOutput(const GrGLSLShaderVar& output) { fOutputs.push_back(output); }
-
     /*
      * We put texture lookups in the base class because it is TECHNICALLY possible to do texture
      * lookups in any kind of shader.  However, for the time being using these calls on non-fragment
@@ -63,7 +60,7 @@ public:
                                         GrSLType coordType = kVec2f_GrSLType);
 
     /**
-    * Called by GrGLProcessors to add code to one of the shaders.
+    * Called by GrGLSLProcessors to add code to one of the shaders.
     */
     void codeAppendf(const char format[], ...) SK_PRINTF_LIKE(2, 3) {
        va_list args;
@@ -194,7 +191,9 @@ protected:
     int fCodeIndex;
     bool fFinalized;
 
+    friend class GrGLSLProgramBuilder;
     friend class GrGLProgramBuilder;
     friend class GrGLPathProgramBuilder; // to access fInputs.
+    friend class GrVkProgramBuilder;
 };
 #endif

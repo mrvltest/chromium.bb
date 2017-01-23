@@ -310,10 +310,6 @@ void Port::OnReadPacket(
   }
 }
 
-void Port::OnSentPacket(const rtc::SentPacket& sent_packet) {
-  PortInterface::SignalSentPacket(this, sent_packet);
-}
-
 void Port::OnReadyToSend() {
   AddressMap::iterator iter = connections_.begin();
   for (; iter != connections_.end(); ++iter) {
@@ -1008,6 +1004,11 @@ void Connection::Destroy() {
   port_->thread()->Post(this, MSG_DELETE);
 }
 
+void Connection::FailAndDestroy() {
+  set_state(Connection::STATE_FAILED);
+  Destroy();
+}
+
 void Connection::PrintPingsSinceLastResponse(std::string* s, size_t max) {
   std::ostringstream oss;
   oss << std::boolalpha;
@@ -1119,25 +1120,28 @@ void Connection::ReceivedPingResponse() {
 }
 
 bool Connection::dead(uint32_t now) const {
-  if (now < (time_created_ms_ + MIN_CONNECTION_LIFETIME)) {
-    // A connection that hasn't passed its minimum lifetime is still alive.
-    // We do this to prevent connections from being pruned too quickly
-    // during a network change event when two networks would be up
-    // simultaneously but only for a brief period.
+  if (last_received() > 0) {
+    // If it has ever received anything, we keep it alive until it hasn't
+    // received anything for DEAD_CONNECTION_RECEIVE_TIMEOUT. This covers the
+    // normal case of a successfully used connection that stops working. This
+    // also allows a remote peer to continue pinging over a locally inactive
+    // (pruned) connection.
+    return (now > (last_received() + DEAD_CONNECTION_RECEIVE_TIMEOUT));
+  }
+
+  if (active()) {
+    // If it has never received anything, keep it alive as long as it is
+    // actively pinging and not pruned. Otherwise, the connection might be
+    // deleted before it has a chance to ping. This is the normal case for a
+    // new connection that is pinging but hasn't received anything yet.
     return false;
   }
 
-  if (receiving_) {
-    // A connection that is receiving is alive.
-    return false;
-  }
-
-  // A connection is alive until it is inactive.
-  return !active();
-
-  // TODO(honghaiz): Move from using the write state to using the receiving
-  // state with something like the following:
-  // return (now > (last_received() + DEAD_CONNECTION_RECEIVE_TIMEOUT));
+  // If it has never received anything and is not actively pinging (pruned), we
+  // keep it around for at least MIN_CONNECTION_LIFETIME to prevent connections
+  // from being pruned too quickly during a network change event when two
+  // networks would be up simultaneously but only for a brief period.
+  return now > (time_created_ms_ + MIN_CONNECTION_LIFETIME);
 }
 
 std::string Connection::ToDebugId() const {
@@ -1250,8 +1254,7 @@ void Connection::OnConnectionRequestErrorResponse(ConnectionRequest* request,
     // This is not a valid connection.
     LOG_J(LS_ERROR, this) << "Received STUN error response, code="
                           << error_code << "; killing connection";
-    set_state(STATE_FAILED);
-    Destroy();
+    FailAndDestroy();
   }
 }
 
@@ -1304,7 +1307,7 @@ void Connection::OnMessage(rtc::Message *pmsg) {
   delete this;
 }
 
-uint32_t Connection::last_received() {
+uint32_t Connection::last_received() const {
   return std::max(last_data_received_,
              std::max(last_ping_received_, last_ping_response_received_));
 }
@@ -1398,10 +1401,10 @@ void Connection::MaybeAddPrflxCandidate(ConnectionRequest* request,
   SignalStateChange(this);
 }
 
-ProxyConnection::ProxyConnection(Port* port, size_t index,
-                                 const Candidate& candidate)
-  : Connection(port, index, candidate), error_(0) {
-}
+ProxyConnection::ProxyConnection(Port* port,
+                                 size_t index,
+                                 const Candidate& remote_candidate)
+    : Connection(port, index, remote_candidate) {}
 
 int ProxyConnection::Send(const void* data, size_t size,
                           const rtc::PacketOptions& options) {

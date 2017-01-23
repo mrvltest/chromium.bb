@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "webrtc/modules/audio_coding/codecs/cng/include/audio_encoder_cng.h"
+#include "webrtc/modules/audio_coding/codecs/cng/audio_encoder_cng.h"
 
 #include <algorithm>
 #include <limits>
@@ -75,7 +75,7 @@ int AudioEncoderCng::SampleRateHz() const {
   return speech_encoder_->SampleRateHz();
 }
 
-int AudioEncoderCng::NumChannels() const {
+size_t AudioEncoderCng::NumChannels() const {
   return 1;
 }
 

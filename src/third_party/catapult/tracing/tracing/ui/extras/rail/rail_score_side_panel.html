@@ -218,10 +218,13 @@ found in the LICENSE file.
           title: 'Type',
           width: '150px',
           value: function(ir) {
-            var el = document.createElement('tr-ui-b-color-legend');
+            var events = new tr.model.EventSet([ir]);
+            events.addEventSet(ir.associatedEvents);
+
             var linkEl = document.createElement('tr-ui-a-analysis-link');
-            linkEl.setSelectionAndContent(new tr.model.EventSet([ir]),
-                                          ir.railTypeName);
+            linkEl.setSelectionAndContent(events, ir.railTypeName);
+
+            var el = document.createElement('tr-ui-b-color-legend');
             el.setLabelAndColorId(linkEl, ir.colorId);
             el.compoundEventSelectionState =
                 ir.computeCompoundEvenSelectionState(this.selection_);
@@ -274,7 +277,7 @@ found in the LICENSE file.
       var rows = [];
       if (this.railScore_) {
         this.railScore_.interactionRecords.forEach(function(ir) {
-          if (!this.effectiveRangeOfInterest.intersectsExplicitRange(
+          if (!this.effectiveRangeOfInterest.intersectsExplicitRangeExclusive(
                 ir.start, ir.end))
             return;
 

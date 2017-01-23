@@ -131,7 +131,7 @@ public:
     static bool canAccessFromCurrentOrigin(LocalFrame*);
 
     // SHEZ: Renamed this function to prevent new upstream code from calling this.
-    static void setCaptureCallStackForUncaughtExceptions_bb(bool);
+    static void setCaptureCallStackForUncaughtExceptions_bb(v8::Isolate*, bool);
     void collectIsolatedContexts(Vector<std::pair<ScriptState*, SecurityOrigin*>>&);
 
     bool canExecuteScripts(ReasonForCallingCanExecuteScripts);

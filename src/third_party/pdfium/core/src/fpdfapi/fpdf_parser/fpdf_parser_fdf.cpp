@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "core/include/fpdfapi/fpdf_parser.h"
+
 #include "core/include/fpdfapi/fpdf_serial.h"
 
-CFDF_Document::CFDF_Document() : CPDF_IndirectObjects(NULL) {
+CFDF_Document::CFDF_Document() : CPDF_IndirectObjectHolder(NULL) {
   m_pRootDict = NULL;
   m_pFile = NULL;
   m_bOwnFile = FALSE;
@@ -21,7 +23,7 @@ CFDF_Document* CFDF_Document::CreateNewDoc() {
   pDoc->m_pRootDict = new CPDF_Dictionary;
   pDoc->AddIndirectObject(pDoc->m_pRootDict);
   CPDF_Dictionary* pFDFDict = new CPDF_Dictionary;
-  pDoc->m_pRootDict->SetAt(FX_BSTRC("FDF"), pFDFDict);
+  pDoc->m_pRootDict->SetAt("FDF", pFDFDict);
   return pDoc;
 }
 CFDF_Document* CFDF_Document::ParseFile(IFX_FileRead* pFile, FX_BOOL bOwnFile) {
@@ -30,7 +32,7 @@ CFDF_Document* CFDF_Document::ParseFile(IFX_FileRead* pFile, FX_BOOL bOwnFile) {
   }
   CFDF_Document* pDoc = new CFDF_Document;
   pDoc->ParseStream(pFile, bOwnFile);
-  if (pDoc->m_pRootDict == NULL) {
+  if (!pDoc->m_pRootDict) {
     delete pDoc;
     return NULL;
   }
@@ -46,34 +48,34 @@ void CFDF_Document::ParseStream(IFX_FileRead* pFile, FX_BOOL bOwnFile) {
   CPDF_SyntaxParser parser;
   parser.InitParser(m_pFile, 0);
   while (1) {
-    FX_BOOL bNumber;
-    CFX_ByteString word = parser.GetNextWord(bNumber);
+    bool bNumber;
+    CFX_ByteString word = parser.GetNextWord(&bNumber);
     if (bNumber) {
       FX_DWORD objnum = FXSYS_atoi(word);
-      word = parser.GetNextWord(bNumber);
+      word = parser.GetNextWord(&bNumber);
       if (!bNumber) {
         break;
       }
-      word = parser.GetNextWord(bNumber);
-      if (word != FX_BSTRC("obj")) {
+      word = parser.GetNextWord(nullptr);
+      if (word != "obj") {
         break;
       }
-      CPDF_Object* pObj = parser.GetObject(this, objnum, 0, 0);
-      if (pObj == NULL) {
+      CPDF_Object* pObj = parser.GetObject(this, objnum, 0, nullptr, true);
+      if (!pObj) {
         break;
       }
       InsertIndirectObject(objnum, pObj);
-      word = parser.GetNextWord(bNumber);
-      if (word != FX_BSTRC("endobj")) {
+      word = parser.GetNextWord(nullptr);
+      if (word != "endobj") {
         break;
       }
     } else {
-      if (word != FX_BSTRC("trailer")) {
+      if (word != "trailer") {
         break;
       }
       if (CPDF_Dictionary* pMainDict =
-              ToDictionary(parser.GetObject(this, 0, 0, 0))) {
-        m_pRootDict = pMainDict->GetDict(FX_BSTRC("Root"));
+              ToDictionary(parser.GetObject(this, 0, 0, nullptr, true))) {
+        m_pRootDict = pMainDict->GetDict("Root");
         pMainDict->Release();
       }
       break;
@@ -81,30 +83,24 @@ void CFDF_Document::ParseStream(IFX_FileRead* pFile, FX_BOOL bOwnFile) {
   }
 }
 FX_BOOL CFDF_Document::WriteBuf(CFX_ByteTextBuf& buf) const {
-  if (m_pRootDict == NULL) {
+  if (!m_pRootDict) {
     return FALSE;
   }
-  buf << FX_BSTRC("%FDF-1.2\r\n");
-  FX_POSITION pos = m_IndirectObjs.GetStartPosition();
-  while (pos) {
-    size_t objnum;
-    CPDF_Object* pObj;
-    m_IndirectObjs.GetNextAssoc(pos, (void*&)objnum, (void*&)pObj);
-    buf << (FX_DWORD)objnum << FX_BSTRC(" 0 obj\r\n") << pObj
-        << FX_BSTRC("\r\nendobj\r\n\r\n");
+  buf << "%FDF-1.2\r\n";
+  for (const auto& pair : m_IndirectObjs) {
+    buf << pair.first << " 0 obj\r\n" << pair.second << "\r\nendobj\r\n\r\n";
   }
-  buf << FX_BSTRC("trailer\r\n<</Root ") << m_pRootDict->GetObjNum()
-      << FX_BSTRC(" 0 R>>\r\n%%EOF\r\n");
+  buf << "trailer\r\n<</Root " << m_pRootDict->GetObjNum()
+      << " 0 R>>\r\n%%EOF\r\n";
   return TRUE;
 }
 CFX_WideString CFDF_Document::GetWin32Path() const {
-  CPDF_Dictionary* pDict =
-      m_pRootDict ? m_pRootDict->GetDict(FX_BSTRC("FDF")) : NULL;
-  CPDF_Object* pFileSpec = pDict ? pDict->GetElementValue(FX_BSTRC("F")) : NULL;
+  CPDF_Dictionary* pDict = m_pRootDict ? m_pRootDict->GetDict("FDF") : NULL;
+  CPDF_Object* pFileSpec = pDict ? pDict->GetElementValue("F") : NULL;
   if (!pFileSpec)
     return CFX_WideString();
   if (pFileSpec->IsString())
-    return FPDF_FileSpec_GetWin32Path(m_pRootDict->GetDict(FX_BSTRC("FDF")));
+    return FPDF_FileSpec_GetWin32Path(m_pRootDict->GetDict("FDF"));
   return FPDF_FileSpec_GetWin32Path(pFileSpec);
 }
 static CFX_WideString ChangeSlash(const FX_WCHAR* str) {
@@ -141,9 +137,9 @@ void FPDF_FileSpec_SetWin32Path(CPDF_Object* pFileSpec,
   if (pFileSpec->IsString()) {
     pFileSpec->SetString(CFX_ByteString::FromUnicode(result));
   } else if (CPDF_Dictionary* pFileDict = pFileSpec->AsDictionary()) {
-    pFileDict->SetAtString(FX_BSTRC("F"), CFX_ByteString::FromUnicode(result));
-    pFileDict->SetAtString(FX_BSTRC("UF"), PDF_EncodeText(result));
-    pFileDict->RemoveAt(FX_BSTRC("FS"));
+    pFileDict->SetAtString("F", CFX_ByteString::FromUnicode(result));
+    pFileDict->SetAtString("UF", PDF_EncodeText(result));
+    pFileDict->RemoveAt("FS");
   }
 }
 CFX_WideString FPDF_FileSpec_GetWin32Path(const CPDF_Object* pFileSpec) {
@@ -151,15 +147,15 @@ CFX_WideString FPDF_FileSpec_GetWin32Path(const CPDF_Object* pFileSpec) {
   if (!pFileSpec) {
     wsFileName = CFX_WideString();
   } else if (const CPDF_Dictionary* pDict = pFileSpec->AsDictionary()) {
-    wsFileName = pDict->GetUnicodeText(FX_BSTRC("UF"));
+    wsFileName = pDict->GetUnicodeText("UF");
     if (wsFileName.IsEmpty()) {
-      wsFileName = CFX_WideString::FromLocal(pDict->GetString(FX_BSTRC("F")));
+      wsFileName = CFX_WideString::FromLocal(pDict->GetString("F"));
     }
-    if (pDict->GetString(FX_BSTRC("FS")) == FX_BSTRC("URL")) {
+    if (pDict->GetString("FS") == "URL") {
       return wsFileName;
     }
-    if (wsFileName.IsEmpty() && pDict->KeyExist(FX_BSTRC("DOS"))) {
-      wsFileName = CFX_WideString::FromLocal(pDict->GetString(FX_BSTRC("DOS")));
+    if (wsFileName.IsEmpty() && pDict->KeyExist("DOS")) {
+      wsFileName = CFX_WideString::FromLocal(pDict->GetString("DOS"));
     }
   } else {
     wsFileName = CFX_WideString::FromLocal(pFileSpec->GetString());

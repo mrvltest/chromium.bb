@@ -19,7 +19,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "config.h"
 #include "core/layout/LayoutTheme.h"
 
 #include "core/CSSValueKeywords.h"
@@ -448,8 +447,7 @@ bool LayoutTheme::controlStateChanged(LayoutObject& o, ControlState state) const
     if (state == PressedControlState && !isEnabled(o))
         return false;
 
-    o.setShouldDoFullPaintInvalidation();
-    o.invalidateDisplayItemClientForNonCompositingDescendants();
+    o.setShouldDoFullPaintInvalidationIncludingNonCompositingDescendants();
     return true;
 }
 
@@ -838,14 +836,16 @@ void LayoutTheme::setTextSearchHighlightColor(int activeR, int activeG, int acti
     s_inactiveTextSearchB = inactiveB;
 }
 
-Color LayoutTheme::platformActiveTextSearchHighlightColor() const
+Color LayoutTheme::platformTextSearchHighlightColor(bool activeMatch) const
 {
-    return Color(s_activeTextSearchR, s_activeTextSearchG, s_activeTextSearchB);
+    if (activeMatch)
+        return Color(s_activeTextSearchR, s_activeTextSearchG, s_activeTextSearchB);
+    return Color(s_inactiveTextSearchR, s_inactiveTextSearchG, s_inactiveTextSearchB);
 }
 
-Color LayoutTheme::platformInactiveTextSearchHighlightColor() const
+Color LayoutTheme::platformTextSearchColor(bool activeMatch) const
 {
-    return Color(s_inactiveTextSearchR, s_inactiveTextSearchG, s_inactiveTextSearchB);
+    return Color::black;
 }
 
 Color LayoutTheme::tapHighlightColor()

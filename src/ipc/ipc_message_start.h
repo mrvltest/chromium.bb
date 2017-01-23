@@ -82,7 +82,6 @@ enum IPCMessageStart {
   WebSocketMsgStart,
   NaClHostMsgStart,
   WebRTCIdentityMsgStart,
-  LocalDiscoveryMsgStart,
   PowerMonitorMsgStart,
   EncryptedMediaMsgStart,
   CacheStorageMsgStart,
@@ -131,10 +130,14 @@ enum IPCMessageStart {
   RenderProcessMsgStart,
   PageLoadMetricsMsgStart,
   MemoryMsgStart,
+  MediaSessionMsgStart,
   IPCTestMsgStart,
   ArcInstanceMsgStart,
   ArcInstanceHostMsgStart,
   DistillerMsgStart,
+  StartupMetricMsgStart,
+  ArcCameraMsgStart,
+  DWriteFontProxyMsgStart,
   LastIPCMsgStart  // Must come last.
 };
 

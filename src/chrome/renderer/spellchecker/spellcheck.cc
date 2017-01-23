@@ -4,16 +4,19 @@
 
 #include "chrome/renderer/spellchecker/spellcheck.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <algorithm>
+#include <utility>
 
-#include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/single_thread_task_runner.h"
-#include "base/sys_info.h"
 #include "base/thread_task_runner_handle.h"
+#include "build/build_config.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/spellcheck_common.h"
@@ -21,7 +24,6 @@
 #include "chrome/common/spellcheck_result.h"
 #include "chrome/renderer/spellchecker/spellcheck_language.h"
 #include "chrome/renderer/spellchecker/spellcheck_provider.h"
-#include "components/version_info/version_info.h"
 #include "content/public/renderer/render_thread.h"
 #include "content/public/renderer/render_view.h"
 #include "content/public/renderer/render_view_visitor.h"
@@ -78,18 +80,18 @@ class DocumentMarkersCollector : public content::RenderViewVisitor {
  public:
   DocumentMarkersCollector() {}
   ~DocumentMarkersCollector() override {}
-  const std::vector<uint32>& markers() const { return markers_; }
+  const std::vector<uint32_t>& markers() const { return markers_; }
   bool Visit(content::RenderView* render_view) override;
 
  private:
-  std::vector<uint32> markers_;
+  std::vector<uint32_t> markers_;
   DISALLOW_COPY_AND_ASSIGN(DocumentMarkersCollector);
 };
 
 bool DocumentMarkersCollector::Visit(content::RenderView* render_view) {
   if (!render_view || !render_view->GetWebView())
     return true;
-  WebVector<uint32> markers;
+  WebVector<uint32_t> markers;
   render_view->GetWebView()->spellingMarkers(&markers);
   for (size_t i = 0; i < markers.size(); ++i)
     markers_.push_back(markers[i]);
@@ -227,8 +229,6 @@ bool SpellCheck::OnControlMessageReceived(const IPC::Message& message) {
     IPC_MESSAGE_HANDLER(SpellCheckMsg_Init, OnInit)
     IPC_MESSAGE_HANDLER(SpellCheckMsg_CustomDictionaryChanged,
                         OnCustomDictionaryChanged)
-    IPC_MESSAGE_HANDLER(SpellCheckMsg_EnableAutoSpellCorrect,
-                        OnEnableAutoSpellCorrect)
     IPC_MESSAGE_HANDLER(SpellCheckMsg_EnableSpellCheck, OnEnableSpellCheck)
     IPC_MESSAGE_HANDLER(SpellCheckMsg_RequestDocumentMarkers,
                         OnRequestDocumentMarkers)
@@ -288,7 +288,7 @@ void SpellCheck::OnRequestDocumentMarkers() {
 void SpellCheck::AddSpellcheckLanguage(base::File file,
                                        const std::string& language) {
   languages_.push_back(new SpellcheckLanguage());
-  languages_.back()->Init(file.Pass(), language);
+  languages_.back()->Init(std::move(file), language);
 }
 
 bool SpellCheck::SpellCheckWord(
@@ -455,59 +455,6 @@ bool SpellCheck::SpellCheckParagraph(
 #endif
 }
 
-base::string16 SpellCheck::GetAutoCorrectionWord(const base::string16& word,
-                                                 int tag) {
-  base::string16 autocorrect_word;
-  if (!auto_spell_correct_turned_on_)
-    return autocorrect_word;  // Return the empty string.
-
-  int word_length = static_cast<int>(word.size());
-  if (word_length < 2 ||
-      word_length > chrome::spellcheck_common::kMaxAutoCorrectWordSize)
-    return autocorrect_word;
-
-  if (InitializeIfNeeded())
-    return autocorrect_word;
-
-  base::char16 misspelled_word[
-      chrome::spellcheck_common::kMaxAutoCorrectWordSize + 1];
-  const base::char16* word_char = word.c_str();
-  for (int i = 0; i <= chrome::spellcheck_common::kMaxAutoCorrectWordSize;
-       ++i) {
-    if (i >= word_length)
-      misspelled_word[i] = 0;
-    else
-      misspelled_word[i] = word_char[i];
-  }
-
-  // Swap adjacent characters and spellcheck.
-  int misspelling_start, misspelling_len;
-  for (int i = 0; i < word_length - 1; i++) {
-    // Swap.
-    std::swap(misspelled_word[i], misspelled_word[i + 1]);
-
-    // Check spelling.
-    misspelling_start = misspelling_len = 0;
-    SpellCheckWord(misspelled_word, kNoOffset, word_length, tag,
-                   &misspelling_start, &misspelling_len, false, NULL);
-
-    // Make decision: if only one swap produced a valid word, then we want to
-    // return it. If we found two or more, we don't do autocorrection.
-    if (misspelling_len == 0) {
-      if (autocorrect_word.empty()) {
-        autocorrect_word.assign(misspelled_word);
-      } else {
-        autocorrect_word.clear();
-        break;
-      }
-    }
-
-    // Restore the swapped characters.
-    std::swap(misspelled_word[i], misspelled_word[i + 1]);
-  }
-  return autocorrect_word;
-}
-
 // OSX and Android use their own spell checkers
 #if !defined(USE_BROWSER_SPELLCHECKER)
 void SpellCheck::RequestTextChecking(
@@ -629,14 +576,7 @@ void SpellCheck::CreateTextCheckingResults(
 
 bool SpellCheck::IsSpellcheckEnabled() {
 #if defined(OS_ANDROID)
-  if (base::SysInfo::IsLowEndDevice())
-    return false;
-
-  version_info::Channel channel = chrome::GetChannel();
-  if (channel == version_info::Channel::DEV ||
-      channel == version_info::Channel::CANARY) {
-    return true;
-  } else if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
                  switches::kEnableAndroidSpellChecker)) {
     return false;
   }

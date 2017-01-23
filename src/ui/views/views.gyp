@@ -14,6 +14,8 @@
       'accessible_pane_view.h',
       'animation/bounds_animator.cc',
       'animation/bounds_animator.h',
+      'animation/button_ink_drop_delegate.cc',
+      'animation/button_ink_drop_delegate.h',
       'animation/ink_drop_animation.cc',
       'animation/ink_drop_animation.h',
       'animation/ink_drop_animation_controller.h',
@@ -23,6 +25,7 @@
       'animation/ink_drop_animation_controller_impl.h',
       'animation/ink_drop_animation_observer.cc',
       'animation/ink_drop_animation_observer.h',
+      'animation/ink_drop_delegate.h',
       'animation/ink_drop_host.h',
       'animation/ink_drop_painted_layer_delegates.cc',
       'animation/ink_drop_painted_layer_delegates.h',
@@ -76,6 +79,8 @@
       'controls/button/label_button.h',
       'controls/button/label_button_border.cc',
       'controls/button/label_button_border.h',
+      'controls/button/md_text_button.cc',
+      'controls/button/md_text_button.h',
       'controls/button/menu_button.cc',
       'controls/button/menu_button.h',
       'controls/button/menu_button_listener.h',
@@ -98,6 +103,8 @@
       'controls/menu/display_change_listener_mac.cc',
       'controls/menu/menu_config.cc',
       'controls/menu/menu_config.h',
+      'controls/menu/menu_config_chromeos.cc',
+      'controls/menu/menu_config_linux.cc',
       'controls/menu/menu_config_mac.mm',
       'controls/menu/menu_config_win.cc',
       'controls/menu/menu_controller.cc',
@@ -165,8 +172,6 @@
       'controls/scrollbar/base_scroll_bar_button.h',
       'controls/scrollbar/base_scroll_bar_thumb.cc',
       'controls/scrollbar/base_scroll_bar_thumb.h',
-      'controls/scrollbar/kennedy_scroll_bar.cc',
-      'controls/scrollbar/kennedy_scroll_bar.h',
       'controls/scrollbar/native_scroll_bar.cc',
       'controls/scrollbar/native_scroll_bar.h',
       'controls/scrollbar/native_scroll_bar_views.cc',
@@ -341,9 +346,6 @@
       'window/window_shape.h',
     ],
     'views_win_sources': [
-      'controls/menu/menu_2.cc',
-      'controls/menu/menu_2.h',
-      'controls/menu/menu_wrapper.h',
       'widget/widget_hwnd_utils.cc',
       'widget/widget_hwnd_utils.h',
       'win/fullscreen_handler.cc',
@@ -372,7 +374,6 @@
       'bubble/tray_bubble_view.cc',
       'bubble/tray_bubble_view.h',
       'controls/menu/display_change_listener_aura.cc',
-      'controls/menu/menu_config_aura.cc',
       'controls/menu/menu_event_dispatcher.cc',
       'controls/menu/menu_event_dispatcher.h',
       'controls/menu/menu_key_event_handler.cc',
@@ -408,6 +409,13 @@
       'widget/tooltip_manager_aura.h',
       'widget/window_reorderer.cc',
       'widget/window_reorderer.h',
+    ],
+    'views_android_sources': [
+      'controls/menu/menu_config_android.cc',
+      'widget/android/android_focus_rules.cc',
+      'widget/android/android_focus_rules.h',
+      'widget/android/native_widget_android.cc',
+      'widget/android/native_widget_android.h',
     ],
     'views_desktop_aura_sources': [
       'widget/desktop_aura/desktop_capture_client.cc',
@@ -493,10 +501,10 @@
       'test/focus_manager_test.h',
       'test/menu_runner_test_api.cc',
       'test/menu_runner_test_api.h',
-      'test/slider_test_api.cc',
-      'test/slider_test_api.h',
       'test/scoped_views_test_helper.cc',
       'test/scoped_views_test_helper.h',
+      'test/slider_test_api.cc',
+      'test/slider_test_api.h',
       'test/test_views.cc',
       'test/test_views.h',
       'test/test_views_delegate.h',
@@ -525,6 +533,8 @@
       'test/widget_test_aura.cc',
     ],
     'views_test_support_desktop_aura_x11_sources': [
+      'test/desktop_screen_x11_test_api.h',
+      'test/desktop_screen_x11_test_api.cc',
       'test/ui_controls_factory_desktop_aurax11.cc',
       'test/ui_controls_factory_desktop_aurax11.h',
     ],
@@ -552,6 +562,7 @@
       'controls/menu/menu_item_view_unittest.cc',
       'controls/menu/menu_model_adapter_unittest.cc',
       'controls/menu/menu_runner_cocoa_unittest.mm',
+      'controls/menu/menu_runner_unittest.cc',
       'controls/native/native_view_host_mac_unittest.mm',
       'controls/native/native_view_host_test_base.cc',
       'controls/native/native_view_host_test_base.h',
@@ -685,6 +696,9 @@
           'sources/': [
             ['exclude', 'linux_ui'],
           ],
+          'sources!': [
+            'controls/menu/menu_config_linux.cc',
+          ],
         }],
         ['OS=="win"', {
           'sources': [
@@ -770,6 +784,168 @@
         }],
       ],
     }, # target_name: views
+    {
+      # GN version: //ui/views:test_support
+      'target_name': 'views_test_support',
+      'type': 'static_library',
+      'dependencies': [
+        '../../base/base.gyp:base',
+        '../../ipc/ipc.gyp:test_support_ipc',
+        '../../skia/skia.gyp:skia',
+        '../../testing/gtest.gyp:gtest',
+        '../base/ime/ui_base_ime.gyp:ui_base_ime',
+        '../base/ui_base.gyp:ui_base',
+        '../compositor/compositor.gyp:compositor',
+        '../compositor/compositor.gyp:compositor_test_support',
+        '../events/events.gyp:events',
+        '../events/events.gyp:events_test_support',
+        '../events/platform/events_platform.gyp:events_platform',
+        '../gfx/gfx.gyp:gfx',
+        '../gfx/gfx.gyp:gfx_geometry',
+        'resources/views_resources.gyp:views_resources',
+        'views',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'sources': [
+        '<@(views_test_support_sources)',
+        # These two sources are not listed in views_test_support_sources as
+        # they are not used by the gn target that pulls in
+        # views_test_support_sources.
+        'test/default_platform_test_helper.cc',
+        'test/platform_test_helper.h',
+      ],
+      'conditions': [
+        ['use_aura==1', {
+          'sources': [ '<@(views_test_support_aura_sources)' ],
+          'dependencies': [
+            '../aura/aura.gyp:aura',
+            '../aura/aura.gyp:aura_test_support',
+            '../wm/wm.gyp:wm',
+          ],
+        }],
+        ['use_aura==1 and use_x11==1 and chromeos==0', {
+          'sources': [ '<@(views_test_support_desktop_aura_x11_sources)' ],
+        }],
+      ],
+    },  # target_name: views_test_support
+    {
+      # GN version: //ui/views:views_unittests
+      'target_name': 'views_unittests',
+      'type': 'executable',
+      'dependencies': [
+        '../../base/base.gyp:base',
+        '../../base/base.gyp:base_i18n',
+        '../../base/base.gyp:test_support_base',
+        '../../skia/skia.gyp:skia',
+        '../../testing/gtest.gyp:gtest',
+        '../../third_party/icu/icu.gyp:icui18n',
+        '../../third_party/icu/icu.gyp:icuuc',
+        '../../url/url.gyp:url_lib',
+        '../accessibility/accessibility.gyp:accessibility',
+        '../base/ime/ui_base_ime.gyp:ui_base_ime',
+        '../base/ui_base.gyp:ui_base',
+        '../base/ui_base.gyp:ui_base_test_support',
+        '../compositor/compositor.gyp:compositor',
+        '../events/events.gyp:events',
+        '../events/events.gyp:events_base',
+        '../events/events.gyp:events_test_support',
+        '../gfx/gfx.gyp:gfx',
+        '../gfx/gfx.gyp:gfx_geometry',
+        '../resources/ui_resources.gyp:ui_resources',
+        '../resources/ui_resources.gyp:ui_test_pak',
+        '../strings/ui_strings.gyp:ui_strings',
+        'resources/views_resources.gyp:views_resources',
+        'views',
+        'views_test_support',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'sources': [
+        '<@(views_unittests_sources)',
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'dependencies': [
+            '../../third_party/iaccessible2/iaccessible2.gyp:iaccessible2',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-limm32.lib',
+              '-loleacc.lib',
+              '-lcomctl32.lib',
+            ]
+          },
+          'include_dirs': [
+            '../third_party/wtl/include',
+          ],
+          'msvs_settings': {
+            'VCManifestTool': {
+              'AdditionalManifestFiles': [
+                '$(ProjectDir)\\test\\views_unittest.manifest',
+              ],
+            },
+          },
+        }],
+        ['OS=="win" and win_use_allocator_shim==1', {
+          'dependencies': [
+            '../../base/allocator/allocator.gyp:allocator',
+          ],
+        }],
+        ['OS=="linux" and use_allocator!="none"', {
+           # See http://crbug.com/162998#c4 for why this is needed.
+          'dependencies': [
+            '../../base/allocator/allocator.gyp:allocator',
+          ],
+        }],
+        ['use_x11==1', {
+          'dependencies': [
+            '../../build/linux/system.gyp:x11',
+            '../../build/linux/system.gyp:xext',
+            '../events/devices/events_devices.gyp:events_devices',
+            '../events/platform/x11/x11_events_platform.gyp:x11_events_platform',
+          ],
+        }],
+        ['use_aura==1', {
+          'sources': [ '<@(views_unittests_aura_sources)' ],
+          'dependencies': [
+            '../aura/aura.gyp:aura',
+            '../aura/aura.gyp:aura_test_support',
+            '../touch_selection/ui_touch_selection.gyp:ui_touch_selection',
+            '../wm/wm.gyp:wm',
+          ],
+          'conditions': [
+            ['chromeos == 0', {
+              'sources': [ '<@(views_unittests_desktop_aura_sources)' ],
+            }],
+            ['chromeos == 0 and use_x11==1', {
+              'sources': [ '<@(views_unittests_desktop_aurax11_sources)' ],
+            }],
+          ]
+        }],
+        ['chromeos==0', {
+          'sources': [ '<@(views_unittests_desktop_sources)' ],
+        }],
+        ['use_x11==1', {
+          'dependencies': [
+            '../events/platform/x11/x11_events_platform.gyp:x11_events_platform',
+          ],
+        }],
+        ['OS=="mac"', {
+          # views_unittests not yet compiling on Mac. http://crbug.com/378134
+          'sources!': [
+            'bubble/bubble_window_targeter_unittest.cc',
+            'controls/native/native_view_host_unittest.cc',
+            'widget/window_reorderer_unittest.cc',
+          ],
+          'dependencies': [
+            '../accelerated_widget_mac/accelerated_widget_mac.gyp:accelerated_widget_mac',
+          ],
+        }],
+      ],
+    },  # target_name: views_unittests
   ],  # targets
   'conditions': [
     ['OS=="mac"', {
@@ -787,6 +963,7 @@
             '../resources/ui_resources.gyp:ui_test_pak',
             '../strings/ui_strings.gyp:ui_strings',
             'views',
+            'views_test_support',
           ],
           'sources': [
             'cocoa/bridged_native_widget_interactive_uitest.mm',

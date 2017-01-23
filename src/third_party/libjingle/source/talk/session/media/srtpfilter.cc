@@ -146,10 +146,10 @@ bool SrtpFilter::SetProvisionalAnswer(
   return DoSetAnswer(answer_params, source, false);
 }
 
-bool SrtpFilter::SetRtpParams(const std::string& send_cs,
+bool SrtpFilter::SetRtpParams(int send_cs,
                               const uint8_t* send_key,
                               int send_key_len,
-                              const std::string& recv_cs,
+                              int recv_cs,
                               const uint8_t* recv_key,
                               int recv_key_len) {
   if (IsActive()) {
@@ -179,10 +179,10 @@ bool SrtpFilter::SetRtpParams(const std::string& send_cs,
 //   SrtpSession.
 // - In the muxed case, they are keyed with the same keys, so
 //   this function is not needed
-bool SrtpFilter::SetRtcpParams(const std::string& send_cs,
+bool SrtpFilter::SetRtcpParams(int send_cs,
                                const uint8_t* send_key,
                                int send_key_len,
-                               const std::string& recv_cs,
+                               int recv_cs,
                                const uint8_t* recv_key,
                                int recv_key_len) {
   // This can only be called once, but can be safely called after
@@ -428,10 +428,12 @@ bool SrtpFilter::ApplyParams(const CryptoParams& send_params,
          ParseKeyParams(recv_params.key_params, recv_key, sizeof(recv_key)));
   if (ret) {
     CreateSrtpSessions();
-    ret = (send_session_->SetSend(send_params.cipher_suite,
-                                  send_key, sizeof(send_key)) &&
-           recv_session_->SetRecv(recv_params.cipher_suite,
-                                  recv_key, sizeof(recv_key)));
+    ret = (send_session_->SetSend(
+               rtc::SrtpCryptoSuiteFromName(send_params.cipher_suite), send_key,
+               sizeof(send_key)) &&
+           recv_session_->SetRecv(
+               rtc::SrtpCryptoSuiteFromName(recv_params.cipher_suite), recv_key,
+               sizeof(recv_key)));
   }
   if (ret) {
     LOG(LS_INFO) << "SRTP activated with negotiated parameters:"
@@ -448,6 +450,10 @@ bool SrtpFilter::ApplyParams(const CryptoParams& send_params,
 bool SrtpFilter::ResetParams() {
   offer_params_.clear();
   state_ = ST_INIT;
+  send_session_ = nullptr;
+  recv_session_ = nullptr;
+  send_rtcp_session_ = nullptr;
+  recv_rtcp_session_ = nullptr;
   LOG(LS_INFO) << "SRTP reset to init state";
   return true;
 }
@@ -481,7 +487,7 @@ bool SrtpFilter::ParseKeyParams(const std::string& key_params,
 
 bool SrtpSession::inited_ = false;
 
-// This lock protects SrtpSession::inited_.
+// This lock protects SrtpSession::inited_ and SrtpSession::sessions_.
 rtc::GlobalLockPod SrtpSession::lock_;
 
 SrtpSession::SrtpSession()
@@ -490,27 +496,32 @@ SrtpSession::SrtpSession()
       rtcp_auth_tag_len_(0),
       srtp_stat_(new SrtpStat()),
       last_send_seq_num_(-1) {
+  {
+    rtc::GlobalLockScope ls(&lock_);
+    sessions()->push_back(this);
+  }
   SignalSrtpError.repeat(srtp_stat_->SignalSrtpError);
 }
 
 SrtpSession::~SrtpSession() {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+  {
+    rtc::GlobalLockScope ls(&lock_);
+    sessions()->erase(std::find(sessions()->begin(), sessions()->end(), this));
+  }
   if (session_) {
-    session_->user_data = nullptr;
     srtp_dealloc(session_);
   }
 }
 
-bool SrtpSession::SetSend(const std::string& cs, const uint8_t* key, int len) {
+bool SrtpSession::SetSend(int cs, const uint8_t* key, int len) {
   return SetKey(ssrc_any_outbound, cs, key, len);
 }
 
-bool SrtpSession::SetRecv(const std::string& cs, const uint8_t* key, int len) {
+bool SrtpSession::SetRecv(int cs, const uint8_t* key, int len) {
   return SetKey(ssrc_any_inbound, cs, key, len);
 }
 
 bool SrtpSession::ProtectRtp(void* p, int in_len, int max_len, int* out_len) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   if (!session_) {
     LOG(LS_WARNING) << "Failed to protect SRTP packet: no SRTP Session";
     return false;
@@ -553,7 +564,6 @@ bool SrtpSession::ProtectRtp(void* p,
 }
 
 bool SrtpSession::ProtectRtcp(void* p, int in_len, int max_len, int* out_len) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   if (!session_) {
     LOG(LS_WARNING) << "Failed to protect SRTCP packet: no SRTP Session";
     return false;
@@ -577,7 +587,6 @@ bool SrtpSession::ProtectRtcp(void* p, int in_len, int max_len, int* out_len) {
 }
 
 bool SrtpSession::UnprotectRtp(void* p, int in_len, int* out_len) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   if (!session_) {
     LOG(LS_WARNING) << "Failed to unprotect SRTP packet: no SRTP Session";
     return false;
@@ -597,7 +606,6 @@ bool SrtpSession::UnprotectRtp(void* p, int in_len, int* out_len) {
 }
 
 bool SrtpSession::UnprotectRtcp(void* p, int in_len, int* out_len) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   if (!session_) {
     LOG(LS_WARNING) << "Failed to unprotect SRTCP packet: no SRTP Session";
     return false;
@@ -615,7 +623,6 @@ bool SrtpSession::UnprotectRtcp(void* p, int in_len, int* out_len) {
 
 bool SrtpSession::GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len) {
 #if defined(ENABLE_EXTERNAL_AUTH)
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   ExternalHmacContext* external_hmac = NULL;
   // stream_template will be the reference context for other streams.
   // Let's use it for getting the keys.
@@ -642,7 +649,6 @@ bool SrtpSession::GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len) {
 bool SrtpSession::GetSendStreamPacketIndex(void* p,
                                            int in_len,
                                            int64_t* index) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   srtp_hdr_t* hdr = reinterpret_cast<srtp_hdr_t*>(p);
   srtp_stream_ctx_t* stream = srtp_get_stream(session_, hdr->ssrc);
   if (stream == NULL)
@@ -658,11 +664,7 @@ void SrtpSession::set_signal_silent_time(uint32_t signal_silent_time_in_ms) {
   srtp_stat_->set_signal_silent_time(signal_silent_time_in_ms);
 }
 
-bool SrtpSession::SetKey(int type,
-                         const std::string& cs,
-                         const uint8_t* key,
-                         int len) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
+bool SrtpSession::SetKey(int type, int cs, const uint8_t* key, int len) {
   if (session_) {
     LOG(LS_ERROR) << "Failed to create SRTP session: "
                   << "SRTP session already created";
@@ -676,15 +678,15 @@ bool SrtpSession::SetKey(int type,
   srtp_policy_t policy;
   memset(&policy, 0, sizeof(policy));
 
-  if (cs == rtc::CS_AES_CM_128_HMAC_SHA1_80) {
+  if (cs == rtc::SRTP_AES128_CM_SHA1_80) {
     crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtp);
     crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtcp);
-  } else if (cs == rtc::CS_AES_CM_128_HMAC_SHA1_32) {
+  } else if (cs == rtc::SRTP_AES128_CM_SHA1_32) {
     crypto_policy_set_aes_cm_128_hmac_sha1_32(&policy.rtp);   // rtp is 32,
     crypto_policy_set_aes_cm_128_hmac_sha1_80(&policy.rtcp);  // rtcp still 80
   } else {
     LOG(LS_WARNING) << "Failed to create SRTP session: unsupported"
-                    << " cipher_suite " << cs.c_str();
+                    << " cipher_suite " << cs;
     return false;
   }
 
@@ -718,7 +720,7 @@ bool SrtpSession::SetKey(int type,
     return false;
   }
 
-  session_->user_data = this;
+
   rtp_auth_tag_len_ = policy.rtp.auth_tag_len;
   rtcp_auth_tag_len_ = policy.rtcp.auth_tag_len;
   return true;
@@ -767,7 +769,6 @@ void SrtpSession::Terminate() {
 }
 
 void SrtpSession::HandleEvent(const srtp_event_data_t* ev) {
-  RTC_DCHECK(thread_checker_.CalledOnValidThread());
   switch (ev->event) {
     case event_ssrc_collision:
       LOG(LS_INFO) << "SRTP event: SSRC collision";
@@ -788,12 +789,20 @@ void SrtpSession::HandleEvent(const srtp_event_data_t* ev) {
 }
 
 void SrtpSession::HandleEventThunk(srtp_event_data_t* ev) {
-  // Callback will be executed from same thread that calls the "srtp_protect"
-  // and "srtp_unprotect" functions.
-  SrtpSession* session = static_cast<SrtpSession*>(ev->session->user_data);
-  if (session) {
-    session->HandleEvent(ev);
+  rtc::GlobalLockScope ls(&lock_);
+
+  for (std::list<SrtpSession*>::iterator it = sessions()->begin();
+       it != sessions()->end(); ++it) {
+    if ((*it)->session_ == ev->session) {
+      (*it)->HandleEvent(ev);
+      break;
+    }
   }
+}
+
+std::list<SrtpSession*>* SrtpSession::sessions() {
+  RTC_DEFINE_STATIC_LOCAL(std::list<SrtpSession*>, sessions, ());
+  return &sessions;
 }
 
 #else   // !HAVE_SRTP

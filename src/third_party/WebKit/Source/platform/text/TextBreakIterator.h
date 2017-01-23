@@ -58,7 +58,8 @@ enum class LineBreakType {
     KeepAllIfKorean,  // word-break: -bb-keep-all-if-korean Bloomberg extension
 };
 
-class PLATFORM_EXPORT LazyLineBreakIterator {
+class PLATFORM_EXPORT LazyLineBreakIterator final {
+    STACK_ALLOCATED();
 public:
     LazyLineBreakIterator()
         : m_iterator(0)
@@ -201,7 +202,8 @@ private:
 // version 4.0 only supports "legacy grapheme clusters".
 // Use this for general text processing, e.g. string truncation.
 
-class PLATFORM_EXPORT NonSharedCharacterBreakIterator {
+class PLATFORM_EXPORT NonSharedCharacterBreakIterator final {
+    STACK_ALLOCATED();
     WTF_MAKE_NONCOPYABLE(NonSharedCharacterBreakIterator);
 public:
     explicit NonSharedCharacterBreakIterator(const String&);
