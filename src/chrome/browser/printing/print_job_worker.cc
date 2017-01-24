@@ -14,11 +14,17 @@
 #include "base/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/browser_process.h"
+
+// SHEZ: Remove dependency on g_browser_process
+// #include "chrome/browser/browser_process.h"
+
 #include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/printing/print_job.h"
 #include "chrome/common/features.h"
-#include "chrome/grit/generated_resources.h"
+
+// LEVI: Remove chrome resources.
+// #include "chrome/grit/generated_resources.h"
+
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_view_host.h"

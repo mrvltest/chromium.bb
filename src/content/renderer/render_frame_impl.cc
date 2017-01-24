@@ -4293,8 +4293,11 @@ blink::WebBluetooth* RenderFrameImpl::bluetooth() {
 }
 
 blink::WebUSBClient* RenderFrameImpl::usbClient() {
+    // SHEZ: Remove dependency on webusb component
+#if 0
   if (!usb_client_)
     usb_client_.reset(new WebUSBClientImpl(GetServiceRegistry()));
+#endif
 
   return usb_client_.get();
 }

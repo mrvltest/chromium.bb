@@ -378,6 +378,19 @@ void SpellcheckService::InitForAllRenderers() {
   }
 }
 
+void SpellcheckService::OnEnableAutoSpellCorrectChanged() {
+  bool enabled = pref_change_registrar_.prefs()->GetBoolean(
+      prefs::kEnableAutoSpellCorrect);
+  for (content::RenderProcessHost::iterator i(
+           content::RenderProcessHost::AllHostsIterator());
+       !i.IsAtEnd(); i.Advance()) {
+    content::RenderProcessHost* process = i.GetCurrentValue();
+    if (!process || context_ != process->GetBrowserContext())
+      continue;
+    process->Send(new SpellCheckMsg_EnableAutoSpellCorrect(enabled));
+  }
+}
+
 void SpellcheckService::OnSpellCheckDictionariesChanged() {
   for (auto& hunspell_dictionary : hunspell_dictionaries_)
     hunspell_dictionary->RemoveObserver(this);

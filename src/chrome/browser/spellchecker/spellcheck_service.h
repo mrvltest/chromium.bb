@@ -17,7 +17,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/prefs/pref_change_registrar.h"
 #include "build/build_config.h"
-#include "chrome/browser/spellchecker/spellcheck_custom_dictionary.h"
+
+// SHEZ: Remove dependency on Chrome's custom dictionary
+// #include "chrome/browser/spellchecker/spellcheck_custom_dictionary.h"
+
 #include "chrome/browser/spellchecker/spellcheck_hunspell_dictionary.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/notification_observer.h"
