@@ -19,7 +19,10 @@
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/test/layouttest_support.h"
+
+// SHEZ: remove test only code
+// #include "content/public/test/layouttest_support.h"
+
 #include "content/public/test/ppapi_test_utils.h"
 #include "content/shell/app/shell_crash_reporter_client.h"
 

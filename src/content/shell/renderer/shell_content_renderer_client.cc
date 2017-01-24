@@ -15,6 +15,10 @@
 #include "ppapi/shared_impl/ppapi_switches.h"
 #endif
 
+#include "chrome/renderer/spellchecker/spellcheck.h"
+#include "chrome/renderer/spellchecker/spellcheck_provider.h"
+#include "components/printing/renderer/print_web_view_helper.h"
+
 namespace content {
 
 ShellContentRendererClient::ShellContentRendererClient() {
@@ -40,21 +44,29 @@ void ShellContentRendererClient::RenderViewCreated(RenderView* render_view) {
 
 bool ShellContentRendererClient::IsPluginAllowedToUseCompositorAPI(
     const GURL& url) {
+  // SHEZ: Remove test code.
+#if 0
 #if defined(ENABLE_PLUGINS)
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kEnablePepperTesting);
 #else
   return false;
 #endif
+#endif
+  return false;
 }
 
 bool ShellContentRendererClient::IsPluginAllowedToUseDevChannelAPIs() {
+  // SHEZ: Remove test code.
+#if 0
 #if defined(ENABLE_PLUGINS)
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kEnablePepperTesting);
 #else
   return false;
 #endif
+#endif
+  return false;
 }
 
 }  // namespace content
