@@ -306,17 +306,6 @@
             'src/common/simple_string_dictionary.cc',
             'src/common/string_conversion.cc',
           ],
-          'conditions': [
-            ['OS=="ios"', {
-              'xcode_settings' : {
-                'WARNING_CFLAGS': [
-                  # MinidumpGenerator uses an API deprecated in iOS 7.
-                  # crbug.com/408562
-                  '-Wno-deprecated-declarations',
-                ],
-              },
-            }],
-          ],
         },
         {
           # GN version: //breakpad:crash_inspector
@@ -595,6 +584,14 @@
                 ],
               },
             }],
+            ['clang==1 and target_arch=="ia32"', {
+              'cflags!': [
+                # Clang's -mstackrealign doesn't work well with
+                # linux_syscall_support.h hand written asm syscalls.
+                # See https://crbug.com/556393
+                '-mstackrealign',
+              ],
+            }],
           ],
 
           'include_dirs': [
@@ -638,6 +635,9 @@
           'target_name': 'breakpad_unittests',
           'type': 'executable',
           'dependencies': [
+            '../testing/gtest.gyp:gtest',
+            '../testing/gtest.gyp:gtest_main',
+            '../testing/gmock.gyp:gmock',
             'breakpad_client',
             'breakpad_processor_support',
             'linux_dumper_unittest_helper',
@@ -684,6 +684,31 @@
             '.',
           ],
           'conditions': [
+            ['OS=="android"', {
+              'libraries': [
+                '-llog',
+              ],
+              'include_dirs': [
+                'src/common/android/include',
+              ],
+              'sources': [
+                'src/common/android/breakpad_getcontext_unittest.cc',
+              ],
+              'variables': {
+                'test_type': 'gtest',
+                'test_suite_name': '<(_target_name)',
+                'isolate_file': 'breakpad_unittests.isolate',
+              },
+              'includes': [ '../build/android/test_runner.gypi' ],
+            }],
+            ['clang==1 and target_arch=="ia32"', {
+              'cflags!': [
+                # Clang's -mstackrealign doesn't work well with
+                # linux_syscall_support.h hand written asm syscalls.
+                # See https://crbug.com/556393
+                '-mstackrealign',
+              ],
+            }],
           ],
         },
         {

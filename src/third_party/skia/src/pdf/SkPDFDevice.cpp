@@ -2361,7 +2361,8 @@ void SkPDFDevice::internalDrawImage(const SkMatrix& origMatrix,
     }
     SkAutoTUnref<SkPDFObject> pdfimage(SkSafeRef(fCanon->findPDFBitmap(image)));
     if (!pdfimage) {
-        pdfimage.reset(SkPDFCreateBitmapObject(image));
+        pdfimage.reset(SkPDFCreateBitmapObject(
+                               image, fCanon->fPixelSerializer));
         if (!pdfimage) {
             return;
         }

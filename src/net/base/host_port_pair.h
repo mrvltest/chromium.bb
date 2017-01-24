@@ -5,8 +5,11 @@
 #ifndef NET_BASE_HOST_PORT_PAIR_H_
 #define NET_BASE_HOST_PORT_PAIR_H_
 
+#include <stdint.h>
+
 #include <string>
-#include "base/basictypes.h"
+#include <tuple>
+
 #include "net/base/net_export.h"
 
 class GURL;
@@ -34,9 +37,7 @@ class NET_EXPORT HostPortPair {
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
   bool operator<(const HostPortPair& other) const {
-    if (port_ != other.port_)
-      return port_ < other.port_;
-    return host_ < other.host_;
+    return std::tie(port_, host_) < std::tie(other.port_, other.host_);
   }
 
   // Equality test of contents. (Probably another violation of style guide).
@@ -63,7 +64,7 @@ class NET_EXPORT HostPortPair {
   // These references to the internal structure are provided to simplify IPC
   // serialization.
   std::string& internalHost() { return host_; }
-  uint16& internalPort() { return port_; }
+  uint16_t& internalPort() { return port_; }
 
   // ToString() will convert the HostPortPair to "host:port".  If |host_| is an
   // IPv6 literal, it will add brackets around |host_|.

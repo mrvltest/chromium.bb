@@ -2016,6 +2016,25 @@ void ARGBBlendRow_C(const uint8* src_argb0, const uint8* src_argb1,
   }
 }
 #undef BLEND
+
+#define UBLEND(f, b, a) (((a) * f) + ((255 - a) * b) + 255) >> 8
+void BlendPlaneRow_C(const uint8* src0, const uint8* src1,
+                     const uint8* alpha, uint8* dst, int width) {
+  int x;
+  for (x = 0; x < width - 1; x += 2) {
+    dst[0] = UBLEND(src0[0], src1[0], alpha[0]);
+    dst[1] = UBLEND(src0[1], src1[1], alpha[1]);
+    src0 += 2;
+    src1 += 2;
+    alpha += 2;
+    dst += 2;
+  }
+  if (width & 1) {
+    dst[0] = UBLEND(src0[0], src1[0], alpha[0]);
+  }
+}
+#undef UBLEND
+
 #define ATTENUATE(f, a) (a | (a << 8)) * (f | (f << 8)) >> 24
 
 // Multiply source RGB by alpha and store to destination.
@@ -2192,27 +2211,30 @@ static void HalfRow_16_C(const uint16* src_uv, int src_uv_stride,
 void InterpolateRow_C(uint8* dst_ptr, const uint8* src_ptr,
                       ptrdiff_t src_stride,
                       int width, int source_y_fraction) {
-  int y1_fraction = source_y_fraction;
+  int y1_fraction = source_y_fraction ;
   int y0_fraction = 256 - y1_fraction;
   const uint8* src_ptr1 = src_ptr + src_stride;
   int x;
-  if (source_y_fraction == 0) {
+  if (y1_fraction == 0) {
     memcpy(dst_ptr, src_ptr, width);
     return;
   }
-  if (source_y_fraction == 128) {
+  if (y1_fraction == 128) {
     HalfRow_C(src_ptr, (int)(src_stride), dst_ptr, width);
     return;
   }
   for (x = 0; x < width - 1; x += 2) {
-    dst_ptr[0] = (src_ptr[0] * y0_fraction + src_ptr1[0] * y1_fraction) >> 8;
-    dst_ptr[1] = (src_ptr[1] * y0_fraction + src_ptr1[1] * y1_fraction) >> 8;
+    dst_ptr[0] =
+        (src_ptr[0] * y0_fraction + src_ptr1[0] * y1_fraction + 128) >> 8;
+    dst_ptr[1] =
+        (src_ptr[1] * y0_fraction + src_ptr1[1] * y1_fraction + 128) >> 8;
     src_ptr += 2;
     src_ptr1 += 2;
     dst_ptr += 2;
   }
   if (width & 1) {
-    dst_ptr[0] = (src_ptr[0] * y0_fraction + src_ptr1[0] * y1_fraction) >> 8;
+    dst_ptr[0] =
+        (src_ptr[0] * y0_fraction + src_ptr1[0] * y1_fraction + 128) >> 8;
   }
 }
 

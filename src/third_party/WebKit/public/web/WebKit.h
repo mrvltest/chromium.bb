@@ -94,6 +94,9 @@ BLINK_EXPORT void setTimerHiddenPageAlignmentInterval(double);
 BLINK_EXPORT void setTextSearchHighlightColor(int activeR, int activeG, int activeB,
                                               int inactiveR, int inactiveG, int inactiveB);
 
+// Set the text color for text searches.
+BLINK_EXPORT void setTextSearchColor(int activeR, int activeG, int activeB);
+
 // Enables the named log channel. See WebCore/platform/Logging.h for details.
 BLINK_EXPORT void enableLogChannel(const char*);
 

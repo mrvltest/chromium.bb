@@ -58,15 +58,12 @@ class JsWidget : public blink::WebPlugin {
     void updateFocus(bool, blink::WebFocusType) override {}
     void updateVisibility(bool isVisible) override;
     bool acceptsInputEvents() override { return false; }
-    bool handleInputEvent(const blink::WebInputEvent&, blink::WebCursorInfo&) override { return false; }
+    blink::WebInputEventResult handleInputEvent(const blink::WebInputEvent&, blink::WebCursorInfo&) override { return blink::WebInputEventResult::NotHandled; }
     void didReceiveResponse(const blink::WebURLResponse&) override {}
     void didReceiveData(const char* data, int dataLength) override {}
     void didFinishLoading() override {}
     void didFailLoading(const blink::WebURLError&) override {}
-    void didFinishLoadingFrameRequest(
-        const blink::WebURL&, void* notifyData) override {}
-    void didFailLoadingFrameRequest(
-        const blink::WebURL&, void* notifyData, const blink::WebURLError&) override {}
+    void updateAllLifecyclePhases() override {}
 
   private:
     blink::WebPluginContainer* d_container;

@@ -71,7 +71,7 @@ class ProcessHostImpl : public ProcessHost,
     // IPC::Listener overrides
     bool OnMessageReceived(const IPC::Message& message) override;
     void OnBadMessageReceived(const IPC::Message& message) override;
-    void OnChannelConnected(int32 peer_pid) override;
+    void OnChannelConnected(int32_t peer_pid) override;
     void OnChannelError() override;
 
     // Control message handlers

@@ -90,14 +90,6 @@ class SpellCheck : public content::RenderProcessObserver,
       const base::string16& text,
       blink::WebVector<blink::WebTextCheckingResult>* results);
 
-  // Find a possible correctly spelled word for a misspelled word. Computes an
-  // empty string if input misspelled word is too long, there is ambiguity, or
-  // the correct spelling cannot be determined.
-  // NOTE: If using the platform spellchecker, this will send a *lot* of sync
-  // IPCs. We should probably refactor this if we ever plan to take it out from
-  // behind its command line flag.
-  base::string16 GetAutoCorrectionWord(const base::string16& word, int tag);
-
   // Requests to spellcheck the specified text in the background. This function
   // posts a background task and calls SpellCheckParagraph() in the task.
 #if !defined (USE_BROWSER_SPELLCHECKER)

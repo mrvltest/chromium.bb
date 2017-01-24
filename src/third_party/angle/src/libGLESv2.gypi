@@ -5,6 +5,8 @@
 {
     'variables':
     {
+        'angle_standalone%': 0,
+
         # These file lists are shared with the GN build.
         'libangle_common_sources':
         [
@@ -68,6 +70,8 @@
             'libANGLE/Context.h',
             'libANGLE/Data.cpp',
             'libANGLE/Data.h',
+            'libANGLE/Debug.cpp',
+            'libANGLE/Debug.h',
             'libANGLE/Device.cpp',
             'libANGLE/Device.h',
             'libANGLE/Display.cpp',
@@ -223,6 +227,8 @@
             'libANGLE/renderer/d3d/TextureStorage.h',
             'libANGLE/renderer/d3d/TransformFeedbackD3D.cpp',
             'libANGLE/renderer/d3d/TransformFeedbackD3D.h',
+            'libANGLE/renderer/d3d/VaryingPacking.cpp',
+            'libANGLE/renderer/d3d/VaryingPacking.h',
             'libANGLE/renderer/d3d/VertexBuffer.cpp',
             'libANGLE/renderer/d3d/VertexBuffer.h',
             'libANGLE/renderer/d3d/VertexDataManager.cpp',
@@ -263,6 +269,8 @@
             'libANGLE/renderer/d3d/d3d9/shaders/compiled/luminanceps.h',
             'libANGLE/renderer/d3d/d3d9/shaders/compiled/passthroughps.h',
             'libANGLE/renderer/d3d/d3d9/shaders/compiled/standardvs.h',
+            'libANGLE/renderer/d3d/d3d9/StateManager9.cpp',
+            'libANGLE/renderer/d3d/d3d9/StateManager9.h',
             'libANGLE/renderer/d3d/d3d9/SwapChain9.cpp',
             'libANGLE/renderer/d3d/d3d9/SwapChain9.h',
             'libANGLE/renderer/d3d/d3d9/TextureStorage9.cpp',
@@ -371,6 +379,8 @@
             'libANGLE/renderer/d3d/d3d11/shaders/compiled/swizzleui2darrayps.h',
             'libANGLE/renderer/d3d/d3d11/shaders/compiled/swizzleui2dps.h',
             'libANGLE/renderer/d3d/d3d11/shaders/compiled/swizzleui3dps.h',
+            'libANGLE/renderer/d3d/d3d11/StateManager11.cpp',
+            'libANGLE/renderer/d3d/d3d11/StateManager11.h',
             'libANGLE/renderer/d3d/d3d11/SwapChain11.cpp',
             'libANGLE/renderer/d3d/d3d11/SwapChain11.h',
             'libANGLE/renderer/d3d/d3d11/swizzle_format_info.h',
@@ -729,10 +739,10 @@
                             ],
                             'link_settings': {
                                 'ldflags': [
-                                    '<!@(pkg-config --libs-only-L --libs-only-other x11 xi)',
+                                    '<!@(<(pkg-config) --libs-only-L --libs-only-other x11 xi)',
                                 ],
                                 'libraries': [
-                                    '<!@(pkg-config --libs-only-l x11 xi) -ldl',
+                                    '<!@(<(pkg-config) --libs-only-l x11 xi) -ldl',
                                 ],
                             },
                         }],
@@ -785,14 +795,6 @@
                 ['angle_build_winrt==1',
                 {
                     'msvs_requires_importlibrary' : 'true',
-                    'msvs_settings':
-                    {
-                        'VCLinkerTool':
-                        {
-                            'EnableCOMDATFolding': '1',
-                            'OptimizeReferences': '1',
-                        }
-                    },
                 }],
             ],
         },
@@ -823,14 +825,6 @@
                 ['angle_build_winrt==1',
                 {
                     'msvs_requires_importlibrary' : 'true',
-                    'msvs_settings':
-                    {
-                        'VCLinkerTool':
-                        {
-                            'EnableCOMDATFolding': '1',
-                            'OptimizeReferences': '1',
-                        }
-                    },
                 }],
                 ['angle_build_winphone==1',
                 {
@@ -838,5 +832,22 @@
                 }],
             ],
         },
+    ],
+    'conditions':
+    [
+        ['angle_standalone==0 and OS!="win"',
+        {
+            'targets':
+            [
+                {
+                    'target_name': 'libGLESv2_ANGLE',
+                    'type': 'loadable_module',
+                    'dependencies':
+                    [
+                        'libGLESv2',
+                    ],
+                },
+            ],
+        }],
     ],
 }

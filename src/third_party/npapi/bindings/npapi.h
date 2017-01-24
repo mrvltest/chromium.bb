@@ -51,12 +51,8 @@
 /* BEGIN BLOOMBERG MODIFICATIONS */
 #if 0
 /* END BLOOMBERG MODIFICATIONS */
-#ifdef __native_client__
 #include <stdint.h>
 #include <sys/types.h>
-#else
-#include "base/basictypes.h"
-#endif  /* __native_client__ */
 /* BEGIN BLOOMBERG MODIFICATIONS */
 #endif
 /* END BLOOMBERG MODIFICATIONS */

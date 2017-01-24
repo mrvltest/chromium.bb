@@ -6,7 +6,7 @@
 
 #include "public/fpdf_dataavail.h"
 
-#include "../include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_define.h"
 #include "public/fpdf_formfill.h"
 
 // These checks are here because core/ and public/ cannot depend on each other.
@@ -122,7 +122,7 @@ FPDFAvail_IsDocAvail(FPDF_AVAIL avail, FX_DOWNLOADHINTS* hints) {
 
 DLLEXPORT FPDF_DOCUMENT STDCALL
 FPDFAvail_GetDocument(FPDF_AVAIL avail, FPDF_BYTESTRING password) {
-  if (avail == NULL)
+  if (!avail)
     return NULL;
   CPDF_Parser* pParser = new CPDF_Parser;
   pParser->SetPassword(password);
@@ -141,9 +141,7 @@ FPDFAvail_GetDocument(FPDF_AVAIL avail, FPDF_BYTESTRING password) {
 
 DLLEXPORT int STDCALL FPDFAvail_GetFirstPageNum(FPDF_DOCUMENT doc) {
   CPDF_Document* pDoc = CPDFDocumentFromFPDFDocument(doc);
-  if (!doc)
-    return 0;
-  return ((CPDF_Parser*)pDoc->GetParser())->GetFirstPageNo();
+  return pDoc ? pDoc->GetParser()->GetFirstPageNo() : 0;
 }
 
 DLLEXPORT int STDCALL FPDFAvail_IsPageAvail(FPDF_AVAIL avail,

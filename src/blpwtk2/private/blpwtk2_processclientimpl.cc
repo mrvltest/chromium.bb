@@ -109,7 +109,7 @@ bool ProcessClientImpl::OnMessageReceived(const IPC::Message& message)
     return listener->OnMessageReceived(message);
 }
 
-void ProcessClientImpl::OnChannelConnected(int32 peer_pid)
+void ProcessClientImpl::OnChannelConnected(int32_t peer_pid)
 {
     LOG(INFO) << "channel connected: peer_pid(" << peer_pid << ")";
 }

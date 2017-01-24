@@ -150,6 +150,7 @@
       'type': 'executable',
       'dependencies': [
         '../v8/tools/gyp/v8.gyp:v8',
+        'gin_shell',
         'gin_test',
       ],
       'sources': [
@@ -166,5 +167,24 @@
         'wrappable_unittest.cc',
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'gin_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'gin_unittests',
+          ],
+          'includes': [
+            '../build/isolate.gypi',
+          ],
+          'sources': [
+            'gin_unittests.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

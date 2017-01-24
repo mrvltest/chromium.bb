@@ -6,8 +6,10 @@
 
 #include "core/include/fpdfapi/fpdf_parser.h"
 
+#include "core/include/fxcrt/fx_ext.h"
+
 // Indexed by 8-bit character code, contains either:
-//   'W' - for whitespace: NUL, TAB, CR, LF, FF, 0x80, 0xff
+//   'W' - for whitespace: NUL, TAB, CR, LF, FF, SPACE, 0x80, 0xff
 //   'N' - for numeric: 0123456789+-.
 //   'D' - for delimiter: %()/<>[]{}
 //   'R' - otherwise.
@@ -58,9 +60,6 @@ const char PDF_CharType[256] = {
     'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R',
     'R', 'R', 'R', 'R', 'R', 'R', 'R', 'W'};
 
-#ifndef MAX_PATH
-#define MAX_PATH 4096
-#endif
 CPDF_SimpleParser::CPDF_SimpleParser(const uint8_t* pData, FX_DWORD dwSize) {
   m_pData = pData;
   m_dwSize = dwSize;
@@ -279,22 +278,11 @@ FX_BOOL CPDF_SimpleParser::FindTagParam(const CFX_ByteStringC& token,
   }
   return FALSE;
 }
-static int _hex2dec(char ch) {
-  if (ch >= '0' && ch <= '9') {
-    return ch - '0';
-  }
-  if (ch >= 'a' && ch <= 'f') {
-    return ch - 'a' + 10;
-  }
-  if (ch >= 'A' && ch <= 'F') {
-    return ch - 'A' + 10;
-  }
-  return 0;
-}
+
 CFX_ByteString PDF_NameDecode(const CFX_ByteStringC& bstr) {
   int size = bstr.GetLength();
   const FX_CHAR* pSrc = bstr.GetCStr();
-  if (FXSYS_memchr(pSrc, '#', size) == NULL) {
+  if (!FXSYS_memchr(pSrc, '#', size)) {
     return bstr;
   }
   CFX_ByteString result;
@@ -302,7 +290,8 @@ CFX_ByteString PDF_NameDecode(const CFX_ByteStringC& bstr) {
   FX_CHAR* pDest = pDestStart;
   for (int i = 0; i < size; i++) {
     if (pSrc[i] == '#' && i < size - 2) {
-      *pDest++ = _hex2dec(pSrc[i + 1]) * 16 + _hex2dec(pSrc[i + 2]);
+      *pDest++ =
+          FXSYS_toHexDigit(pSrc[i + 1]) * 16 + FXSYS_toHexDigit(pSrc[i + 2]);
       i += 2;
     } else {
       *pDest++ = pSrc[i];
@@ -312,7 +301,7 @@ CFX_ByteString PDF_NameDecode(const CFX_ByteStringC& bstr) {
   return result;
 }
 CFX_ByteString PDF_NameDecode(const CFX_ByteString& orig) {
-  if (FXSYS_memchr(orig.c_str(), '#', orig.GetLength()) == NULL) {
+  if (!FXSYS_memchr(orig.c_str(), '#', orig.GetLength())) {
     return orig;
   }
   return PDF_NameDecode(CFX_ByteStringC(orig));
@@ -353,13 +342,13 @@ CFX_ByteString PDF_NameEncode(const CFX_ByteString& orig) {
   return res;
 }
 CFX_ByteTextBuf& operator<<(CFX_ByteTextBuf& buf, const CPDF_Object* pObj) {
-  if (pObj == NULL) {
-    buf << FX_BSTRC(" null");
+  if (!pObj) {
+    buf << " null";
     return buf;
   }
   switch (pObj->GetType()) {
     case PDFOBJ_NULL:
-      buf << FX_BSTRC(" null");
+      buf << " null";
       break;
     case PDFOBJ_BOOLEAN:
     case PDFOBJ_NUMBER:
@@ -370,51 +359,50 @@ CFX_ByteTextBuf& operator<<(CFX_ByteTextBuf& buf, const CPDF_Object* pObj) {
       break;
     case PDFOBJ_NAME: {
       CFX_ByteString str = pObj->GetString();
-      buf << FX_BSTRC("/") << PDF_NameEncode(str);
+      buf << "/" << PDF_NameEncode(str);
       break;
     }
     case PDFOBJ_REFERENCE: {
-      buf << " " << pObj->AsReference()->GetRefObjNum() << FX_BSTRC(" 0 R ");
+      buf << " " << pObj->AsReference()->GetRefObjNum() << " 0 R ";
       break;
     }
     case PDFOBJ_ARRAY: {
       const CPDF_Array* p = pObj->AsArray();
-      buf << FX_BSTRC("[");
+      buf << "[";
       for (FX_DWORD i = 0; i < p->GetCount(); i++) {
         CPDF_Object* pElement = p->GetElement(i);
         if (pElement->GetObjNum()) {
-          buf << " " << pElement->GetObjNum() << FX_BSTRC(" 0 R");
+          buf << " " << pElement->GetObjNum() << " 0 R";
         } else {
           buf << pElement;
         }
       }
-      buf << FX_BSTRC("]");
+      buf << "]";
       break;
     }
     case PDFOBJ_DICTIONARY: {
       const CPDF_Dictionary* p = pObj->AsDictionary();
-      buf << FX_BSTRC("<<");
-      FX_POSITION pos = p->GetStartPos();
-      while (pos) {
-        CFX_ByteString key;
-        CPDF_Object* pValue = p->GetNextElement(pos, key);
-        buf << FX_BSTRC("/") << PDF_NameEncode(key);
+      buf << "<<";
+      for (const auto& it : *p) {
+        const CFX_ByteString& key = it.first;
+        CPDF_Object* pValue = it.second;
+        buf << "/" << PDF_NameEncode(key);
         if (pValue && pValue->GetObjNum()) {
-          buf << " " << pValue->GetObjNum() << FX_BSTRC(" 0 R ");
+          buf << " " << pValue->GetObjNum() << " 0 R ";
         } else {
           buf << pValue;
         }
       }
-      buf << FX_BSTRC(">>");
+      buf << ">>";
       break;
     }
     case PDFOBJ_STREAM: {
       const CPDF_Stream* p = pObj->AsStream();
-      buf << p->GetDict() << FX_BSTRC("stream\r\n");
+      buf << p->GetDict() << "stream\r\n";
       CPDF_StreamAcc acc;
       acc.LoadAllData(p, TRUE);
       buf.AppendBlock(acc.GetData(), acc.GetSize());
-      buf << FX_BSTRC("\r\nendstream");
+      buf << "\r\nendstream";
       break;
     }
     default:
@@ -453,12 +441,12 @@ static CPDF_Object* SearchNumberNode(CPDF_Dictionary* pNode, int num) {
     return NULL;
   }
   CPDF_Array* pKids = pNode->GetArray("Kids");
-  if (pKids == NULL) {
+  if (!pKids) {
     return NULL;
   }
   for (FX_DWORD i = 0; i < pKids->GetCount(); i++) {
     CPDF_Dictionary* pKid = pKids->GetDict(i);
-    if (pKid == NULL) {
+    if (!pKid) {
       continue;
     }
     CPDF_Object* pFound = SearchNumberNode(pKid, num);

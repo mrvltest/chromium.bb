@@ -12,8 +12,8 @@
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_H_
 
 #include <map>
-#include <vector>
 #include <set>
+#include <vector>
 
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -103,7 +103,7 @@ public:
 
     bool UpdateRTCPReceiveInformationTimers();
 
-    int32_t BoundingSet(bool &tmmbrOwner, TMMBRSet* boundingSetRec);
+    int32_t BoundingSet(bool* tmmbrOwner, TMMBRSet* boundingSetRec);
 
     int32_t UpdateTMMBR();
 

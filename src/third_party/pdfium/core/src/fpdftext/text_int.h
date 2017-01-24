@@ -34,7 +34,7 @@ typedef struct _PAGECHAR_INFO {
   int32_t m_Flag;
   CFX_FloatRect m_CharBox;
   CPDF_TextObject* m_pTextObj;
-  CFX_AffineMatrix m_Matrix;
+  CFX_Matrix m_Matrix;
   int m_Index;
 } PAGECHAR_INFO;
 typedef CFX_SegmentedArray<PAGECHAR_INFO> PAGECHAR_InfoArray;
@@ -45,7 +45,7 @@ typedef struct {
 typedef CFX_ArrayTemplate<FPDF_SEGMENT> SEGMENT_Array;
 typedef struct {
   CPDF_TextObject* m_pTextObj;
-  CFX_AffineMatrix m_formMatrix;
+  CFX_Matrix m_formMatrix;
 } PDFTEXT_Obj;
 typedef CFX_ArrayTemplate<PDFTEXT_Obj> LINEOBJ;
 
@@ -61,7 +61,7 @@ class CPDF_TextPage : public IPDF_TextPage {
   int CharIndexFromTextIndex(int TextIndex) const override;
   int TextIndexFromCharIndex(int CharIndex) const override;
   int CountChars() const override;
-  void GetCharInfo(int index, FPDF_CHAR_INFO& info) const override;
+  void GetCharInfo(int index, FPDF_CHAR_INFO* info) const override;
   void GetRectArray(int start,
                     int nCount,
                     CFX_RectArray& rectArray) const override;
@@ -103,13 +103,13 @@ class CPDF_TextPage : public IPDF_TextPage {
   FX_BOOL GetBaselineRotate(int start, int end, int& Rotate);
   void ProcessObject();
   void ProcessFormObject(CPDF_FormObject* pFormObj,
-                         const CFX_AffineMatrix& formMatrix);
+                         const CFX_Matrix& formMatrix);
   void ProcessTextObject(PDFTEXT_Obj pObj);
   void ProcessTextObject(CPDF_TextObject* pTextObj,
-                         const CFX_AffineMatrix& formMatrix,
+                         const CFX_Matrix& formMatrix,
                          FX_POSITION ObjPos);
   int ProcessInsertObject(const CPDF_TextObject* pObj,
-                          const CFX_AffineMatrix& formMatrix);
+                          const CFX_Matrix& formMatrix);
   FX_BOOL GenerateCharInfo(FX_WCHAR unicode, PAGECHAR_INFO& info);
   FX_BOOL IsSameAsPreTextObject(CPDF_TextObject* pTextObj, FX_POSITION ObjPos);
   FX_BOOL IsSameTextObject(CPDF_TextObject* pTextObj1,
@@ -125,6 +125,7 @@ class CPDF_TextPage : public IPDF_TextPage {
   void AddCharInfoByRLDirection(CFX_WideString& str, int i);
   int32_t GetTextObjectWritingMode(const CPDF_TextObject* pTextObj);
   int32_t FindTextlineFlowDirection();
+
   void SwapTempTextBuf(int32_t iCharListStartAppend, int32_t iBufStartAppend);
   FX_BOOL IsRightToLeft(const CPDF_TextObject* pTextObj,
                         const CPDF_Font* pFont,
@@ -139,9 +140,9 @@ class CPDF_TextPage : public IPDF_TextPage {
   CFX_WideTextBuf m_TempTextBuf;
   const int m_parserflag;
   CPDF_TextObject* m_pPreTextObj;
-  CFX_AffineMatrix m_perMatrix;
+  CFX_Matrix m_perMatrix;
   bool m_bIsParsed;
-  CFX_AffineMatrix m_DisplayMatrix;
+  CFX_Matrix m_DisplayMatrix;
   SEGMENT_Array m_Segment;
   CFX_RectArray m_SelRects;
   LINEOBJ m_LineObj;
@@ -226,7 +227,7 @@ class CPDF_LinkExtract : public IPDF_LinkExtract {
   void ParseLink();
   void DeleteLinkList();
   FX_BOOL CheckWebLink(CFX_WideString& strBeCheck);
-  FX_BOOL CheckMailLink(CFX_WideString& str);
+  bool CheckMailLink(CFX_WideString& str);
   void AppendToLinkList(int start, int count, const CFX_WideString& strUrl);
 
  private:

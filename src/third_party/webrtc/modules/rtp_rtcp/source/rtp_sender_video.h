@@ -67,9 +67,9 @@ class RTPSenderVideo {
                            const uint8_t payloadTypeRED,
                            const uint8_t payloadTypeFEC);
 
-  void GenericFECStatus(bool& enable,
-                        uint8_t& payloadTypeRED,
-                        uint8_t& payloadTypeFEC) const;
+  void GenericFECStatus(bool* enable,
+                        uint8_t* payloadTypeRED,
+                        uint8_t* payloadTypeFEC) const;
 
   void SetFecParameters(const FecProtectionParams* delta_params,
                         const FecProtectionParams* key_params);
@@ -82,7 +82,7 @@ class RTPSenderVideo {
   int SelectiveRetransmissions() const;
   void SetSelectiveRetransmissions(uint8_t settings);
 
-private:
+ private:
   void SendVideoPacket(uint8_t* dataBuffer,
                        const size_t payloadLength,
                        const size_t rtpHeaderLength,
@@ -110,10 +110,10 @@ private:
   int32_t _retransmissionSettings GUARDED_BY(crit_);
 
   // FEC
-  ForwardErrorCorrection _fec;
-  bool _fecEnabled GUARDED_BY(crit_);
-  int8_t _payloadTypeRED GUARDED_BY(crit_);
-  int8_t _payloadTypeFEC GUARDED_BY(crit_);
+  ForwardErrorCorrection fec_;
+  bool fec_enabled_ GUARDED_BY(crit_);
+  int8_t red_payload_type_ GUARDED_BY(crit_);
+  int8_t fec_payload_type_ GUARDED_BY(crit_);
   FecProtectionParams delta_fec_params_ GUARDED_BY(crit_);
   FecProtectionParams key_fec_params_ GUARDED_BY(crit_);
   ProducerFec producer_fec_ GUARDED_BY(crit_);

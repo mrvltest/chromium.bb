@@ -17,10 +17,25 @@
     'GCC_PRECOMPILE_PREFIX_HEADER': 'NO',
   },
   'variables': {
+    'variables': {
+      # Disable use of sysroot for Linux. It's enabled by default in Chromium,
+      # but it currently lacks the libudev-dev package.
+      # TODO(kjellander): Remove when crbug.com/561584 is fixed.
+      'conditions': [
+         ['target_arch=="ia32" or target_arch=="x64"', {
+           'use_sysroot': 0,
+         }, {
+           'use_sysroot%': 1,
+         }],
+       ],
+    },
+    'use_sysroot%': '<(use_sysroot)',
     'use_system_libjpeg%': 0,
     'libyuv_disable_jpeg%': 0,
     # 'chromium_code' treats libyuv as internal and increases warning level.
     'chromium_code': 1,
+    # clang compiler default variable usable by other apps that include libyuv.
+    'clang%': 0,
     # Link-Time Optimizations.
     'use_lto%': 0,
     'build_neon': 0,
@@ -40,7 +55,7 @@
       # Change type to 'shared_library' to build .so or .dll files.
       'type': 'static_library',
       'variables': {
-        'optimize': 'max',  # enable O2 and ltcg.
+ #       'optimize': 'max',  # enable O2 and ltcg.
       },
       # Allows libyuv.a redistributable library without external dependencies.
       'standalone_static_library': 1,

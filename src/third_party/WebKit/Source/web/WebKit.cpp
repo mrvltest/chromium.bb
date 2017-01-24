@@ -28,7 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include "public/web/WebKit.h"
 
 #include "bindings/core/v8/ScriptStreamerThread.h"
@@ -44,11 +43,13 @@
 #include "core/page/Page.h"
 #include "core/layout/LayoutTheme.h"
 #include "core/workers/WorkerGlobalScopeProxy.h"
-#include "gin/public/v8_platform.h"
+// commented out due to the duplicate include of trace_event_common.h from LayoutTheme.h
+// #include "gin/public/v8_platform.h"
 #include "modules/InitModules.h"
 #include "platform/LayoutTestSupport.h"
 #include "platform/Logging.h"
 #include "platform/RuntimeEnabledFeatures.h"
+#include "platform/fonts/FontCacheMemoryDumpProvider.h"
 #include "platform/graphics/ImageDecodingStore.h"
 #include "platform/heap/GCTaskRunner.h"
 #include "platform/heap/Heap.h"
@@ -126,6 +127,7 @@ void initialize(Platform* platform)
 
         // Register web cache dump provider for tracing.
         platform->registerMemoryDumpProvider(WebCacheMemoryDumpProvider::instance(), "MemoryCache");
+        platform->registerMemoryDumpProvider(FontCacheMemoryDumpProvider::instance(), "FontCaches");
     }
 }
 
@@ -144,19 +146,9 @@ static double monotonicallyIncreasingTimeFunction()
     return Platform::current()->monotonicallyIncreasingTimeSeconds();
 }
 
-static double systemTraceTimeFunction()
-{
-    return Platform::current()->systemTraceTime();
-}
-
 static void histogramEnumerationFunction(const char* name, int sample, int boundaryValue)
 {
     Platform::current()->histogramEnumeration(name, sample, boundaryValue);
-}
-
-static void cryptographicallyRandomValues(unsigned char* buffer, size_t length)
-{
-    Platform::current()->cryptographicallyRandomValues(buffer, length);
 }
 
 static void callOnMainThreadFunction(WTF::MainThreadFunction function, void* context)
@@ -177,8 +169,7 @@ void initializeWithoutV8(Platform* platform)
     ASSERT(platform);
     Platform::initialize(platform);
 
-    WTF::setRandomSource(cryptographicallyRandomValues);
-    WTF::initialize(currentTimeFunction, monotonicallyIncreasingTimeFunction, systemTraceTimeFunction, histogramEnumerationFunction, adjustAmountOfExternalAllocatedMemory);
+    WTF::initialize(currentTimeFunction, monotonicallyIncreasingTimeFunction, histogramEnumerationFunction, adjustAmountOfExternalAllocatedMemory);
     WTF::initializeMainThread(callOnMainThreadFunction);
     Heap::init();
 
@@ -197,9 +188,25 @@ void initializeWithoutV8(Platform* platform)
 
 void shutdown()
 {
+#if defined(LEAK_SANITIZER)
+    // If LSan is about to perform leak detection, release all the registered
+    // static Persistent<> root references to global caches that Blink keeps,
+    // followed by GCs to clear out all they referred to. A full v8 GC cycle
+    // is needed to flush out all garbage.
+    //
+    // This is not needed for caches over non-Oilpan objects, as they're
+    // not scanned by LSan due to being held in non-global storage
+    // ("static" references inside functions/methods.)
+    if (ThreadState* threadState = ThreadState::current()) {
+        threadState->releaseStaticPersistentNodes();
+        Heap::collectAllGarbage();
+    }
+#endif
+
     // currentThread() is null if we are running on a thread without a message loop.
     if (Platform::current()->currentThread()) {
         Platform::current()->unregisterMemoryDumpProvider(WebCacheMemoryDumpProvider::instance());
+        Platform::current()->unregisterMemoryDumpProvider(FontCacheMemoryDumpProvider::instance());
 
         // We don't need to (cannot) remove s_endOfTaskRunner from the current
         // message loop, because the message loop is already destructed before
@@ -292,6 +299,11 @@ void setTextSearchHighlightColor(int activeR, int activeG, int activeB,
                                  int inactiveR, int inactiveG, int inactiveB)
 {
     LayoutTheme::setTextSearchHighlightColor(activeR, activeG, activeB, inactiveR, inactiveG, inactiveB);
+}
+
+void setTextSearchColor(int activeR, int activeG, int activeB)
+{
+    LayoutTheme::setTextSearchColor(activeR, activeG, activeB);
 }
 
 void enableLogChannel(const char* name)

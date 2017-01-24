@@ -51,7 +51,7 @@ class WebFrameImpl : public WebFrame,
     WebContentSettingsDelegate* d_contentSettingsDelegate;
 
     // blink::WebContentSettingsClient overrides
-    bool allowDisplayingInsecureContent(bool enabledPerSettings, const blink::WebSecurityOrigin&, const blink::WebURL&) override;
+    bool allowDisplayingInsecureContent(bool enabledPerSettings, const blink::WebURL&) override;
     bool allowRunningInsecureContent(bool enabledPerSettings, const blink::WebSecurityOrigin&, const blink::WebURL&) override;
 };
 

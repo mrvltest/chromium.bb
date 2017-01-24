@@ -119,8 +119,11 @@ public:
     // Highlighting colors for TextMatches.
     static void setTextSearchHighlightColor(int activeR, int activeG, int activeB,
                                             int inactiveR, int inactiveG, int inactiveB);
-    virtual Color platformActiveTextSearchHighlightColor() const;
-    virtual Color platformInactiveTextSearchHighlightColor() const;
+    // Highlight and text colors for TextMatches.
+    static void setTextSearchColor(int activeR, int activeG, int activeB);
+
+    Color platformTextSearchHighlightColor(bool activeMatch) const;
+    Color platformTextSearchColor(bool activeMatch) const;
 
     Color focusRingColor() const;
     virtual Color platformFocusRingColor() const { return Color(0, 0, 0); }

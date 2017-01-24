@@ -10,10 +10,14 @@
 #include <stddef.h>
 
 #include "build/build_config.h"
+#include "chrome/common/features.h"
 
 namespace prefs {
 
 // Profile prefs. Please add Local State prefs below instead.
+#if defined(OS_CHROMEOS) && defined(ENABLE_APP_LIST)
+extern const char kArcApps[];
+#endif
 extern const char kChildAccountStatusKnown[];
 extern const char kDefaultApps[];
 extern const char kDisableScreenshots[];
@@ -25,8 +29,6 @@ extern const char kLastProfileResetTimestamp[];
 #endif
 extern const char kProfileIconVersion[];
 extern const char kRestoreOnStartup[];
-extern const char kRestoreOnStartupMigrated[];
-extern const char kRestoreStartupURLsMigrationTime[];
 extern const char kSessionExitedCleanly[];
 extern const char kSessionExitType[];
 extern const char kSupervisedUserCustodianEmail[];
@@ -43,7 +45,6 @@ extern const char kSupervisedUserSecondCustodianProfileURL[];
 extern const char kSupervisedUserSharedSettings[];
 extern const char kSupervisedUserWhitelists[];
 extern const char kURLsToRestoreOnStartup[];
-extern const char kURLsToRestoreOnStartupOld[];
 
 // For OS_CHROMEOS we maintain kApplicationLocale property in both local state
 // and user's profile.  Global property determines locale of login screen,
@@ -139,6 +140,7 @@ extern const char kWebKitFontScaleFactor[];
 extern const char kWebKitForceEnableZoom[];
 extern const char kWebKitPasswordEchoEnabled[];
 #endif
+extern const char kDataSaverEnabled[];
 extern const char kSafeBrowsingEnabled[];
 extern const char kSafeBrowsingExtendedReportingEnabled[];
 extern const char kSafeBrowsingProceedAnywayDisabled[];
@@ -147,11 +149,12 @@ extern const char kSafeBrowsingExtendedReportingOptInAllowed[];
 extern const char kSSLErrorOverrideAllowed[];
 extern const char kIncognitoModeAvailability[];
 extern const char kSearchSuggestEnabled[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kContextualSearchEnabled[];
 #endif
 #if defined(OS_MACOSX)
 extern const char kConfirmToQuitEnabled[];
+extern const char kHideFullscreenToolbar[];
 #endif
 extern const char kPromptForDownload[];
 extern const char kAlternateErrorPagesEnabled[];
@@ -188,6 +191,7 @@ extern const char kLanguagePreloadEngines[];
 extern const char kLanguagePreloadEnginesSyncable[];
 extern const char kLanguageEnabledExtensionImes[];
 extern const char kLanguageEnabledExtensionImesSyncable[];
+extern const char kLangugaeImeMenuActivated[];
 extern const char kLanguageShouldMergeInputMethods[];
 extern const char kLanguageRemapCapsLockKeyTo[];
 extern const char kLanguageRemapSearchKeyTo[];
@@ -336,7 +340,7 @@ extern const char kAutofillDialogWalletLocationAcceptance[];
 extern const char kAutofillDialogSaveData[];
 extern const char kAutofillDialogWalletShippingSameAsBilling[];
 extern const char kAutofillGeneratedCardBubbleTimesShown[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kAutofillDialogDefaults[];
 #endif
 
@@ -381,8 +385,6 @@ extern const char kDefaultSupervisedUserFilteringBehavior[];
 extern const char kSupervisedUserCreationAllowed[];
 extern const char kSupervisedUsers[];
 
-extern const char kProfileResetPromptMementoInProfilePrefs[];
-
 extern const char kMessageCenterDisabledExtensionIds[];
 extern const char kMessageCenterDisabledSystemComponentIds[];
 extern const char kWelcomeNotificationDismissed[];
@@ -401,11 +403,12 @@ extern const char kEasyUnlockEnabled[];
 extern const char kEasyUnlockPairing[];
 extern const char kEasyUnlockProximityRequired[];
 
-#if defined(ENABLE_EXTENSIONS) && !defined(OS_ANDROID) && !defined(OS_IOS)
+#if defined(ENABLE_EXTENSIONS)
 extern const char kCopresenceAuthenticatedDeviceId[];
 extern const char kCopresenceAnonymousDeviceId[];
 extern const char kToolbarIconSurfacingBubbleAcknowledged[];
 extern const char kToolbarIconSurfacingBubbleLastShowTime[];
+extern const char kToolbarMigratedComponentActionStatus[];
 #endif
 
 #if defined(ENABLE_WEBRTC)
@@ -421,7 +424,7 @@ extern const char kGLVersionString[];
 // Android has it's own metric / crash reporting implemented in Android
 // Java code so kMetricsReportingEnabled doesn't make sense. We use this
 // to inform crashes_ui that we have enabled crash reporting.
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kCrashReportingEnabled[];
 #endif
 
@@ -432,12 +435,11 @@ extern const char kProfilesLastActive[];
 extern const char kProfilesNumCreated[];
 extern const char kProfileInfoCache[];
 extern const char kProfileCreatedByVersion[];
-extern const char kProfileResetPromptMementosInLocalState[];
 
 extern const char kStabilityOtherUserCrashCount[];
 extern const char kStabilityKernelCrashCount[];
 extern const char kStabilitySystemUncleanShutdownCount[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kStabilityForegroundActivityType[];
 extern const char kStabilityLaunchedActivityFlags[];
 extern const char kStabilityLaunchedActivityCounts[];
@@ -496,6 +498,7 @@ extern const char kShutdownNumProcessesSlow[];
 
 extern const char kRestartLastSessionOnShutdown[];
 #if !defined(OS_ANDROID) && !defined(OS_IOS)
+extern const char kSuppressUnsupportedOSWarning[];
 extern const char kWasRestarted[];
 #endif
 
@@ -507,17 +510,17 @@ extern const char kDisableExtensions[];
 extern const char kDisablePluginFinder[];
 
 extern const char kNtpAppPageNames[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kNtpCollapsedCurrentlyOpenTabs[];
 #endif
 extern const char kNtpCollapsedForeignSessions[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kNtpCollapsedRecentlyClosedTabs[];
 extern const char kNtpCollapsedSnapshotDocument[];
 extern const char kNtpCollapsedSyncPromo[];
 #endif
 extern const char kNtpShownPage[];
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kNTPSuggestionsURL[];
 extern const char kNTPSuggestionsIsPersonal[];
 #endif
@@ -558,11 +561,8 @@ extern const char kWebAppCreateInAppsMenu[];
 extern const char kWebAppCreateInQuickLaunchBar[];
 
 extern const char kGeolocationAccessToken[];
-#if defined(OS_ANDROID)
-extern const char kGeolocationEnabled[];
-#endif
 
-#if defined(ENABLE_GOOGLE_NOW)
+#if BUILDFLAG(ENABLE_GOOGLE_NOW)
 extern const char kGoogleGeolocationAccessEnabled[];
 #endif
 extern const char kGoogleNowLauncherEnabled[];
@@ -600,10 +600,6 @@ extern const char kHotwordAlwaysOnSearchEnabled[];
 extern const char kHotwordAlwaysOnNotificationSeen[];
 extern const char kHotwordAudioLoggingEnabled[];
 extern const char kHotwordPreviousLanguage[];
-
-#if defined(OS_ANDROID)
-extern const char kProtectedMediaIdentifierEnabled[];
-#endif
 
 #if defined(OS_CHROMEOS)
 extern const char kDeviceSettingsCache[];
@@ -713,6 +709,7 @@ extern const char kShelfPreferences[];
 
 extern const char kLogoutDialogDurationMs[];
 extern const char kPinnedLauncherApps[];
+extern const char kPolicyPinnedLauncherApps[];
 extern const char kShowLogoutButtonInTray[];
 #endif
 
@@ -772,7 +769,7 @@ extern const char kEnableDRM[];
 
 extern const char kWatchdogExtensionActive[];
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(ANDROID_JAVA_UI)
 extern const char kPartnerBookmarkMappings[];
 #endif
 
@@ -796,6 +793,14 @@ extern const char kAnimationPolicy[];
 extern const char kBackgroundTracingLastUpload[];
 
 extern const char kAllowDinosaurEasterEgg[];
+
+#if defined(OS_ANDROID)
+extern const char kClickedUpdateMenuItem[];
+#endif
+
+#if defined(ENABLE_MEDIA_ROUTER)
+extern const char kMediaRouterFirstRunFlowAcknowledged[];
+#endif
 
 }  // namespace prefs
 

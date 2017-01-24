@@ -23,7 +23,8 @@ extern "C" {
 
 typedef enum vp9_denoiser_decision {
   COPY_BLOCK,
-  FILTER_BLOCK
+  FILTER_BLOCK,
+  FILTER_ZEROMV_BLOCK
 } VP9_DENOISER_DECISION;
 
 typedef enum vp9_denoiser_level {
@@ -54,7 +55,8 @@ void vp9_denoiser_update_frame_info(VP9_DENOISER *denoiser,
 
 void vp9_denoiser_denoise(VP9_DENOISER *denoiser, MACROBLOCK *mb,
                           int mi_row, int mi_col, BLOCK_SIZE bs,
-                          PICK_MODE_CONTEXT *ctx);
+                          PICK_MODE_CONTEXT *ctx ,
+                          VP9_DENOISER_DECISION *denoiser_decision);
 
 void vp9_denoiser_reset_frame_stats(PICK_MODE_CONTEXT *ctx);
 

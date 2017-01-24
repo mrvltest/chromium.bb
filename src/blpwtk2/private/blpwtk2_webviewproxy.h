@@ -139,6 +139,11 @@ class WebViewProxy : public WebView,
     void enableForInputEvents(bool enabled) override;
     void rootWindowCompositionChanged() override;
 
+    v8::MaybeLocal<v8::Value> callFunction(v8::Local<v8::Function> func,
+                                           v8::Local<v8::Value> recv,
+                                           int argc,
+                                           v8::Local<v8::Value> *argv);
+
   private:
     // Destructor is private.  Calling destroy() will delete the object.
     virtual ~WebViewProxy();

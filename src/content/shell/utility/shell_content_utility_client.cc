@@ -35,7 +35,7 @@ bool Send(IPC::Message* message) {
 }  // namespace
 
 ShellContentUtilityClient::ShellContentUtilityClient() {
-  d_handlers.push_back(new PrintingHandler());
+  d_handlers.push_back(new printing::PrintingHandler());
 }
 
 ShellContentUtilityClient::~ShellContentUtilityClient() {

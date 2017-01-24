@@ -65,21 +65,21 @@ void CPDF_PageObject::RecalcBBox() {
       break;
   }
 }
-void CPDF_PageObject::TransformClipPath(CFX_AffineMatrix& matrix) {
+void CPDF_PageObject::TransformClipPath(CFX_Matrix& matrix) {
   if (m_ClipPath.IsNull()) {
     return;
   }
   m_ClipPath.GetModify();
   m_ClipPath.Transform(matrix);
 }
-void CPDF_PageObject::TransformGeneralState(CFX_AffineMatrix& matrix) {
+void CPDF_PageObject::TransformGeneralState(CFX_Matrix& matrix) {
   if (m_GeneralState.IsNull()) {
     return;
   }
   CPDF_GeneralStateData* pGS = m_GeneralState.GetModify();
   pGS->m_Matrix.Concat(matrix);
 }
-FX_RECT CPDF_PageObject::GetBBox(const CFX_AffineMatrix* pMatrix) const {
+FX_RECT CPDF_PageObject::GetBBox(const CFX_Matrix* pMatrix) const {
   CFX_FloatRect rect(m_Left, m_Bottom, m_Right, m_Top);
   if (pMatrix) {
     pMatrix->TransformRect(rect);
@@ -209,7 +209,7 @@ void CPDF_TextObject::CopyData(const CPDF_PageObject* pSrc) {
   m_PosY = pSrcObj->m_PosY;
 }
 
-void CPDF_TextObject::GetTextMatrix(CFX_AffineMatrix* pMatrix) const {
+void CPDF_TextObject::GetTextMatrix(CFX_Matrix* pMatrix) const {
   FX_FLOAT* pTextMatrix = m_TextState.GetMatrix();
   pMatrix->Set(pTextMatrix[0], pTextMatrix[2], pTextMatrix[1], pTextMatrix[3],
                m_PosX, m_PosY);
@@ -509,7 +509,7 @@ void CPDF_TextObject::CalcPositionData(FX_FLOAT* pTextAdvanceX,
     min_y = min_y * fontsize / 1000;
     max_y = max_y * fontsize / 1000;
   }
-  CFX_AffineMatrix matrix;
+  CFX_Matrix matrix;
   GetTextMatrix(&matrix);
   m_Left = min_x;
   m_Right = max_x;
@@ -553,9 +553,9 @@ void CPDF_TextObject::CalcCharPos(FX_FLOAT* pPosArray) const {
   }
 }
 
-void CPDF_TextObject::Transform(const CFX_AffineMatrix& matrix) {
+void CPDF_TextObject::Transform(const CFX_Matrix& matrix) {
   m_TextState.GetModify();
-  CFX_AffineMatrix text_matrix;
+  CFX_Matrix text_matrix;
   GetTextMatrix(&text_matrix);
   text_matrix.Concat(matrix);
   FX_FLOAT* pTextMatrix = m_TextState.GetMatrix();
@@ -623,7 +623,7 @@ void CPDF_ShadingObject::CopyData(const CPDF_PageObject* pSrc) {
   }
   m_Matrix = pSrcObj->m_Matrix;
 }
-void CPDF_ShadingObject::Transform(const CFX_AffineMatrix& matrix) {
+void CPDF_ShadingObject::Transform(const CFX_Matrix& matrix) {
   if (!m_ClipPath.IsNull()) {
     m_ClipPath.GetModify();
     m_ClipPath.Transform(matrix);
@@ -648,7 +648,7 @@ void CPDF_ShadingObject::CalcBoundingBox() {
 CPDF_FormObject::~CPDF_FormObject() {
   delete m_pForm;
 }
-void CPDF_FormObject::Transform(const CFX_AffineMatrix& matrix) {
+void CPDF_FormObject::Transform(const CFX_Matrix& matrix) {
   m_FormMatrix.Concat(matrix);
   CalcBoundingBox();
 }
@@ -675,6 +675,7 @@ CPDF_PageObjects::CPDF_PageObjects(FX_BOOL bReleaseMembers)
       m_Transparency(0),
       m_ObjectList(128),
       m_bBackgroundAlphaNeeded(FALSE),
+      m_bHasImageMask(FALSE),
       m_bReleaseMembers(bReleaseMembers),
       m_pParser(nullptr),
       m_ParseState(CONTENT_NOT_PARSED) {}
@@ -689,7 +690,7 @@ CPDF_PageObjects::~CPDF_PageObjects() {
   }
 }
 void CPDF_PageObjects::ContinueParse(IFX_Pause* pPause) {
-  if (m_pParser == NULL) {
+  if (!m_pParser) {
     return;
   }
   m_pParser->Continue(pPause);
@@ -720,12 +721,9 @@ int CPDF_PageObjects::GetObjectIndex(CPDF_PageObject* pObj) const {
 }
 CPDF_PageObject* CPDF_PageObjects::GetObjectByIndex(int index) const {
   FX_POSITION pos = m_ObjectList.FindIndex(index);
-  if (pos == NULL) {
-    return NULL;
-  }
-  return (CPDF_PageObject*)m_ObjectList.GetAt(pos);
+  return pos ? static_cast<CPDF_PageObject*>(m_ObjectList.GetAt(pos)) : nullptr;
 }
-void CPDF_PageObjects::Transform(const CFX_AffineMatrix& matrix) {
+void CPDF_PageObjects::Transform(const CFX_Matrix& matrix) {
   FX_POSITION pos = m_ObjectList.GetHeadPosition();
   while (pos) {
     CPDF_PageObject* pObj = (CPDF_PageObject*)m_ObjectList.GetNext(pos);
@@ -758,21 +756,21 @@ CFX_FloatRect CPDF_PageObjects::CalcBoundingBox() const {
   return CFX_FloatRect(left, bottom, right, top);
 }
 void CPDF_PageObjects::LoadTransInfo() {
-  if (m_pFormDict == NULL) {
+  if (!m_pFormDict) {
     return;
   }
-  CPDF_Dictionary* pGroup = m_pFormDict->GetDict(FX_BSTRC("Group"));
-  if (pGroup == NULL) {
+  CPDF_Dictionary* pGroup = m_pFormDict->GetDict("Group");
+  if (!pGroup) {
     return;
   }
-  if (pGroup->GetString(FX_BSTRC("S")) != FX_BSTRC("Transparency")) {
+  if (pGroup->GetString("S") != "Transparency") {
     return;
   }
   m_Transparency |= PDFTRANS_GROUP;
-  if (pGroup->GetInteger(FX_BSTRC("I"))) {
+  if (pGroup->GetInteger("I")) {
     m_Transparency |= PDFTRANS_ISOLATED;
   }
-  if (pGroup->GetInteger(FX_BSTRC("K"))) {
+  if (pGroup->GetInteger("K")) {
     m_Transparency |= PDFTRANS_KNOCKOUT;
   }
 }
@@ -800,15 +798,15 @@ void CPDF_Page::Load(CPDF_Document* pDocument,
     m_pPageRender =
         CPDF_ModuleMgr::Get()->GetRenderModule()->CreatePageCache(this);
   }
-  if (pPageDict == NULL) {
+  if (!pPageDict) {
     m_PageWidth = m_PageHeight = 100 * 1.0f;
     m_pPageResources = m_pResources = NULL;
     return;
   }
-  CPDF_Object* pageAttr = GetPageAttr(FX_BSTRC("Resources"));
+  CPDF_Object* pageAttr = GetPageAttr("Resources");
   m_pResources = pageAttr ? pageAttr->GetDict() : NULL;
   m_pPageResources = m_pResources;
-  CPDF_Object* pRotate = GetPageAttr(FX_BSTRC("Rotate"));
+  CPDF_Object* pRotate = GetPageAttr("Rotate");
   int rotate = 0;
   if (pRotate) {
     rotate = pRotate->GetInteger() / 90 % 4;
@@ -816,7 +814,7 @@ void CPDF_Page::Load(CPDF_Document* pDocument,
   if (rotate < 0) {
     rotate += 4;
   }
-  CPDF_Array* pMediaBox = ToArray(GetPageAttr(FX_BSTRC("MediaBox")));
+  CPDF_Array* pMediaBox = ToArray(GetPageAttr("MediaBox"));
   CFX_FloatRect mediabox;
   if (pMediaBox) {
     mediabox = pMediaBox->GetRect();
@@ -826,7 +824,7 @@ void CPDF_Page::Load(CPDF_Document* pDocument,
     mediabox = CFX_FloatRect(0, 0, 612, 792);
   }
 
-  CPDF_Array* pCropBox = ToArray(GetPageAttr(FX_BSTRC("CropBox")));
+  CPDF_Array* pCropBox = ToArray(GetPageAttr("CropBox"));
   if (pCropBox) {
     m_BBox = pCropBox->GetRect();
     m_BBox.Normalize();
@@ -889,7 +887,7 @@ CPDF_Object* FPDFAPI_GetPageAttr(CPDF_Dictionary* pPageDict,
     if (pObj) {
       return pObj;
     }
-    CPDF_Dictionary* pParent = pPageDict->GetDict(FX_BSTRC("Parent"));
+    CPDF_Dictionary* pParent = pPageDict->GetDict("Parent");
     if (!pParent || pParent == pPageDict) {
       return NULL;
     }
@@ -910,12 +908,12 @@ CPDF_Form::CPDF_Form(CPDF_Document* pDoc,
   m_pDocument = pDoc;
   m_pFormStream = pFormStream;
   m_pFormDict = pFormStream ? pFormStream->GetDict() : NULL;
-  m_pResources = m_pFormDict->GetDict(FX_BSTRC("Resources"));
+  m_pResources = m_pFormDict->GetDict("Resources");
   m_pPageResources = pPageResources;
-  if (m_pResources == NULL) {
+  if (!m_pResources) {
     m_pResources = pParentResources;
   }
-  if (m_pResources == NULL) {
+  if (!m_pResources) {
     m_pResources = pPageResources;
   }
   m_Transparency = 0;
@@ -923,7 +921,7 @@ CPDF_Form::CPDF_Form(CPDF_Document* pDoc,
 }
 CPDF_Form::~CPDF_Form() {}
 void CPDF_Form::StartParse(CPDF_AllStates* pGraphicStates,
-                           CFX_AffineMatrix* pParentMatrix,
+                           CFX_Matrix* pParentMatrix,
                            CPDF_Type3Char* pType3Char,
                            CPDF_ParseOptions* pOptions,
                            int level) {
@@ -936,7 +934,7 @@ void CPDF_Form::StartParse(CPDF_AllStates* pGraphicStates,
   m_ParseState = CONTENT_PARSING;
 }
 void CPDF_Form::ParseContent(CPDF_AllStates* pGraphicStates,
-                             CFX_AffineMatrix* pParentMatrix,
+                             CFX_Matrix* pParentMatrix,
                              CPDF_Type3Char* pType3Char,
                              CPDF_ParseOptions* pOptions,
                              int level) {
@@ -953,7 +951,7 @@ CPDF_Form* CPDF_Form::Clone() const {
   }
   return pClone;
 }
-void CPDF_Page::GetDisplayMatrix(CFX_AffineMatrix& matrix,
+void CPDF_Page::GetDisplayMatrix(CFX_Matrix& matrix,
                                  int xPos,
                                  int yPos,
                                  int xSize,
@@ -962,7 +960,7 @@ void CPDF_Page::GetDisplayMatrix(CFX_AffineMatrix& matrix,
   if (m_PageWidth == 0 || m_PageHeight == 0) {
     return;
   }
-  CFX_AffineMatrix display_matrix;
+  CFX_Matrix display_matrix;
   int x0, y0, x1, y1, x2, y2;
   iRotate %= 4;
   switch (iRotate) {

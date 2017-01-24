@@ -5,6 +5,8 @@
 #ifndef CHROME_COMMON_CRASH_KEYS_H_
 #define CHROME_COMMON_CRASH_KEYS_H_
 
+#include <stddef.h>
+
 #if 0
 #include <set>
 #include <string>
@@ -13,7 +15,10 @@
 #include <vector>
 
 #include "base/debug/crash_logging.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 #include "components/crash/core/common/crash_keys.h"
+#include "third_party/kasko/kasko_features.h"
 
 #if 0
 namespace base {
@@ -28,8 +33,9 @@ namespace crash_keys {
 size_t RegisterChromeCrashKeys();
 
 #if 0
-// Sets the kSwitch and kNumSwitches keys based on the given |command_line|.
-void SetSwitchesFromCommandLine(const base::CommandLine* command_line);
+// Sets the kNumSwitches key and the set of keys named using kSwitchFormat based
+// on the given |command_line|.
+void SetCrashKeysFromCommandLine(const base::CommandLine& command_line);
 
 // Sets the list of "active" extensions in this process. We overload "active" to
 // mean different things depending on the process type:
@@ -50,19 +56,10 @@ class ScopedPrinterInfo {
   DISALLOW_COPY_AND_ASSIGN(ScopedPrinterInfo);
 };
 
-
 // Crash Key Name Constants ////////////////////////////////////////////////////
 
 // The URL of the active tab.
 extern const char kActiveURL[];
-
-// Process command line switches. |kSwitch| should be formatted with an integer,
-// in the range [1, kSwitchesMaxCount].
-const size_t kSwitchesMaxCount = 15;
-extern const char kSwitch[];
-// The total number of switches, used to report the total in case more than
-// |kSwitchesMaxCount| are present.
-extern const char kNumSwitches[];
 
 // Installed extensions. |kExtensionID| should be formatted with an integer,
 // in the range [0, kExtensionIDMaxCount).
@@ -94,6 +91,9 @@ extern const char kGPURenderer[];
 #endif
 
 #if 0
+#if defined(OS_WIN)
+extern const char kHungAudioThreadDetails[];
+#endif
 // The user's printers, up to kPrinterInfoCount. Should be set with
 // ScopedPrinterInfo.
 const size_t kPrinterInfoCount = 4;
@@ -126,7 +126,7 @@ extern const char kSendAction[];
 }  // namespace mac
 #endif
 
-#if defined(KASKO)
+#if BUILDFLAG(ENABLE_KASKO)
 // Used to correlate a report sent via Kasko with one sent via Breakpad.
 extern const char kKaskoGuid[];
 extern const char kKaskoEquivalentGuid[];

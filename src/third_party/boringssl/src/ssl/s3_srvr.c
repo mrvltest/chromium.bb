@@ -419,27 +419,25 @@ int ssl3_accept(SSL *s) {
         s->init_num = 0;
         break;
 
-      case SSL3_ST_SR_CHANGE: {
-        char next_proto_neg = 0;
-        char channel_id = 0;
-        next_proto_neg = s->s3->next_proto_neg_seen;
-        channel_id = s->s3->tlsext_channel_id_valid;
+      case SSL3_ST_SR_CHANGE:
+        ret = s->method->ssl_read_change_cipher_spec(s);
+        if (ret <= 0) {
+          goto end;
+        }
 
-        /* At this point, the next message must be entirely behind a
-         * ChangeCipherSpec. */
-        if (!ssl3_expect_change_cipher_spec(s)) {
+        if (!ssl3_do_change_cipher_spec(s)) {
           ret = -1;
           goto end;
         }
-        if (next_proto_neg) {
+
+        if (s->s3->next_proto_neg_seen) {
           s->state = SSL3_ST_SR_NEXT_PROTO_A;
-        } else if (channel_id) {
+        } else if (s->s3->tlsext_channel_id_valid) {
           s->state = SSL3_ST_SR_CHANNEL_ID_A;
         } else {
           s->state = SSL3_ST_SR_FINISHED_A;
         }
         break;
-      }
 
       case SSL3_ST_SR_NEXT_PROTO_A:
       case SSL3_ST_SR_NEXT_PROTO_B:
@@ -1099,9 +1097,7 @@ int ssl3_get_client_hello(SSL *s) {
    * s->hit             - session reuse flag
    * s->tmp.new_cipher  - the new cipher to use. */
 
-  if (ret < 0) {
-    ret = -ret;
-  }
+  ret = 1;
 
   if (0) {
   f_err:
@@ -1221,6 +1217,9 @@ int ssl3_send_server_key_exchange(SSL *s) {
   int n;
   CERT *cert;
   BIGNUM *r[4];
+  /* r_pad_bytes[i] contains the number of zero padding bytes that need to
+   * precede |r[i]| when serialising it. */
+  unsigned r_pad_bytes[4] = {0};
   int nr[4];
   BUF_MEM *buf;
   EVP_MD_CTX md_ctx;
@@ -1228,6 +1227,8 @@ int ssl3_send_server_key_exchange(SSL *s) {
   if (s->state == SSL3_ST_SW_KEY_EXCH_C) {
     return ssl_do_write(s);
   }
+
+  EVP_MD_CTX_init(&md_ctx);
 
   if (ssl_cipher_has_server_public_key(s->s3->tmp.new_cipher)) {
     if (!ssl_has_private_key(s)) {
@@ -1239,7 +1240,6 @@ int ssl3_send_server_key_exchange(SSL *s) {
     max_sig_len = 0;
   }
 
-  EVP_MD_CTX_init(&md_ctx);
   enum ssl_private_key_result_t sign_result;
   if (s->state == SSL3_ST_SW_KEY_EXCH_A) {
     alg_k = s->s3->tmp.new_cipher->algorithm_mkey;
@@ -1291,21 +1291,13 @@ int ssl3_send_server_key_exchange(SSL *s) {
       r[0] = dh->p;
       r[1] = dh->g;
       r[2] = dh->pub_key;
+      /* Due to a bug in yaSSL, the public key must be zero padded to the size
+       * of the prime. */
+      assert(BN_num_bytes(dh->pub_key) <= BN_num_bytes(dh->p));
+      r_pad_bytes[2] = BN_num_bytes(dh->p) - BN_num_bytes(dh->pub_key);
     } else if (alg_k & SSL_kECDHE) {
       /* Determine the curve to use. */
-      int nid = NID_undef;
-      if (cert->ecdh_nid != NID_undef) {
-        nid = cert->ecdh_nid;
-      } else if (cert->ecdh_tmp_cb != NULL) {
-        /* Note: |ecdh_tmp_cb| does NOT pass ownership of the result
-         * to the caller. */
-        EC_KEY *template = s->cert->ecdh_tmp_cb(s, 0, 1024);
-        if (template != NULL && EC_KEY_get0_group(template) != NULL) {
-          nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(template));
-        }
-      } else {
-        nid = tls1_get_shared_curve(s);
-      }
+      int nid = tls1_get_shared_curve(s);
       if (nid == NID_undef) {
         al = SSL_AD_HANDSHAKE_FAILURE;
         OPENSSL_PUT_ERROR(SSL, SSL_R_MISSING_TMP_ECDH_KEY);
@@ -1377,7 +1369,7 @@ int ssl3_send_server_key_exchange(SSL *s) {
     }
 
     for (i = 0; i < 4 && r[i] != NULL; i++) {
-      nr[i] = BN_num_bytes(r[i]);
+      nr[i] = BN_num_bytes(r[i]) + r_pad_bytes[i];
       n += 2 + nr[i];
     }
 
@@ -1389,7 +1381,10 @@ int ssl3_send_server_key_exchange(SSL *s) {
 
     for (i = 0; i < 4 && r[i] != NULL; i++) {
       s2n(nr[i], p);
-      BN_bn2bin(r[i], p);
+      if (!BN_bn2bin_padded(p, nr[i], r[i])) {
+        OPENSSL_PUT_ERROR(SSL, ERR_LIB_BN);
+        goto err;
+      }
       p += nr[i];
     }
 
@@ -1576,16 +1571,6 @@ err:
   return -1;
 }
 
-static struct CRYPTO_STATIC_MUTEX g_d5_bug_lock = CRYPTO_STATIC_MUTEX_INIT;
-static uint64_t g_d5_bug_use_count = 0;
-
-uint64_t OPENSSL_get_d5_bug_use_count(void) {
-  CRYPTO_STATIC_MUTEX_lock_read(&g_d5_bug_lock);
-  uint64_t ret = g_d5_bug_use_count;
-  CRYPTO_STATIC_MUTEX_unlock(&g_d5_bug_lock);
-  return ret;
-}
-
 int ssl3_get_client_key_exchange(SSL *s) {
   int al;
   CBS client_key_exchange;
@@ -1691,22 +1676,13 @@ int ssl3_get_client_key_exchange(SSL *s) {
       }
       /* TLS and [incidentally] DTLS{0xFEFF} */
       if (s->version > SSL3_VERSION) {
-        CBS copy = client_key_exchange;
         if (!CBS_get_u16_length_prefixed(&client_key_exchange,
                                          &encrypted_premaster_secret) ||
             CBS_len(&client_key_exchange) != 0) {
-          if (!(s->options & SSL_OP_TLS_D5_BUG)) {
-            al = SSL_AD_DECODE_ERROR;
-            OPENSSL_PUT_ERROR(SSL,
-                              SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG);
-            goto f_err;
-          } else {
-            CRYPTO_STATIC_MUTEX_lock_write(&g_d5_bug_lock);
-            g_d5_bug_use_count++;
-            CRYPTO_STATIC_MUTEX_unlock(&g_d5_bug_lock);
-
-            encrypted_premaster_secret = copy;
-          }
+          al = SSL_AD_DECODE_ERROR;
+          OPENSSL_PUT_ERROR(SSL,
+                            SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG);
+          goto f_err;
         }
       } else {
         encrypted_premaster_secret = client_key_exchange;
@@ -2193,8 +2169,9 @@ int ssl3_get_client_certificate(SSL *s) {
     }
     is_first_certificate = 0;
 
+    /* A u24 length cannot overflow a long. */
     data = CBS_data(&certificate);
-    x = d2i_X509(NULL, &data, CBS_len(&certificate));
+    x = d2i_X509(NULL, &data, (long)CBS_len(&certificate));
     if (x == NULL) {
       al = SSL_AD_BAD_CERTIFICATE;
       OPENSSL_PUT_ERROR(SSL, ERR_R_ASN1_LIB);
@@ -2427,17 +2404,6 @@ int ssl3_get_next_proto(SSL *s) {
     return n;
   }
 
-  /* s->state doesn't reflect whether ChangeCipherSpec has been received in
-   * this handshake, but s->s3->change_cipher_spec does (will be reset by
-   * ssl3_get_finished).
-   *
-   * TODO(davidben): Is this check now redundant with
-   * SSL3_FLAGS_EXPECT_CCS? */
-  if (!s->s3->change_cipher_spec) {
-    OPENSSL_PUT_ERROR(SSL, SSL_R_GOT_NEXT_PROTO_BEFORE_A_CCS);
-    return -1;
-  }
-
   CBS_init(&next_protocol, s->init_msg, n);
 
   /* The payload looks like:
@@ -2488,16 +2454,6 @@ int ssl3_get_channel_id(SSL *s) {
   assert(channel_id_hash_len == SHA256_DIGEST_LENGTH);
 
   if (!ssl3_hash_current_message(s)) {
-    return -1;
-  }
-
-  /* s->state doesn't reflect whether ChangeCipherSpec has been received in
-   * this handshake, but s->s3->change_cipher_spec does (will be reset by
-   * ssl3_get_finished).
-   *
-   * TODO(davidben): Is this check now redundant with SSL3_FLAGS_EXPECT_CCS? */
-  if (!s->s3->change_cipher_spec) {
-    OPENSSL_PUT_ERROR(SSL, SSL_R_GOT_CHANNEL_ID_BEFORE_A_CCS);
     return -1;
   }
 

@@ -25,7 +25,7 @@
 
 #include <blpwtk2_config.h>
 
-#include <base/basictypes.h>
+#include <base/macros.h>
 #include <base/synchronization/lock.h>
 
 #include <map>

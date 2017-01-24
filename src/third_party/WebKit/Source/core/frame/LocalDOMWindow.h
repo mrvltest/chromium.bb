@@ -83,6 +83,7 @@ public:
 
     // EventTarget overrides:
     ExecutionContext* executionContext() const override;
+    const LocalDOMWindow* toDOMWindow() const override;
     LocalDOMWindow* toDOMWindow() override;
 
     // DOMWindow overrides:
@@ -120,7 +121,6 @@ public:
     int orientation() const override;
     Console* console() const override;
     DOMSelection* getSelection() override;
-    void focus(ExecutionContext*) override;
     void blur() override;
     void print() override;
     void stop() override;
@@ -167,7 +167,7 @@ public:
 
     FrameConsole* frameConsole() const;
 
-    void printErrorMessage(const String&);
+    void printErrorMessage(const String&) const;
 
     void postMessageTimerFired(PostMessageTimer*);
     void removePostMessageTimer(PostMessageTimer*);
@@ -183,8 +183,6 @@ public:
     void dispatchLoadEvent();
 
     void finishedLoading();
-
-    ApplicationCache* optionalApplicationCache() const { return m_applicationCache.get(); }
 
     // Dispatch the (deprecated) orientationchange event to this DOMWindow and
     // recurse on its child frames.
@@ -241,8 +239,6 @@ private:
 
     explicit LocalDOMWindow(LocalFrame&);
     void dispose();
-
-    Page* page();
 
     void clearDocument();
     void willDestroyDocumentInFrame();

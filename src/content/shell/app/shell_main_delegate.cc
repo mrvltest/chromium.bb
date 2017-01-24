@@ -23,6 +23,7 @@
 // SHEZ: remove test only code
 // #include "content/public/test/layouttest_support.h"
 
+#include "content/public/test/ppapi_test_utils.h"
 #include "content/shell/app/shell_crash_reporter_client.h"
 
 // SHEZ: remove test only code
@@ -129,6 +130,9 @@ ShellMainDelegate::~ShellMainDelegate() {
 
 bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+  int dummy;
+  if (!exit_code)
+    exit_code = &dummy;
 
 #if defined(OS_WIN)
   // Enable trace control and transport through event tracing for Windows.
@@ -153,8 +157,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     // continue and try to load the fonts in BlinkTestPlatformInitialize
     // below, and then try to bring up the rest of the content module.
     if (!test_runner::CheckLayoutSystemDeps()) {
-      if (exit_code)
-        *exit_code = 1;
+      *exit_code = 1;
       return true;
     }
   }
@@ -164,6 +167,14 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     // SHEZ: remove test-only code
     //EnableBrowserLayoutTestMode();
 
+#if 0
+#if defined(ENABLE_PLUGINS)
+    if (!ppapi::RegisterBlinkTestPlugin(&command_line)) {
+      *exit_code = 1;
+      return true;
+    }
+#endif
+#endif
     command_line.AppendSwitch(switches::kProcessPerTab);
     command_line.AppendSwitch(switches::kEnableLogging);
     command_line.AppendSwitch(switches::kAllowFileAccessFromFiles);
@@ -175,7 +186,8 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     command_line.AppendSwitch(switches::kSkipGpuDataLoading);
     command_line.AppendSwitchASCII(switches::kTouchEvents,
                                    switches::kTouchEventsEnabled);
-    command_line.AppendSwitchASCII(switches::kForceDeviceScaleFactor, "1.0");
+    if (!command_line.HasSwitch(switches::kForceDeviceScaleFactor))
+      command_line.AppendSwitchASCII(switches::kForceDeviceScaleFactor, "1.0");
     command_line.AppendSwitch(
         switches::kDisableGestureRequirementForMediaPlayback);
 
@@ -214,8 +226,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     // SHEZ: Remove test-only code
 #if 0
     if (!test_runner::BlinkTestPlatformInitialize()) {
-      if (exit_code)
-        *exit_code = 1;
+      *exit_code = 1;
       return true;
     }
 #endif

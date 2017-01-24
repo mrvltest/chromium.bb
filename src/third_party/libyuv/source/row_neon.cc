@@ -2259,16 +2259,13 @@ void RAWToYRow_NEON(const uint8* src_raw, uint8* dst_y, int width) {
 void InterpolateRow_NEON(uint8* dst_ptr,
                          const uint8* src_ptr, ptrdiff_t src_stride,
                          int dst_width, int source_y_fraction) {
+  int y1_fraction = source_y_fraction;
   asm volatile (
     "cmp        %4, #0                         \n"
     "beq        100f                           \n"
     "add        %2, %1                         \n"
-    "cmp        %4, #64                        \n"
-    "beq        75f                            \n"
     "cmp        %4, #128                       \n"
     "beq        50f                            \n"
-    "cmp        %4, #192                       \n"
-    "beq        25f                            \n"
 
     "vdup.8     d5, %4                         \n"
     "rsb        %4, #256                       \n"
@@ -2291,20 +2288,6 @@ void InterpolateRow_NEON(uint8* dst_ptr,
     "bgt        1b                             \n"
     "b          99f                            \n"
 
-    // Blend 25 / 75.
-  "25:                                         \n"
-    MEMACCESS(1)
-    "vld1.8     {q0}, [%1]!                    \n"
-    MEMACCESS(2)
-    "vld1.8     {q1}, [%2]!                    \n"
-    "subs       %3, %3, #16                    \n"
-    "vrhadd.u8  q0, q1                         \n"
-    "vrhadd.u8  q0, q1                         \n"
-    MEMACCESS(0)
-    "vst1.8     {q0}, [%0]!                    \n"
-    "bgt        25b                            \n"
-    "b          99f                            \n"
-
     // Blend 50 / 50.
   "50:                                         \n"
     MEMACCESS(1)
@@ -2316,20 +2299,6 @@ void InterpolateRow_NEON(uint8* dst_ptr,
     MEMACCESS(0)
     "vst1.8     {q0}, [%0]!                    \n"
     "bgt        50b                            \n"
-    "b          99f                            \n"
-
-    // Blend 75 / 25.
-  "75:                                         \n"
-    MEMACCESS(1)
-    "vld1.8     {q1}, [%1]!                    \n"
-    MEMACCESS(2)
-    "vld1.8     {q0}, [%2]!                    \n"
-    "subs       %3, %3, #16                    \n"
-    "vrhadd.u8  q0, q1                         \n"
-    "vrhadd.u8  q0, q1                         \n"
-    MEMACCESS(0)
-    "vst1.8     {q0}, [%0]!                    \n"
-    "bgt        75b                            \n"
     "b          99f                            \n"
 
     // Blend 100 / 0 - Copy row unchanged.
@@ -2346,7 +2315,7 @@ void InterpolateRow_NEON(uint8* dst_ptr,
     "+r"(src_ptr),          // %1
     "+r"(src_stride),       // %2
     "+r"(dst_width),        // %3
-    "+r"(source_y_fraction) // %4
+    "+r"(y1_fraction)       // %4
   :
   : "cc", "memory", "q0", "q1", "d4", "d5", "q13", "q14"
   );

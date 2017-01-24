@@ -2342,12 +2342,8 @@ void InterpolateRow_NEON(uint8* dst_ptr,
   asm volatile (
     "cmp        %w4, #0                        \n"
     "b.eq       100f                           \n"
-    "cmp        %w4, #64                       \n"
-    "b.eq       75f                            \n"
     "cmp        %w4, #128                      \n"
     "b.eq       50f                            \n"
-    "cmp        %w4, #192                      \n"
-    "b.eq       25f                            \n"
 
     "dup        v5.16b, %w4                    \n"
     "dup        v4.16b, %w5                    \n"
@@ -2369,20 +2365,6 @@ void InterpolateRow_NEON(uint8* dst_ptr,
     "b.gt       1b                             \n"
     "b          99f                            \n"
 
-    // Blend 25 / 75.
-  "25:                                         \n"
-    MEMACCESS(1)
-    "ld1        {v0.16b}, [%1], #16            \n"
-    MEMACCESS(2)
-    "ld1        {v1.16b}, [%2], #16            \n"
-    "subs       %w3, %w3, #16                  \n"
-    "urhadd     v0.16b, v0.16b, v1.16b         \n"
-    "urhadd     v0.16b, v0.16b, v1.16b         \n"
-    MEMACCESS(0)
-    "st1        {v0.16b}, [%0], #16            \n"
-    "b.gt       25b                            \n"
-    "b          99f                            \n"
-
     // Blend 50 / 50.
   "50:                                         \n"
     MEMACCESS(1)
@@ -2394,20 +2376,6 @@ void InterpolateRow_NEON(uint8* dst_ptr,
     MEMACCESS(0)
     "st1        {v0.16b}, [%0], #16            \n"
     "b.gt       50b                            \n"
-    "b          99f                            \n"
-
-    // Blend 75 / 25.
-  "75:                                         \n"
-    MEMACCESS(1)
-    "ld1        {v1.16b}, [%1], #16            \n"
-    MEMACCESS(2)
-    "ld1        {v0.16b}, [%2], #16            \n"
-    "subs       %w3, %w3, #16                  \n"
-    "urhadd     v0.16b, v0.16b, v1.16b         \n"
-    "urhadd     v0.16b, v0.16b, v1.16b         \n"
-    MEMACCESS(0)
-    "st1        {v0.16b}, [%0], #16            \n"
-    "b.gt       75b                            \n"
     "b          99f                            \n"
 
     // Blend 100 / 0 - Copy row unchanged.

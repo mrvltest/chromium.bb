@@ -117,11 +117,6 @@ inline ContainerNode* parentCrossingShadowBoundaries<EditingInComposedTreeStrate
     return ComposedTreeTraversal::parent(node);
 }
 
-// offset functions on Node
-
-int caretMinOffset(const Node*);
-int caretMaxOffset(const Node*);
-
 // boolean functions on Node
 
 // FIXME: editingIgnoresContent, canHaveChildrenForEditing, and isAtomicNode
@@ -158,6 +153,7 @@ bool areIdenticalElements(const Node*, const Node*);
 bool isNonTableCellHTMLBlockElement(const Node*);
 bool isBlockFlowElement(const Node&);
 bool nodeIsUserSelectAll(const Node*);
+bool isTextSecurityNode(const Node*);
 CORE_EXPORT TextDirection directionOfEnclosingBlock(const Position&);
 CORE_EXPORT TextDirection directionOfEnclosingBlock(const PositionInComposedTree&);
 CORE_EXPORT TextDirection primaryDirectionOf(const Node&);
@@ -276,9 +272,6 @@ VisiblePosition visiblePositionForIndex(int index, ContainerNode* scope);
 // Functions returning HTMLElement
 
 PassRefPtrWillBeRawPtr<HTMLElement> createDefaultParagraphElement(Document&);
-PassRefPtrWillBeRawPtr<HTMLBRElement> createBreakElement(Document&);
-PassRefPtrWillBeRawPtr<HTMLUListElement> createUnorderedListElement(Document&);
-PassRefPtrWillBeRawPtr<HTMLLIElement> createListItemElement(Document&);
 PassRefPtrWillBeRawPtr<HTMLElement> createHTMLElement(Document&, const QualifiedName&);
 
 HTMLElement* enclosingList(Node*);
@@ -293,7 +286,6 @@ Node* enclosingListChild(Node*);
 
 PassRefPtrWillBeRawPtr<HTMLSpanElement> createTabSpanElement(Document&);
 PassRefPtrWillBeRawPtr<HTMLSpanElement> createTabSpanElement(Document&, const String& tabText);
-PassRefPtrWillBeRawPtr<HTMLBRElement> createBlockPlaceholderElement(Document&);
 
 Element* editableRootForPosition(const Position&, EditableType = ContentIsEditable);
 Element* editableRootForPosition(const PositionInComposedTree&, EditableType = ContentIsEditable);

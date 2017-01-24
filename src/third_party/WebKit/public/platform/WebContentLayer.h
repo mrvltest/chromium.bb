@@ -38,15 +38,6 @@ public:
     // The WebContentLayer has ownership of this wrapper.
     virtual WebLayer* layer() = 0;
 
-    // Set to true if the backside of this layer's contents should be visible when composited.
-    // Defaults to false.
-    virtual void setDoubleSided(bool) {}
-
-    // Allow the compositor to determine the scale at which the layer should
-    // be rasterized based on the layer's hierarchy and transform. This defaults
-    // to false.
-    virtual void setAutomaticallyComputeRasterScale(bool) { }
-
     // Set the color to blend LCD text with when the layer's background color
     // would otherwise be transparent.
     virtual void setDefaultLCDBackgroundColor(WebColor) { }

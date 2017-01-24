@@ -113,7 +113,7 @@ int FPDFText_ProcessInterObj(const CPDF_TextObject* pPrevObj,
   this_width = FXSYS_fabs(this_width);
   FX_FLOAT threshold =
       last_width > this_width ? last_width / 4 : this_width / 4;
-  CFX_AffineMatrix prev_matrix, prev_reverse;
+  CFX_Matrix prev_matrix, prev_reverse;
   pPrevObj->GetTextMatrix(&prev_matrix);
   prev_reverse.SetReverse(prev_matrix);
   FX_FLOAT x = pObj->GetPosX(), y = pObj->GetPosY();
@@ -151,7 +151,7 @@ int FPDFText_ProcessInterObj(const CPDF_TextObject* pPrevObj,
 FX_BOOL CPDF_TextStream::ProcessObject(const CPDF_TextObject* pObj,
                                        FX_BOOL bFirstLine) {
   CPDF_Font* pFont = pObj->GetFont();
-  CFX_AffineMatrix matrix;
+  CFX_Matrix matrix;
   pObj->GetTextMatrix(&matrix);
   int item_index = 0;
   if (m_pLastObj) {
@@ -303,13 +303,8 @@ void GetTextStream_Unicode(CFX_WideTextBuf& buffer,
   FX_POSITION pos = pPage->GetFirstObjectPosition();
   while (pos) {
     CPDF_PageObject* pObject = pPage->GetNextObject(pos);
-    if (pObject == NULL) {
-      continue;
-    }
-    if (pObject->m_Type != PDFPAGE_TEXT) {
-      continue;
-    }
-    textstream.ProcessObject((CPDF_TextObject*)pObject, FALSE);
+    if (pObject && pObject->m_Type == PDFPAGE_TEXT)
+      textstream.ProcessObject((CPDF_TextObject*)pObject, FALSE);
   }
 }
 CFX_WideString PDF_GetFirstTextLine_Unicode(CPDF_Document* pDoc,

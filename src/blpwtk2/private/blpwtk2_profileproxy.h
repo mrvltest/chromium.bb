@@ -28,7 +28,7 @@
 #include <blpwtk2_profile.h>
 
 #include <base/memory/ref_counted.h>
-#include <base/basictypes.h>
+#include <base/macros.h>
 #include <base/compiler_specific.h>
 #include <ipc/ipc_sender.h>
 

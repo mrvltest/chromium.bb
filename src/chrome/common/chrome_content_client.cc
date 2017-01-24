@@ -4,11 +4,9 @@
 
 #include "chrome/common/chrome_content_client.h"
 
-#if 0
-#if defined(OS_LINUX)
-#include <fcntl.h>
-#endif  // defined(OS_LINUX)
+#include <stdint.h>
 
+#if 0
 #include "base/command_line.h"
 #endif
 
@@ -67,6 +65,7 @@
 #include "widevine_cdm_version.h"  // In SHARED_INTERMEDIATE_DIR.
 
 #if defined(OS_LINUX)
+#include <fcntl.h>
 #include "chrome/common/component_flash_hint_file_linux.h"
 #endif  // defined(OS_LINUX)
 
@@ -83,8 +82,7 @@
 
 #if defined(ENABLE_EXTENSIONS)
 #include "chrome/common/extensions/extension_process_policy.h"
-#include "extensions/common/features/behavior_feature.h"
-#include "extensions/common/features/feature_provider.h"
+#include "chrome/common/extensions/features/feature_util.h"
 #endif
 
 #if defined(ENABLE_PLUGINS)
@@ -108,8 +106,8 @@ const char kPDFPluginExtension[] = "pdf";
 const char kPDFPluginDescription[] = "Portable Document Format";
 const char kPDFPluginOutOfProcessMimeType[] =
     "application/x-google-chrome-pdf";
-const uint32 kPDFPluginPermissions = ppapi::PERMISSION_PRIVATE |
-                                     ppapi::PERMISSION_DEV;
+const uint32_t kPDFPluginPermissions =
+    ppapi::PERMISSION_PRIVATE | ppapi::PERMISSION_DEV;
 #endif  // defined(ENABLE_PDF)
 
 content::PepperPluginInfo::GetInterfaceFunc g_pdf_get_interface;
@@ -122,14 +120,12 @@ content::PepperPluginInfo::PPP_InitializeModuleFunc g_nacl_initialize_module;
 content::PepperPluginInfo::PPP_ShutdownModuleFunc g_nacl_shutdown_module;
 #endif
 
-
 // Appends the known built-in plugins to the given vector. Some built-in
 // plugins are "internal" which means they are compiled into the Chrome binary,
 // and some are extra shared libraries distributed with the browser (these are
 // not marked internal, aside from being automatically registered, they're just
 // regular plugins).
 void ComputeBuiltInPlugins(std::vector<content::PepperPluginInfo>* plugins) {
-
 #if defined(ENABLE_PDF)
   content::PepperPluginInfo pdf_info;
   pdf_info.is_internal = true;
@@ -286,7 +282,6 @@ bool IsUserDataDirAvailable() {
   base::FilePath user_data_dir;
   return PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
 }
-
 
 // This method is used on Linux only because of architectural differences in how
 // it loads the component updated flash plugin, and not because the other
@@ -466,7 +461,6 @@ void ChromeContentClient::SetPDFEntryFunctions(
 void ChromeContentClient::SetActiveURL(const GURL& url) {
   base::debug::SetCrashKeyValue(crash_keys::kActiveURL,
                                 url.possibly_invalid_spec());
-  
 }
 #endif
 
@@ -510,10 +504,8 @@ content::PepperPluginInfo* ChromeContentClient::FindMostRecentPlugin(
 }
 #endif  // defined(ENABLE_PLUGINS)
 
-
 void ChromeContentClient::AddPepperPlugins(
     std::vector<content::PepperPluginInfo>* plugins) {
-
 #if defined(ENABLE_PLUGINS)
   ComputeBuiltInPlugins(plugins);
   AddPepperFlashFromCommandLine(plugins);
@@ -661,10 +653,7 @@ void ChromeContentClient::AddSecureSchemesAndOrigins(
 void ChromeContentClient::AddServiceWorkerSchemes(
     std::set<std::string>* schemes) {
 #if defined(ENABLE_EXTENSIONS)
-  if (extensions::FeatureProvider::GetBehaviorFeature(
-          extensions::BehaviorFeature::kServiceWorker)
-          ->IsAvailableToEnvironment()
-          .is_available())
+  if (extensions::feature_util::ExtensionServiceWorkersEnabled())
     schemes->insert(extensions::kExtensionScheme);
 #endif
 }

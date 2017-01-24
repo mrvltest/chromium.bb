@@ -132,6 +132,8 @@
             'src/target_process.h',
             'src/target_services.cc',
             'src/target_services.h',
+            'src/top_level_dispatcher.cc',
+            'src/top_level_dispatcher.h',
             'src/win_utils.cc',
             'src/win_utils.h',
             'src/win2k_threadpool.cc',
@@ -210,6 +212,8 @@
       'type': 'executable',
       'dependencies': [
         'sandbox',
+        '../base/base.gyp:test_support_base',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'src/address_sanitizer_test.cc',
@@ -221,6 +225,7 @@
         'src/handle_closer_test.cc',
         'src/integrity_level_test.cc',
         'src/ipc_ping_test.cc',
+        'src/lpc_policy_test.cc',
         'src/named_pipe_policy_test.cc',
         'src/policy_target_test.cc',
         'src/process_mitigations_test.cc',
@@ -241,6 +246,8 @@
       'type': 'executable',
       'dependencies': [
         'sandbox',
+        '../base/base.gyp:test_support_base',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'tests/common/controller.cc',
@@ -256,6 +263,8 @@
       'type': 'executable',
       'dependencies': [
         'sandbox',
+        '../base/base.gyp:test_support_base',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'src/app_container_unittest.cc',

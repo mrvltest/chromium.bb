@@ -27,12 +27,10 @@ GrGLSLCaps::GrGLSLCaps(const GrContextOptions& options) {
     fShaderDerivativeExtensionString = nullptr;
     fFragCoordConventionsExtensionString = nullptr;
     fSecondaryOutputExtensionString = nullptr;
+    fExternalTextureExtensionString = nullptr;
     fFBFetchColorName = nullptr;
     fFBFetchExtensionString = nullptr;
     fAdvBlendEqInteraction = kNotSupported_AdvBlendEqInteraction;
-
-    fMustSwizzleInShader = false;
-    memset(fConfigSwizzle, 0, sizeof(fConfigSwizzle));
 }
 
 SkString GrGLSLCaps::dump() const {
@@ -66,8 +64,5 @@ SkString GrGLSLCaps::dump() const {
 }
 
 void GrGLSLCaps::onApplyOptionsOverrides(const GrContextOptions& options) {
-    if (options.fUseShaderSwizzling) {
-        fMustSwizzleInShader = true;
-    }
 }
 

@@ -24,7 +24,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include "core/frame/LocalDOMWindow.h"
 
 #include "bindings/core/v8/ScriptController.h"
@@ -150,10 +149,7 @@ public:
         SuspendableTimer::trace(visitor);
     }
 
-    WebTaskRunner* timerTaskRunner() override
-    {
-        return m_window->document()->timerTaskRunner();
-    }
+    // TODO(alexclarke): Override timerTaskRunner() to pass in a document specific default task runner.
 
 private:
     void fired() override
@@ -475,6 +471,11 @@ ExecutionContext* LocalDOMWindow::executionContext() const
     return m_document.get();
 }
 
+const LocalDOMWindow* LocalDOMWindow::toDOMWindow() const
+{
+    return this;
+}
+
 LocalDOMWindow* LocalDOMWindow::toDOMWindow()
 {
     return this;
@@ -483,11 +484,6 @@ LocalDOMWindow* LocalDOMWindow::toDOMWindow()
 PassRefPtrWillBeRawPtr<MediaQueryList> LocalDOMWindow::matchMedia(const String& media)
 {
     return document() ? document()->mediaQueryMatcher().matchMedia(media) : nullptr;
-}
-
-Page* LocalDOMWindow::page()
-{
-    return frame() ? frame()->page() : nullptr;
 }
 
 void LocalDOMWindow::willDetachFrameHost()
@@ -726,37 +722,10 @@ DOMSelection* LocalDOMWindow::getSelection()
 
 Element* LocalDOMWindow::frameElement() const
 {
-    if (!frame())
+    if (!(frame() && frame()->owner() && frame()->owner()->isLocal()))
         return nullptr;
 
-    // The bindings security check should ensure we're same origin...
     return toHTMLFrameOwnerElement(frame()->owner());
-}
-
-void LocalDOMWindow::focus(ExecutionContext* context)
-{
-    if (!frame())
-        return;
-
-    FrameHost* host = frame()->host();
-    if (!host)
-        return;
-
-    ASSERT(context);
-
-    bool allowFocus = context->isWindowInteractionAllowed();
-    if (allowFocus) {
-        context->consumeWindowInteraction();
-    } else {
-        ASSERT(isMainThread());
-        allowFocus = opener() && (opener() != this) && (toDocument(context)->domWindow() == opener());
-    }
-
-    // If we're a top level window, bring the window to the front.
-    if (frame()->isMainFrame() && allowFocus)
-        host->chromeClient().focus();
-
-    frame()->eventHandler().focusDocumentView();
 }
 
 void LocalDOMWindow::blur()
@@ -936,8 +905,8 @@ static FloatSize getViewportSize(LocalFrame* frame)
     }
 
     return frame->isMainFrame() && !host->settings().inertVisualViewport()
-        ? host->visualViewport().visibleRect().size()
-        : view->visibleContentRect(IncludeScrollbars).size();
+        ? FloatSize(host->visualViewport().visibleRect().size())
+        : FloatSize(view->visibleContentRect(IncludeScrollbars).size());
 }
 
 int LocalDOMWindow::innerHeight() const
@@ -1437,7 +1406,7 @@ void LocalDOMWindow::finishedLoading()
     }
 }
 
-void LocalDOMWindow::printErrorMessage(const String& message)
+void LocalDOMWindow::printErrorMessage(const String& message) const
 {
     if (!isCurrentlyDisplayedInFrame())
         return;
@@ -1499,7 +1468,9 @@ PassRefPtrWillBeRawPtr<DOMWindow> LocalDOMWindow::open(const String& urlString, 
         return targetFrame->domWindow();
     }
 
-    return createWindow(urlString, frameName, WindowFeatures(windowFeaturesString), *callingWindow, *firstFrame, *frame());
+    WindowFeatures features(windowFeaturesString);
+    RefPtrWillBeRawPtr<DOMWindow> newWindow = createWindow(urlString, frameName, features, *callingWindow, *firstFrame, *frame());
+    return features.noopener ? nullptr : newWindow;
 }
 
 BBWindowHooks* LocalDOMWindow::bbWindowHooks() const

@@ -371,6 +371,27 @@ void WebViewProxy::rootWindowCompositionChanged()
     Send(new BlpWebViewHostMsg_RootWindowCompositionChanged(d_routingId));
 }
 
+v8::MaybeLocal<v8::Value> WebViewProxy::callFunction(v8::Local<v8::Function> func,
+                                                     v8::Local<v8::Value> recv,
+                                                     int argc,
+                                                     v8::Local<v8::Value> *argv)
+{
+    DCHECK(Statics::isRendererMainThreadMode());
+    DCHECK(Statics::isInApplicationMainThread());
+    DCHECK(d_isMainFrameAccessible)
+        << "You should wait for didFinishLoad";
+    DCHECK(d_gotRenderViewInfo);
+
+    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
+    DCHECK(webFrame->isWebLocalFrame());
+
+    v8::Local<v8::Value> result =
+        webFrame->callFunctionEvenIfScriptDisabled(func, recv, argc, argv);
+
+    return v8::MaybeLocal<v8::Value>(result);
+}
+
 void WebViewProxy::enableForInputEvents(bool enabled)
 {
     DCHECK(Statics::isInApplicationMainThread());

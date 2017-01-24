@@ -584,9 +584,12 @@ int tls1_check_ec_cert(SSL *s, X509 *x) {
   uint16_t curve_id;
   uint8_t comp_id;
 
-  if (!pkey ||
-      pkey->type != EVP_PKEY_EC ||
-      !tls1_curve_params_from_ec_key(&curve_id, &comp_id, pkey->pkey.ec) ||
+  if (!pkey) {
+    goto done;
+  }
+  EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+  if (ec_key == NULL ||
+      !tls1_curve_params_from_ec_key(&curve_id, &comp_id, ec_key) ||
       !tls1_check_curve_id(s, curve_id) ||
       comp_id != TLSEXT_ECPOINTFORMAT_uncompressed) {
     goto done;
@@ -597,25 +600,6 @@ int tls1_check_ec_cert(SSL *s, X509 *x) {
 done:
   EVP_PKEY_free(pkey);
   return ret;
-}
-
-int tls1_check_ec_tmp_key(SSL *s) {
-  if (s->cert->ecdh_nid != NID_undef) {
-    /* If the curve is preconfigured, ECDH is acceptable iff the peer supports
-     * the curve. */
-    uint16_t curve_id;
-    return tls1_ec_nid2curve_id(&curve_id, s->cert->ecdh_nid) &&
-           tls1_check_curve_id(s, curve_id);
-  }
-
-  if (s->cert->ecdh_tmp_cb != NULL) {
-    /* Assume the callback will provide an acceptable curve. */
-    return 1;
-  }
-
-  /* Otherwise, the curve gets selected automatically. ECDH is acceptable iff
-   * there is a shared curve. */
-  return tls1_get_shared_curve(s) != NID_undef;
 }
 
 /* List of supported signature algorithms and hashes. Should make this
@@ -926,23 +910,24 @@ static int ext_ri_add_clienthello(SSL *ssl, CBB *out) {
 
 static int ext_ri_parse_serverhello(SSL *ssl, uint8_t *out_alert,
                                     CBS *contents) {
+  /* Servers may not switch between omitting the extension and supporting it.
+   * See RFC 5746, sections 3.5 and 4.2. */
+  if (ssl->s3->initial_handshake_complete &&
+      (contents != NULL) != ssl->s3->send_connection_binding) {
+    *out_alert = SSL_AD_HANDSHAKE_FAILURE;
+    OPENSSL_PUT_ERROR(SSL, SSL_R_RENEGOTIATION_MISMATCH);
+    return 0;
+  }
+
   if (contents == NULL) {
-    /* No renegotiation extension received.
-     *
-     * Strictly speaking if we want to avoid an attack we should *always* see
+    /* Strictly speaking, if we want to avoid an attack we should *always* see
      * RI even on initial ServerHello because the client doesn't see any
      * renegotiation during an attack. However this would mean we could not
      * connect to any server which doesn't support RI.
      *
-     * A lack of the extension is allowed if SSL_OP_LEGACY_SERVER_CONNECT is
-     * defined. */
-    if (ssl->options & SSL_OP_LEGACY_SERVER_CONNECT) {
-      return 1;
-    }
-
-    *out_alert = SSL_AD_HANDSHAKE_FAILURE;
-    OPENSSL_PUT_ERROR(SSL, SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
-    return 0;
+     * OpenSSL has |SSL_OP_LEGACY_SERVER_CONNECT| to control this, but in
+     * practical terms every client sets it so it's just assumed here. */
+    return 1;
   }
 
   const size_t expected_len = ssl->s3->previous_client_finished_len +
@@ -2200,7 +2185,6 @@ int ssl_add_clienthello_tlsext(SSL *ssl, CBB *out, size_t header_len) {
     return 1;
   }
 
-  size_t orig_len = CBB_len(out);
   CBB extensions;
   if (!CBB_add_u16_length_prefixed(out, &extensions)) {
     goto err;
@@ -2234,7 +2218,7 @@ int ssl_add_clienthello_tlsext(SSL *ssl, CBB *out, size_t header_len) {
   }
 
   if (!SSL_IS_DTLS(ssl)) {
-    header_len += CBB_len(&extensions) - orig_len;
+    header_len += 2 + CBB_len(&extensions);
     if (header_len > 0xff && header_len < 0x200) {
       /* Add padding to workaround bugs in F5 terminators. See RFC 7685.
        *
@@ -2261,10 +2245,8 @@ int ssl_add_clienthello_tlsext(SSL *ssl, CBB *out, size_t header_len) {
     }
   }
 
-  /* If only two bytes have been written then the extensions are actually empty
-   * and those two bytes are the zero length. In that case, we don't bother
-   * sending the extensions length. */
-  if (CBB_len(&extensions) - orig_len == 2) {
+  /* Discard empty extensions blocks. */
+  if (CBB_len(&extensions) == 0) {
     CBB_discard_child(out);
   }
 
@@ -2276,8 +2258,6 @@ err:
 }
 
 int ssl_add_serverhello_tlsext(SSL *ssl, CBB *out) {
-  const size_t orig_len = CBB_len(out);
-
   CBB extensions;
   if (!CBB_add_u16_length_prefixed(out, &extensions)) {
     goto err;
@@ -2301,10 +2281,8 @@ int ssl_add_serverhello_tlsext(SSL *ssl, CBB *out) {
     goto err;
   }
 
-  /* If only two bytes have been written then the extensions are actually empty
-   * and those two bytes are the zero length. In that case, we don't bother
-   * sending the extensions length. */
-  if (CBB_len(&extensions) - orig_len == 2) {
+  /* Discard empty extensions blocks. */
+  if (CBB_len(&extensions) == 0) {
     CBB_discard_child(out);
   }
 

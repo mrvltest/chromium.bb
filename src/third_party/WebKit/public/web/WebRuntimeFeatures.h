@@ -72,6 +72,7 @@ public:
 
     BLINK_EXPORT static void enableDisplayList2dCanvas(bool);
     BLINK_EXPORT static void forceDisplayList2dCanvas(bool);
+    BLINK_EXPORT static void forceDisable2dCanvasCopyOnWrite(bool);
 
     BLINK_EXPORT static void enableEncryptedMedia(bool);
     BLINK_EXPORT static bool isEncryptedMediaEnabled();
@@ -118,23 +119,17 @@ public:
 
     BLINK_EXPORT static void enableRequestAutocomplete(bool);
 
-    BLINK_EXPORT static void enableScreenOrientation(bool);
-
     BLINK_EXPORT static void enableScriptedSpeech(bool);
 
     BLINK_EXPORT static void enableSlimmingPaintV2(bool);
 
     BLINK_EXPORT static void enableTouch(bool);
 
-    BLINK_EXPORT static void enableTouchIconLoading(bool);
-
     BLINK_EXPORT static void enableWebAudio(bool);
 
     BLINK_EXPORT static void enableWebGLDraftExtensions(bool);
 
     BLINK_EXPORT static void enableWebGLImageChromium(bool);
-
-    BLINK_EXPORT static void enableWebMIDI(bool);
 
     BLINK_EXPORT static void enableXSLT(bool);
 
@@ -154,8 +149,6 @@ public:
 
     BLINK_EXPORT static void enableV8IdleTasks(bool);
 
-    BLINK_EXPORT static void enableSVG1DOM(bool);
-
     BLINK_EXPORT static void enableReducedReferrerGranularity(bool);
 
     BLINK_EXPORT static void enablePushMessaging(bool);
@@ -171,6 +164,8 @@ public:
     BLINK_EXPORT static void enableNewMediaPlaybackUi(bool);
 
     BLINK_EXPORT static void enablePresentationAPI(bool);
+
+    BLINK_EXPORT static void enableWebFontsIntervention(bool);
 private:
     WebRuntimeFeatures();
 };
