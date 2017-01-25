@@ -407,13 +407,14 @@ class CC_EXPORT LayerImpl : public LayerAnimationValueObserver,
     return performance_properties_;
   }
 
+  bool CanUseLCDText() const;
+
   // The following are shortcut accessors to get various information from
   // draw_properties_
   float draw_opacity() const { return draw_properties_.opacity; }
   bool screen_space_transform_is_animating() const {
     return draw_properties_.screen_space_transform_is_animating;
-  }
-  bool can_use_lcd_text() const { return draw_properties_.can_use_lcd_text; }
+  }  
   gfx::Rect clip_rect() const { return draw_properties_.clip_rect; }
   gfx::Rect drawable_content_rect() const {
     return draw_properties_.drawable_content_rect;

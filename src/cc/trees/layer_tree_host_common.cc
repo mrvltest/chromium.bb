@@ -2280,7 +2280,7 @@ void VerifyPropertyTreeValuesForLayer(LayerImpl* current_layer,
       << " actual: " << draw_properties.target_space_transform.ToString();
 
   CHECK_EQ(current_layer->draw_opacity(), draw_properties.opacity);
-  CHECK_EQ(current_layer->can_use_lcd_text(), draw_properties.can_use_lcd_text);
+  CHECK_EQ(current_layer->draw_properties().can_use_lcd_text, draw_properties.can_use_lcd_text);
   CHECK_EQ(current_layer->is_clipped(), draw_properties.is_clipped);
   CHECK_EQ(current_layer->screen_space_transform_is_animating(),
            draw_properties.screen_space_transform_is_animating);
