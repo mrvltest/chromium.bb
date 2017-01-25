@@ -1772,7 +1772,7 @@ void LayerImpl::AsValueInto(base::trace_event::TracedValue* state) const {
   if (clip_parent_)
     state->SetInteger("clip_parent", clip_parent_->id());
 
-  state->SetBoolean("can_use_lcd_text", can_use_lcd_text());
+  state->SetBoolean("can_use_lcd_text", CanUseLCDText());
   state->SetBoolean("contents_opaque", contents_opaque());
 
   state->SetBoolean(
@@ -1867,6 +1867,33 @@ gfx::Transform LayerImpl::DrawTransform() const {
   }
 
   return draw_properties().target_space_transform;
+}
+
+bool LayerImpl::CanUseLCDText() const {
+  if (layer_tree_impl()->settings().layers_always_allowed_lcd_text)
+    return true;
+  if (!layer_tree_impl()->settings().can_use_lcd_text)
+    return false;
+  if (!contents_opaque() && !contents_opaque_for_lcd_text())
+    return false;
+
+  if (layer_tree_impl()
+          ->property_trees()
+          ->effect_tree.Node(effect_tree_index())
+          ->data.screen_space_opacity != 1.f)
+    return false;
+  if (!layer_tree_impl()
+           ->property_trees()
+           ->transform_tree.Node(transform_tree_index())
+           ->data.node_and_ancestors_have_only_integer_translation)
+    return false;
+  if (static_cast<int>(offset_to_transform_parent().x()) !=
+      offset_to_transform_parent().x())
+    return false;
+  if (static_cast<int>(offset_to_transform_parent().y()) !=
+      offset_to_transform_parent().y())
+    return false;
+  return true;
 }
 
 gfx::Transform LayerImpl::ScreenSpaceTransform() const {
