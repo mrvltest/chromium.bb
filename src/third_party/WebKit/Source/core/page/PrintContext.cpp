@@ -38,7 +38,7 @@ const float printingMinimumShrinkFactor = 1.25f;
 // in order to accommodate the widest line. If the page would have to be
 // reduced smaller to make the widest line fit, we just clip instead (this
 // behavior matches MacIE and Mozilla, at least)
-const float printingMaximumShrinkFactor = 2;
+const float printingMaximumShrinkFactor = 200;
 
 PrintContext::PrintContext(LocalFrame* frame)
     : m_frame(frame)
