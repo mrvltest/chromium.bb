@@ -24,6 +24,18 @@
 
 namespace blpwtk2 {
 
+HTTPHeaderVisitor::~HTTPHeaderVisitor()
+{
+}
+
+HTTPBodyVisitor::~HTTPBodyVisitor()
+{
+}
+
+URLRequest::~URLRequest()
+{
+}
+
 ResourceContext::~ResourceContext()
 {
 }

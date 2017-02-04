@@ -241,7 +241,7 @@ void SpellcheckService::InitForRenderer(content::RenderProcessHost* process) {
 
   process->Send(new SpellCheckMsg_Init(
       bdict_languages, *custom_words_ptr,
-      prefs->GetBoolean(prefs::kEnableAutoSpellCorrect)));
+      false));
   process->Send(new SpellCheckMsg_EnableSpellCheck(
       prefs->GetBoolean(prefs::kEnableContinuousSpellcheck)));
 }

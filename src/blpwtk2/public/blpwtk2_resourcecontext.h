@@ -24,10 +24,74 @@
 #define INCLUDED_BLPWTK2_RESOURCECONTEXT_H
 
 #include <blpwtk2_config.h>
+#include <blpwtk2_string.h>
 
 namespace blpwtk2 {
 
+class Blob;
 class StringRef;
+
+class BLPWTK2_EXPORT HTTPHeaderVisitor {
+  public:
+
+    virtual void visitHeader(const StringRef& name, const StringRef& value) = 0;
+
+  protected:
+
+    virtual ~HTTPHeaderVisitor();
+};
+
+class BLPWTK2_EXPORT HTTPBodyVisitor {
+  public:
+
+    virtual void visitBodyElement(const Blob& element) = 0;
+
+  protected:
+
+    virtual ~HTTPBodyVisitor();
+};
+
+class BLPWTK2_EXPORT URLRequest {
+  public:
+    // From WebURLRequest.h:
+    enum CachePolicy {
+        UseProtocolCachePolicy, // normal load
+        ReloadIgnoringCacheData, // reload
+        ReturnCacheDataElseLoad, // back/forward or encoding change - allow stale data
+        ReturnCacheDataDontLoad, // results of a post - allow stale data and only use cache
+        ReloadBypassingCache, // end-to-end reload
+    };
+
+    // From WebURLRequest.h:
+    enum Priority {
+        PriorityUnresolved = -1,
+        PriorityVeryLow,
+        PriorityLow,
+        PriorityMedium,
+        PriorityHigh,
+        PriorityVeryHigh,
+    };
+
+    virtual String url() const = 0;
+    virtual String firstPartyForCookies() const = 0;
+    virtual bool allowStoredCredentials() const = 0;
+    virtual CachePolicy cachePolicy() const = 0;
+    virtual String httpMethod() const = 0;
+    virtual String httpHeaderField(const StringRef& name) const = 0;
+    virtual void visitHTTPHeaderFields(HTTPHeaderVisitor* visitor) const = 0;
+    virtual void visitHTTPBody(HTTPBodyVisitor* visitor) const = 0;
+    virtual bool reportUploadProgress() const = 0;
+    virtual bool reportRawHeaders() const = 0;
+    virtual bool hasUserGesture() const = 0;
+    virtual int requesterID() const = 0;
+    virtual int requestorProcessID() const = 0;
+    virtual int appCacheHostID() const = 0;
+    virtual bool downloadToFile() const = 0;
+    virtual Priority priority() const = 0;
+
+  protected:
+    virtual ~URLRequest();
+};
 
 // A ResourceContext will be created for each resource that can be handled by
 // the application-installed 'blpwtk2::ResourceLoader'.  The ResourceLoader can
@@ -35,8 +99,10 @@ class StringRef;
 //
 // Note that all methods in 'ResourceContext' must be invoked in the renderer
 // thread.
-class ResourceContext {
+class BLPWTK2_EXPORT ResourceContext {
   public:
+    virtual const URLRequest* request() = 0;
+
     // Replace the current status line with the provided one (the specified
     // 'newStatus' should not have any EOL).  For example,
     // "HTTP/1.1 404 Not Found".  If this method is not called, the default

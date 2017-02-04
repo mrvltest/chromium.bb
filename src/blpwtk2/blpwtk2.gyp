@@ -101,6 +101,7 @@
         '../net/net.gyp:net_extras',
         '../sandbox/sandbox.gyp:sandbox',
         '../skia/skia.gyp:skia',
+        '../storage/storage_common.gyp:storage_common',
         '../third_party/WebKit/public/blink.gyp:blink',
         '../third_party/WebKit/public/blink_resources.gyp:blink_resources',
         '../third_party/WebKit/Source/platform/blink_platform.gyp:blink_common',

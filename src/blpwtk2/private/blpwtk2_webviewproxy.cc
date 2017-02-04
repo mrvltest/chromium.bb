@@ -276,6 +276,8 @@ void WebViewProxy::find(const wchar_t *text, size_t len, bool matchCase, bool fo
 void WebViewProxy::stopFind(bool preserveSelection)
 {
     DCHECK(Statics::isInApplicationMainThread());
+
+    d_find.reset(new FindOnPage());
     Send(new BlpWebViewHostMsg_StopFind(d_routingId, preserveSelection));
 }
 

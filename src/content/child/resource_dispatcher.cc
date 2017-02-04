@@ -605,7 +605,9 @@ void ResourceDispatcher::StartSync(const RequestInfo& request_info,
                                    ResourceRequestBody* request_body,
                                    SyncLoadResponse* response) {
   scoped_ptr<ResourceLoaderBridge> bridge(
-      GetContentClient()->renderer()->OverrideResourceLoaderBridge(request_info));
+      GetContentClient()->renderer()->OverrideResourceLoaderBridge(
+        request_info,
+        request_body));
   if (bridge.get()) {
     bridge->SyncLoad(response);
     return;
@@ -645,7 +647,9 @@ int ResourceDispatcher::StartAsync(const RequestInfo& request_info,
   int request_id = MakeRequestID();
 
   scoped_ptr<ResourceLoaderBridge> bridge(
-      GetContentClient()->renderer()->OverrideResourceLoaderBridge(request_info));
+      GetContentClient()->renderer()->OverrideResourceLoaderBridge(
+        request_info,
+        request_body));
   if (bridge.get()) {
       const RequestExtraData kEmptyData;
       const RequestExtraData* extra_data;

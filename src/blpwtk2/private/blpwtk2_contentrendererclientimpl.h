@@ -64,7 +64,8 @@ class ContentRendererClientImpl : public content::ContentRendererClient,
     // Allows the embedder to override the ResourceLoaderBridge used.
     // If it returns NULL, the content layer will provide a bridge.
     content::ResourceLoaderBridge* OverrideResourceLoaderBridge(
-        const content::RequestInfo& request_info) override;
+        const content::RequestInfo& request_info,
+        content::ResourceRequestBody* request_body) override;
 
     // Allows the embedder to override creating a plugin. If it returns true, then
     // |plugin| will contain the created plugin, although it could be NULL. If it
