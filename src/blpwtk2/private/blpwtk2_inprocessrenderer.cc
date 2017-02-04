@@ -103,16 +103,15 @@ void InProcessRenderer::init(const scoped_refptr<base::SingleThreadTaskRunner>& 
         InitDirectWrite();
         content::RenderThread::InitInProcessRenderer(
             content::InProcessChildThreadParams("", browserIOTaskRunner));
-    }
 
-    DCHECK(Statics::rendererMessageLoop);
+        DCHECK(Statics::rendererMessageLoop);
+    }
 }
 
 // static
 void InProcessRenderer::cleanup()
 {
     DCHECK(Statics::isInApplicationMainThread());
-    DCHECK(Statics::rendererMessageLoop);
 
     if (Statics::isOriginalThreadMode()) {
         DCHECK(g_inProcessRendererThread);
@@ -120,12 +119,11 @@ void InProcessRenderer::cleanup()
         g_inProcessRendererThread = 0;
     }
     else {
+        DCHECK(Statics::rendererMessageLoop);
         DCHECK(!g_inProcessRendererThread);
         content::RenderThread::CleanUpInProcessRenderer();
         Statics::rendererMessageLoop = 0;
     }
-
-    DCHECK(!Statics::rendererMessageLoop);
 }
 
 // static
