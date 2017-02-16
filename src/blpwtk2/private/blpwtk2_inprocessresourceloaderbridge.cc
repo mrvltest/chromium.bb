@@ -59,19 +59,31 @@ class InProcessResourceLoaderBridge::InProcessURLRequest
     InProcessURLRequest(
         const content::RequestInfo& requestInfo,
         content::ResourceRequestBody* requestBody)
-    : d_requestInfo(requestInfo)
-    , d_requestBody(requestBody) {
-        d_requestHeaders.AddHeadersFromString(d_requestInfo.headers);
+    : d_url(requestInfo.url)
+    , d_firstPartyForCookies(requestInfo.first_party_for_cookies)
+    , d_loadFlags(requestInfo.load_flags)
+    , d_httpMethod(requestInfo.method)
+    , d_enableUploadProgress(requestInfo.enable_upload_progress)
+    , d_reportRawHeaders(requestInfo.report_raw_headers)
+    , d_hasUserGesture(requestInfo.has_user_gesture)
+    , d_routingId(requestInfo.routing_id)
+    , d_requestorPid(requestInfo.requestor_pid)
+    , d_appCacheHostId(requestInfo.appcache_host_id)
+    , d_downloadToFile(requestInfo.download_to_file)
+    , d_priority(requestInfo.priority)
+    , d_requestBody(requestBody)
+    {
+        d_requestHeaders.AddHeadersFromString(requestInfo.headers);
     }
 
     ~InProcessURLRequest() {}
 
     String url() const override {
-        return String(d_requestInfo.url.spec());
+        return String(d_url.spec());
     }
 
     String firstPartyForCookies() const override {
-        return String(d_requestInfo.first_party_for_cookies.spec());
+        return String(d_firstPartyForCookies.spec());
     }
 
     // see GetLoadFlagsForWebURLRequest() in web_url_request_util.cc:
@@ -81,21 +93,21 @@ class InProcessResourceLoaderBridge::InProcessURLRequest
             net::LOAD_DO_NOT_SEND_COOKIES |
             net::LOAD_DO_NOT_SEND_AUTH_DATA;
 
-        return (d_requestInfo.load_flags & disallow_flags) != disallow_flags;
+        return (d_loadFlags & disallow_flags) != disallow_flags;
     }
 
     // see GetLoadFlagsForWebURLRequest() in web_url_request_util.cc:
     CachePolicy cachePolicy() const override {
-        if (d_requestInfo.load_flags & net::LOAD_VALIDATE_CACHE) {
+        if (d_loadFlags & net::LOAD_VALIDATE_CACHE) {
             return ReloadIgnoringCacheData;
         }
-        else if (d_requestInfo.load_flags & net::LOAD_BYPASS_CACHE) {
+        else if (d_loadFlags & net::LOAD_BYPASS_CACHE) {
             return ReloadBypassingCache;
         }
-        else if (d_requestInfo.load_flags & net::LOAD_PREFERRING_CACHE) {
+        else if (d_loadFlags & net::LOAD_PREFERRING_CACHE) {
             return ReturnCacheDataElseLoad;
         }
-        else if (d_requestInfo.load_flags & net::LOAD_ONLY_FROM_CACHE) {
+        else if (d_loadFlags & net::LOAD_ONLY_FROM_CACHE) {
             return ReturnCacheDataDontLoad;
         }
         else {
@@ -104,7 +116,7 @@ class InProcessResourceLoaderBridge::InProcessURLRequest
     }
 
     String httpMethod() const override {
-        return String(d_requestInfo.method);
+        return d_httpMethod;
     }
 
     String httpHeaderField(const StringRef& name) const override {
@@ -145,36 +157,36 @@ class InProcessResourceLoaderBridge::InProcessURLRequest
     }
 
     bool reportUploadProgress() const override {
-        return d_requestInfo.enable_upload_progress;
+        return d_enableUploadProgress;
     }
 
     bool reportRawHeaders() const override {
-        return d_requestInfo.report_raw_headers;
+        return d_reportRawHeaders;
     }
 
     bool hasUserGesture() const override {
-        return d_requestInfo.has_user_gesture;
+        return d_hasUserGesture;
     }
 
     int requesterID() const override {
-        return d_requestInfo.routing_id;
+        return d_routingId;
     }
 
     int requestorProcessID() const override {
-        return d_requestInfo.requestor_pid;
+        return d_requestorPid;
     }
 
     int appCacheHostID() const override {
-        return d_requestInfo.appcache_host_id;
+        return d_appCacheHostId;
     }
 
     bool downloadToFile() const override {
-        return d_requestInfo.download_to_file;
+        return d_downloadToFile;
     }
 
     // see ConvertWebKitPriorityToNetPriority() in web_url_loader_impl.cc:
     Priority priority() const override {
-        switch (d_requestInfo.priority) {
+        switch (d_priority) {
         case net::HIGHEST:
             return PriorityVeryHigh;
         case net::MEDIUM:
@@ -191,10 +203,20 @@ class InProcessResourceLoaderBridge::InProcessURLRequest
     }
 
   private:
+    GURL d_url;
+    GURL d_firstPartyForCookies;
+    int d_loadFlags;
+    String d_httpMethod;
+    bool d_enableUploadProgress;
+    bool d_reportRawHeaders;
+    bool d_hasUserGesture;
+    int d_routingId;
+    int d_requestorPid;
+    int d_appCacheHostId;
+    bool d_downloadToFile;
+    net::RequestPriority d_priority;
 
-    const content::RequestInfo& d_requestInfo;
-    content::ResourceRequestBody* d_requestBody;
-
+    scoped_refptr<content::ResourceRequestBody> d_requestBody;
     net::HttpRequestHeaders d_requestHeaders;
 };
 
