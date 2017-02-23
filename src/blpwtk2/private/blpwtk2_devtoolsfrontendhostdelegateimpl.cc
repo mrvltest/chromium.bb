@@ -62,6 +62,7 @@ class ResponseWriter : public net::URLFetcherResponseWriter {
  private:
   base::WeakPtr<DevToolsFrontendHostDelegateImpl> shell_devtools_;
   int stream_id_;
+  std::string data_;
 
   DISALLOW_COPY_AND_ASSIGN(ResponseWriter);
 };
@@ -77,25 +78,28 @@ ResponseWriter::~ResponseWriter() {
 }
 
 int ResponseWriter::Initialize(const net::CompletionCallback& callback) {
+  data_.clear();
   return net::OK;
 }
 
 int ResponseWriter::Write(net::IOBuffer* buffer,
                           int num_bytes,
                           const net::CompletionCallback& callback) {
+
+  data_.append(buffer->data(), num_bytes);
+  return num_bytes;
+}
+
+int ResponseWriter::Finish(const net::CompletionCallback& callback) {
   base::FundamentalValue* id = new base::FundamentalValue(stream_id_);
-  base::StringValue* chunk =
-      new base::StringValue(std::string(buffer->data(), num_bytes));
+  base::StringValue* chunk = new base::StringValue(data_);
 
   content::BrowserThread::PostTask(
       content::BrowserThread::UI, FROM_HERE,
       base::Bind(&DevToolsFrontendHostDelegateImpl::CallClientFunction,
                  shell_devtools_, "DevToolsAPI.streamWrite",
                  base::Owned(id), base::Owned(chunk), nullptr));
-  return num_bytes;
-}
 
-int ResponseWriter::Finish(const net::CompletionCallback& callback) {
   return net::OK;
 }
 
