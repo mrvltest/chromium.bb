@@ -24,6 +24,9 @@
             # Whether we're building the cast (chromecast) shell
             'chromecast%': 0,
 
+            # Weather we're building blpwtk2
+            'blpwtk2%': 0,
+
             # Whether or not we are using the Aura windowing framework.
             'use_aura%': 0,
 
@@ -856,7 +859,7 @@
         # Android OS includes support for proprietary codecs regardless of
         # building Chromium or Google Chrome. We also ship Google Chrome and
         # Chromecast with proprietary codecs.
-        ['OS=="android" or branding=="Chrome" or chromecast==1', {
+        ['OS=="android" or branding=="Chrome" or chromecast==1 or blpwtk2==1', {
           'proprietary_codecs%': 1,
         }, {
           'proprietary_codecs%': 0,
@@ -1914,6 +1917,9 @@
             'ffmpeg_branding%': 'ChromeOS',
           }],
         ],
+      }],
+      ['blpwtk2==1', {
+        'ffmpeg_branding%': 'Chrome'
       }],
       ['OS=="linux"', {
         'clang%': 1,

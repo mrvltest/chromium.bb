@@ -244,6 +244,15 @@ def main(args):
   # from the default installed location.
   bpcDevPath = os.environ.get('BPCDEV_PATH')
 
+  # Add default definitions to GYP_DEFINES
+  defaultDefines = 'blpwtk2=1'
+
+  if 'GYP_DEFINES' in os.environ:
+    os.environ['GYP_DEFINES'] += ' ' + defaultDefines
+  else:
+    os.environ['GYP_DEFINES'] = defaultDefines
+
+
   if 'GYP_GENERATORS' in os.environ:
     return execGyp(args)
 
