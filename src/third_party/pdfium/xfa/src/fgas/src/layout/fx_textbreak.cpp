@@ -9,8 +9,8 @@
 #include "core/include/fxcrt/fx_arb.h"
 #include "xfa/src/fgas/include/fx_lbk.h"
 #include "xfa/src/fgas/src/fgas_base.h"
-#include "xfa/src/fgas/src/layout/fx_unicode.h"
 #include "xfa/src/fgas/src/layout/fx_textbreak.h"
+#include "xfa/src/fgas/src/layout/fx_unicode.h"
 
 extern const FX_LINEBREAKTYPE gs_FX_LineBreak_PairTable[64][32];
 IFX_TxtBreak* IFX_TxtBreak::Create(FX_DWORD dwPolicies) {
@@ -1159,13 +1159,14 @@ void CFX_TxtBreak::Reset() {
   m_pTxtLine1->RemoveAll(TRUE);
   m_pTxtLine2->RemoveAll(TRUE);
 }
-typedef struct _FX_FORMCHAR {
+
+struct FX_FORMCHAR {
   FX_WORD wch;
   FX_WORD wForm;
   int32_t iWidth;
-} FX_FORMCHAR, *FX_LPFORMCHAR;
-typedef FX_FORMCHAR const* FX_LPCFORMCHAR;
-int32_t CFX_TxtBreak::GetDisplayPos(FX_LPCTXTRUN pTxtRun,
+};
+
+int32_t CFX_TxtBreak::GetDisplayPos(const FX_TXTRUN* pTxtRun,
                                     FXTEXT_CHARPOS* pCharPos,
                                     FX_BOOL bCharCode,
                                     CFX_WideString* pWSForms,
@@ -1447,7 +1448,6 @@ int32_t CFX_TxtBreak::GetDisplayPos(FX_LPCTXTRUN pTxtRun,
           }
         }
         CFX_PointF ptOffset;
-        ptOffset.Reset();
         FX_BOOL bAdjusted = FALSE;
         if (pAdjustPos) {
           bAdjusted = pAdjustPos(wForm, bCharCode, pFont, fFontSize,
@@ -1548,7 +1548,7 @@ int32_t CFX_TxtBreak::GetDisplayPos(FX_LPCTXTRUN pTxtRun,
   }
   return iCount;
 }
-int32_t CFX_TxtBreak::GetCharRects(FX_LPCTXTRUN pTxtRun,
+int32_t CFX_TxtBreak::GetCharRects(const FX_TXTRUN* pTxtRun,
                                    CFX_RectFArray& rtArray,
                                    FX_BOOL bCharBBox) const {
   if (pTxtRun == NULL || pTxtRun->iLength < 1) {

@@ -4,10 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_WHITERECTANLEDETECTOR_H_
-#define _BC_WHITERECTANLEDETECTOR_H_
+#ifndef XFA_SRC_FXBARCODE_COMMON_BC_WHITERECTANGLEDETECTOR_H_
+#define XFA_SRC_FXBARCODE_COMMON_BC_WHITERECTANGLEDETECTOR_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_CommonBitMatrix;
 class CBC_ResultPoint;
+
 class CBC_WhiteRectangleDetector {
  public:
   CBC_WhiteRectangleDetector(CBC_CommonBitMatrix* image);
@@ -45,4 +49,5 @@ class CBC_WhiteRectangleDetector {
   int32_t m_downInit;
   int32_t m_upInit;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_BC_WHITERECTANGLEDETECTOR_H_

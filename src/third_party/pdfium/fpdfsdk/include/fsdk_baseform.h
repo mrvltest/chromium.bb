@@ -14,12 +14,13 @@
 #endif
 
 #include <map>
+#include <vector>
 
 #include "core/include/fpdfapi/fpdf_parser.h"
 #include "core/include/fpdfdoc/fpdf_doc.h"
 #include "core/include/fxcrt/fx_basic.h"
 #include "core/include/fxge/fx_dib.h"
-#include "fsdk_baseannot.h"
+#include "fpdfsdk/include/fsdk_baseannot.h"
 
 class CFFL_FormFiller;
 class CPDFSDK_Annot;
@@ -40,8 +41,8 @@ typedef enum _PDFSDK_XFAAActionType {
 } PDFSDK_XFAAActionType;
 #endif  // PDF_ENABLE_XFA
 
-typedef struct _PDFSDK_FieldAction {
-  _PDFSDK_FieldAction() {
+struct PDFSDK_FieldAction {
+  PDFSDK_FieldAction() {
     bModifier = FALSE;
     bShift = FALSE;
     nCommitKey = 0;
@@ -64,7 +65,7 @@ typedef struct _PDFSDK_FieldAction {
   FX_BOOL bWillCommit;       // in
   FX_BOOL bFieldFull;        // in
   FX_BOOL bRC;               // in[out]
-} PDFSDK_FieldAction;
+};
 
 class CPDFSDK_Widget : public CPDFSDK_BAAnnot {
  public:
@@ -209,9 +210,7 @@ class CPDFSDK_Widget : public CPDFSDK_BAAnnot {
 
   FX_BOOL HitTest(FX_FLOAT pageX, FX_FLOAT pageY);
 
-#ifndef PDF_ENABLE_XFA
  private:
-#endif  // PDF_ENABLE_XFA
   CPDFSDK_InterForm* m_pInterForm;
   FX_BOOL m_bAppModified;
   int32_t m_nAppAge;
@@ -281,12 +280,9 @@ class CPDFSDK_InterForm : public CPDF_FormNotify {
   void XfaSetValidationsEnabled(FX_BOOL bEnabled);
 #endif  // PDF_ENABLE_XFA
 
-  void OnKeyStrokeCommit(CPDF_FormField* pFormField,
-                         CFX_WideString& csValue,
-                         FX_BOOL& bRC);
-  void OnValidate(CPDF_FormField* pFormField,
-                  CFX_WideString& csValue,
-                  FX_BOOL& bRC);
+  FX_BOOL OnKeyStrokeCommit(CPDF_FormField* pFormField,
+                            const CFX_WideString& csValue);
+  FX_BOOL OnValidate(CPDF_FormField* pFormField, const CFX_WideString& csValue);
   void OnCalculate(CPDF_FormField* pFormField = NULL);
   CFX_WideString OnFormat(CPDF_FormField* pFormField, FX_BOOL& bFormated);
 
@@ -319,19 +315,18 @@ class CPDFSDK_InterForm : public CPDF_FormNotify {
 #endif  // PDF_ENABLE_XFA
 
  private:
-  // CPDF_FormNotify
-  int BeforeValueChange(const CPDF_FormField* pField,
-                        CFX_WideString& csValue) override;
-  int AfterValueChange(const CPDF_FormField* pField) override;
-  int BeforeSelectionChange(const CPDF_FormField* pField,
-                            CFX_WideString& csValue) override;
-  int AfterSelectionChange(const CPDF_FormField* pField) override;
-  int AfterCheckedStatusChange(const CPDF_FormField* pField,
-                               const CFX_ByteArray& statusArray) override;
-  int BeforeFormReset(const CPDF_InterForm* pForm) override;
-  int AfterFormReset(const CPDF_InterForm* pForm) override;
-  int BeforeFormImportData(const CPDF_InterForm* pForm) override;
-  int AfterFormImportData(const CPDF_InterForm* pForm) override;
+  // CPDF_FormNotify:
+  int BeforeValueChange(CPDF_FormField* pField,
+                        const CFX_WideString& csValue) override;
+  void AfterValueChange(CPDF_FormField* pField) override;
+  int BeforeSelectionChange(CPDF_FormField* pField,
+                            const CFX_WideString& csValue) override;
+  void AfterSelectionChange(CPDF_FormField* pField) override;
+  void AfterCheckedStatusChange(CPDF_FormField* pField) override;
+  int BeforeFormReset(CPDF_InterForm* pForm) override;
+  void AfterFormReset(CPDF_InterForm* pForm) override;
+  int BeforeFormImportData(CPDF_InterForm* pForm) override;
+  void AfterFormImportData(CPDF_InterForm* pForm) override;
 
   FX_BOOL FDFToURLEncodedData(CFX_WideString csFDFFile,
                               CFX_WideString csTxtFile);
@@ -373,14 +368,10 @@ class CPDFSDK_InterForm : public CPDF_FormNotify {
   FX_BOOL m_bNeedHightlight[kNumFieldTypes];
 };
 
-#define BAI_STRUCTURE 0
-#define BAI_ROW 1
-#define BAI_COLUMN 2
-
-#define CPDFSDK_Annots CFX_ArrayTemplate<CPDFSDK_Annot*>
-#define CPDFSDK_SortAnnots CGW_ArrayTemplate<CPDFSDK_Annot*>
 class CBA_AnnotIterator {
  public:
+  enum TabOrder { STRUCTURE = 0, ROW, COLUMN };
+
   CBA_AnnotIterator(CPDFSDK_PageView* pPageView,
                     const CFX_ByteString& sType,
                     const CFX_ByteString& sSubType);
@@ -393,15 +384,19 @@ class CBA_AnnotIterator {
 
  private:
   void GenerateResults();
-  static int CompareByLeft(CPDFSDK_Annot* p1, CPDFSDK_Annot* p2);
-  static int CompareByTop(CPDFSDK_Annot* p1, CPDFSDK_Annot* p2);
-  static CPDF_Rect GetAnnotRect(CPDFSDK_Annot* pAnnot);
+  static CPDF_Rect GetAnnotRect(const CPDFSDK_Annot* pAnnot);
 
+  // Function signature compatible with std::sort().
+  static bool CompareByLeftAscending(const CPDFSDK_Annot* p1,
+                                     const CPDFSDK_Annot* p2);
+  static bool CompareByTopDescending(const CPDFSDK_Annot* p1,
+                                     const CPDFSDK_Annot* p2);
+
+  TabOrder m_eTabOrder;
   CPDFSDK_PageView* m_pPageView;
   CFX_ByteString m_sType;
   CFX_ByteString m_sSubType;
-  int m_nTabs;
-  CPDFSDK_Annots m_Annots;
+  std::vector<CPDFSDK_Annot*> m_Annots;
 };
 
 #endif  // FPDFSDK_INCLUDE_FSDK_BASEFORM_H_

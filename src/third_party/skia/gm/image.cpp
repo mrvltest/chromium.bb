@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include <functional>
 #include "gm.h"
 #include "SkData.h"
 #include "SkCanvas.h"
@@ -176,7 +177,7 @@ protected:
 
 #if SK_SUPPORT_GPU
         surf2.reset(SkSurface::NewRenderTarget(canvas->getGrContext(),
-                                               SkSurface::kNo_Budgeted, info));
+                                               SkBudgeted::kNo, info));
 #endif
 
         test_surface(canvas, surf0, true);
@@ -261,7 +262,7 @@ static SkImage* make_codec(const SkImageInfo& info, GrContext*, void (*draw)(SkC
 
 static SkImage* make_gpu(const SkImageInfo& info, GrContext* ctx, void (*draw)(SkCanvas*)) {
     if (!ctx) { return nullptr; }
-    SkAutoTUnref<SkSurface> surface(SkSurface::NewRenderTarget(ctx, SkSurface::kNo_Budgeted, info));
+    SkAutoTUnref<SkSurface> surface(SkSurface::NewRenderTarget(ctx, SkBudgeted::kNo, info));
     draw(surface->getCanvas());
     return surface->newImageSnapshot();
 }
@@ -429,3 +430,86 @@ private:
     typedef skiagm::GM INHERITED;
 };
 DEF_GM( return new ScaleGeneratorGM; )
+
+#if SK_SUPPORT_GPU
+#include "GrContextFactory.h"
+#endif
+
+DEF_SIMPLE_GM(new_texture_image, canvas, 225, 60) {
+    GrContext* context = nullptr;
+#if SK_SUPPORT_GPU
+    context = canvas->getGrContext();
+    GrContextFactory factory;
+#endif
+    if (!context) {
+        skiagm::GM::DrawGpuOnlyMessage(canvas);
+        return;
+    }
+
+    auto render_image = [](SkCanvas* canvas) {
+        canvas->clear(SK_ColorBLUE);
+        SkPaint paint;
+        paint.setColor(SK_ColorRED);
+        canvas->drawRect(SkRect::MakeXYWH(10.f,10.f,10.f,10.f), paint);
+        paint.setColor(SK_ColorGREEN);
+        canvas->drawRect(SkRect::MakeXYWH(30.f,10.f,10.f,10.f), paint);
+        paint.setColor(SK_ColorYELLOW);
+        canvas->drawRect(SkRect::MakeXYWH(10.f,30.f,10.f,10.f), paint);
+        paint.setColor(SK_ColorCYAN);
+        canvas->drawRect(SkRect::MakeXYWH(30.f,30.f,10.f,10.f), paint);
+    };
+
+    static const int kSize = 50;
+    SkBitmap bmp;
+    bmp.allocN32Pixels(kSize, kSize);
+    SkCanvas bmpCanvas(bmp);
+    render_image(&bmpCanvas);
+
+    std::function<SkImage*()> imageFactories[] = {
+        // Create sw raster image.
+        [bmp] {
+            return SkImage::NewFromBitmap(bmp);
+        },
+        // Create encoded image.
+        [bmp] {
+            SkAutoTUnref<SkData> src(
+                SkImageEncoder::EncodeData(bmp, SkImageEncoder::kPNG_Type, 100));
+            return SkImage::NewFromEncoded(src);
+        },
+        // Create a picture image.
+        [render_image] {
+            SkPictureRecorder recorder;
+            SkCanvas* canvas = recorder.beginRecording(SkIntToScalar(kSize), SkIntToScalar(kSize));
+            render_image(canvas);
+            SkAutoTUnref<SkPicture> picture(recorder.endRecording());
+            return SkImage::NewFromPicture(picture, SkISize::Make(kSize, kSize), nullptr, nullptr);
+        },
+        // Create a texture image
+        [context, render_image]() -> SkImage* {
+            SkAutoTUnref<SkSurface> surface(
+                SkSurface::NewRenderTarget(context, SkBudgeted::kYes,
+                                           SkImageInfo::MakeN32Premul(kSize, kSize)));
+            if (!surface) {
+                return nullptr;
+            }
+            render_image(surface->getCanvas());
+            return surface->newImageSnapshot();
+        }
+    };
+
+    static const SkScalar kPad = 5.f;
+    canvas->translate(kPad, kPad);
+    for (auto factory : imageFactories) {
+        SkAutoTUnref<SkImage> image(factory());
+        if (!image) {
+            continue;
+        }
+        if (context) {
+            SkAutoTUnref<SkImage> texImage(image->newTextureImage(context));
+            if (texImage) {
+                canvas->drawImage(texImage, 0, 0);
+            }
+        }
+        canvas->translate(image->width() + kPad, 0);
+    }
+}

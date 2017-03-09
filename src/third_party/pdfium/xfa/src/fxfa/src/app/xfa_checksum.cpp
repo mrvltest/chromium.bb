@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_checksum.h"
+
+#include "xfa/src/fgas/include/fx_alg.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_checksum.h"
+
 CXFA_SAXReaderHandler::CXFA_SAXReaderHandler(CXFA_ChecksumContext* pContext)
     : m_pContext(pContext) {
   FXSYS_assert(m_pContext);
@@ -162,7 +164,7 @@ FX_BOOL CXFA_ChecksumContext::UpdateChecksum(IFX_FileRead* pSrcFile,
   return m_pSAXReader->ContinueParse(NULL) > 99;
 }
 void CXFA_ChecksumContext::FinishChecksum() {
-  if (m_pSAXReader != NULL) {
+  if (m_pSAXReader) {
     m_pSAXReader->Release();
     m_pSAXReader = NULL;
   }
@@ -182,7 +184,7 @@ void CXFA_ChecksumContext::GetChecksum(CFX_ByteString& bsChecksum) {
   bsChecksum = m_bsChecksum;
 }
 void CXFA_ChecksumContext::Update(const CFX_ByteStringC& bsText) {
-  if (m_pByteContext != NULL) {
+  if (m_pByteContext) {
     CRYPT_SHA1Update(m_pByteContext, bsText.GetPtr(), bsText.GetLength());
   }
 }

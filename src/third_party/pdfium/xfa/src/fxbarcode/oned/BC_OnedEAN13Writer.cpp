@@ -20,14 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/BC_Writer.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
-#include "BC_OneDReader.h"
-#include "BC_OneDimReader.h"
-#include "BC_OneDimWriter.h"
-#include "BC_OnedEAN13Reader.h"
-#include "BC_OnedEAN13Writer.h"
+#include "xfa/src/fxbarcode/BC_Writer.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimWriter.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedEAN13Reader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedEAN13Writer.h"
+
 CBC_OnedEAN13Writer::CBC_OnedEAN13Writer() {
   m_bLeftPadding = TRUE;
   m_codeWidth = 3 + (7 * 6) + 5 + (7 * 6) + 3;
@@ -171,7 +171,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
   FXTEXT_CHARPOS* pCharPos = FX_Alloc(FXTEXT_CHARPOS, iLen);
   FXSYS_memset(pCharPos, 0, sizeof(FXTEXT_CHARPOS) * iLen);
   CFX_FxgeDevice geBitmap;
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     geBitmap.Attach(pOutBitmap);
   }
   int32_t iFontSize = (int32_t)fabs(m_fFontSize);
@@ -207,7 +207,6 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
     device->FillRect(&re, m_backgroundColor);
   }
   FX_FLOAT blank = 0.0;
-  FX_FLOAT charsWidth = 0;
   iLen = tempStr.GetLength();
   if (pOutBitmap == NULL) {
     strWidth = (int32_t)(strWidth * m_outputHScale);
@@ -216,7 +215,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
                blank);
   CFX_Matrix affine_matrix(1.0, 0.0, 0.0, -1.0, 0.0, (FX_FLOAT)iFontSize);
   CFX_FxgeDevice ge;
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     ge.Create(strWidth, iTextHeight, FXDIB_Argb);
     FX_RECT rect(0, 0, strWidth, iTextHeight);
     ge.FillRect(&rect, m_backgroundColor);
@@ -229,7 +228,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
     CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0,
                               (FX_FLOAT)leftPosition * m_outputHScale,
                               (FX_FLOAT)(m_Height - iTextHeight) + iFontSize);
-    if (matrix != NULL) {
+    if (matrix) {
       affine_matrix1.Concat(*matrix);
     }
     device->DrawNormalText(iLen, pCharPos + 1, m_pFont,
@@ -239,10 +238,9 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
   }
   tempStr = str.Mid(7, 6);
   iLen = tempStr.GetLength();
-  charsWidth = 0.0f;
   CalcTextInfo(tempStr, pCharPos + 7, m_pFont, (FX_FLOAT)strWidth, iFontSize,
                blank);
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     FX_RECT rect1(0, 0, strWidth, iTextHeight);
     ge.FillRect(&rect1, m_backgroundColor);
     ge.DrawNormalText(iLen, pCharPos + 7, m_pFont,
@@ -256,7 +254,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
         1.0, 0.0, 0.0, -1.0,
         (FX_FLOAT)(leftPosition + 47 * multiple) * m_outputHScale,
         (FX_FLOAT)(m_Height - iTextHeight + iFontSize));
-    if (matrix != NULL) {
+    if (matrix) {
       affine_matrix1.Concat(*matrix);
     }
     device->DrawNormalText(iLen, pCharPos + 7, m_pFont,
@@ -272,7 +270,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
   }
   CalcTextInfo(tempStr, pCharPos, m_pFont, (FX_FLOAT)strWidth, iFontSize,
                blank);
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     delete ge.GetBitmap();
     ge.Create(strWidth, iTextHeight, FXDIB_Argb);
     ge.GetBitmap()->Clear(m_backgroundColor);
@@ -284,7 +282,7 @@ void CBC_OnedEAN13Writer::ShowChars(const CFX_WideStringC& contents,
   } else {
     CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0, 0.0,
                               (FX_FLOAT)(m_Height - iTextHeight + iFontSize));
-    if (matrix != NULL) {
+    if (matrix) {
       affine_matrix1.Concat(*matrix);
     }
     device->DrawNormalText(iLen, pCharPos, m_pFont,

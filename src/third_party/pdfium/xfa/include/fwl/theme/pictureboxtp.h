@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_PICTUREBOXTP_H
-#define _FWL_PICTUREBOXTP_H
-class CFWL_WidgetTP;
-class CFWL_PictureBoxTP;
+#ifndef XFA_INCLUDE_FWL_THEME_PICTUREBOXTP_H_
+#define XFA_INCLUDE_FWL_THEME_PICTUREBOXTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_PictureBoxTP : public CFWL_WidgetTP {
  public:
   CFWL_PictureBoxTP();
@@ -15,4 +16,5 @@ class CFWL_PictureBoxTP : public CFWL_WidgetTP {
   virtual FX_BOOL IsValidWidget(IFWL_Widget* pWidget);
   virtual FX_BOOL DrawBackground(CFWL_ThemeBackground* pParams);
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_PICTUREBOXTP_H_

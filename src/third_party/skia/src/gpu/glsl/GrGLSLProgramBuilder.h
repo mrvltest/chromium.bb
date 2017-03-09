@@ -28,7 +28,6 @@ typedef SkSTArray<8, GrGLSLFragmentProcessor*, true> GrGLSLFragProcs;
 class GrGLSLProgramBuilder {
 public:
     typedef GrGpu::DrawArgs DrawArgs;
-    typedef GrGLSLUniformHandler::ShaderVisibility ShaderVisibility;
     typedef GrGLSLUniformHandler::UniformHandle UniformHandle;
 
     virtual ~GrGLSLProgramBuilder() {}
@@ -41,7 +40,7 @@ public:
     const GrProgramDesc& desc() const { return *fArgs.fDesc; }
     const GrProgramDesc::KeyHeader& header() const { return fArgs.fDesc->header(); }
 
-    void appendUniformDecls(ShaderVisibility, SkString*) const;
+    void appendUniformDecls(GrShaderFlags visibility, SkString*) const;
 
     // Handles for program uniforms (other than per-effect uniforms)
     struct BuiltinUniformHandles {
@@ -69,6 +68,11 @@ public:
     virtual const GrGLSLUniformHandler* uniformHandler() const = 0;
     virtual GrGLSLVaryingHandler* varyingHandler() = 0;
 
+    // Used for backend customization of the output color and secondary color variables from the
+    // fragment processor. Only used if the outputs are explicitly declared in the shaders
+    virtual void finalizeFragmentOutputColor(GrGLSLShaderVar& outputColor) {}
+    virtual void finalizeFragmentSecondaryColor(GrGLSLShaderVar& outputColor) {}
+
     // number of each input/output type in a single allocation block, used by many builders
     static const int kVarsPerBlock;
 
@@ -92,6 +96,8 @@ protected:
     bool emitAndInstallProcs(GrGLSLExpr4* inputColor, GrGLSLExpr4* inputCoverage, int maxTextures);
 
     void cleanupFragmentProcessors();
+
+    void finalizeShaders();
 
 private:
     // reset is called by program creator between each processor's emit code.  It increments the
@@ -131,7 +137,8 @@ private:
     void emitAndInstallXferProc(const GrXferProcessor&,
                                 const GrGLSLExpr4& colorIn,
                                 const GrGLSLExpr4& coverageIn,
-                                bool ignoresCoverage);
+                                bool ignoresCoverage,
+                                GrPixelLocalStorageState plsState);
     void emitFSOutputSwizzle(bool hasSecondaryOutput);
 
     void verify(const GrPrimitiveProcessor&);

@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_WIDGETACC_IMP_H
-#define _FXFA_FORMFILLER_WIDGETACC_IMP_H
-#include "xfa_textlayout.h"
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGETACC_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGETACC_H_
+
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+
 enum XFA_TEXTPROVIDERTYPE {
   XFA_TEXTPROVIDERTYPE_Text,
   XFA_TEXTPROVIDERTYPE_Datasets,
@@ -20,7 +22,7 @@ class CXFA_TextProvider : public IXFA_TextProvider {
                     XFA_TEXTPROVIDERTYPE eType,
                     CXFA_Node* pTextNode = NULL)
       : m_pWidgetAcc(pWidgetAcc), m_eType(eType), m_pTextNode(pTextNode) {
-    FXSYS_assert(m_pWidgetAcc != NULL);
+    FXSYS_assert(m_pWidgetAcc);
   }
   virtual ~CXFA_TextProvider() {}
   virtual CXFA_Node* GetTextNode(FX_BOOL& bRichText);
@@ -38,4 +40,5 @@ class CXFA_TextProvider : public IXFA_TextProvider {
   XFA_TEXTPROVIDERTYPE m_eType;
   CXFA_Node* m_pTextNode;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGETACC_H_

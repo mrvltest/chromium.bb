@@ -12,9 +12,11 @@
 
 namespace pairing_chromeos {
 
-SharkConnectionListener::SharkConnectionListener(OnConnectedCallback callback)
+SharkConnectionListener::SharkConnectionListener(
+    const scoped_refptr<base::SingleThreadTaskRunner>& file_task_runner,
+    OnConnectedCallback callback)
     : callback_(callback) {
-  controller_.reset(new BluetoothHostPairingController());
+  controller_.reset(new BluetoothHostPairingController(file_task_runner));
   controller_->AddObserver(this);
   controller_->StartPairing();
 }
@@ -24,11 +26,22 @@ SharkConnectionListener::~SharkConnectionListener() {
     controller_->RemoveObserver(this);
 }
 
+void SharkConnectionListener::ResetHostPairingController() {
+  if (controller_.get()) {
+    controller_->Reset();
+    controller_->RemoveObserver(this);
+  }
+}
+
 void SharkConnectionListener::PairingStageChanged(Stage new_stage) {
-  if (new_stage == HostPairingController::STAGE_WAITING_FOR_CODE_CONFIRMATION) {
+  if (new_stage == HostPairingController::STAGE_WAITING_FOR_CODE_CONFIRMATION
+      // Code confirmation stage can be skipped if devices were paired before.
+      || new_stage == HostPairingController::STAGE_SETUP_BASIC_CONFIGURATION) {
     controller_->RemoveObserver(this);
     callback_.Run(std::move(controller_));
     callback_.Reset();
+  } else if (new_stage != HostPairingController::STAGE_WAITING_FOR_CONTROLLER) {
+    LOG(ERROR) << "Unexpected stage " << new_stage;
   }
 }
 

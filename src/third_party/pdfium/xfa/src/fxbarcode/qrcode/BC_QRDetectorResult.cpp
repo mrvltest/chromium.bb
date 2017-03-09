@@ -20,10 +20,10 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_QRDetectorResult.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDetectorResult.h"
+
 CBC_QRDetectorResult::CBC_QRDetectorResult(CBC_CommonBitMatrix* bits,
                                            CFX_PtrArray* points)
     : m_bits(bits), m_points(points) {}
@@ -33,11 +33,7 @@ CBC_QRDetectorResult::~CBC_QRDetectorResult() {
   }
   m_points->RemoveAll();
   delete m_points;
-  m_points = NULL;
-  if (m_bits != NULL) {
-    delete m_bits;
-  }
-  m_bits = NULL;
+  delete m_bits;
 }
 CBC_CommonBitMatrix* CBC_QRDetectorResult::GetBits() {
   return m_bits;

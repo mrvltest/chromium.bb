@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_CONTENT_H
-#define _FWL_CONTENT_H
-class IFWL_Widget;
-class IFWL_Content;
+#ifndef XFA_INCLUDE_FWL_CORE_FWL_CONTENT_H_
+#define XFA_INCLUDE_FWL_CORE_FWL_CONTENT_H_
+
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class IFWL_Content : public IFWL_Widget {
  public:
   static IFWL_Content* Create();
@@ -22,4 +23,5 @@ class IFWL_Content : public IFWL_Widget {
  protected:
   IFWL_Content();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_CORE_FWL_CONTENT_H_

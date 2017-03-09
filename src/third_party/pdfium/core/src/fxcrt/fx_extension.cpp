@@ -6,7 +6,7 @@
 
 #include "core/include/fxcrt/fx_basic.h"
 #include "core/include/fxcrt/fx_ext.h"
-#include "extension.h"
+#include "core/src/fxcrt/extension.h"
 
 #if _FXM_PLATFORM_ == _FXM_PLATFORM_WINDOWS_
 #include <wincrypt.h>
@@ -133,7 +133,8 @@ FX_FLOAT FXSYS_strtof(const FX_CHAR* pcsStr,
   if (iLength < 0) {
     iLength = (int32_t)FXSYS_strlen(pcsStr);
   }
-  CFX_WideString ws = CFX_WideString::FromLocal(pcsStr, iLength);
+  CFX_WideString ws =
+      CFX_WideString::FromLocal(CFX_ByteString(pcsStr, iLength));
   return FXSYS_wcstof(ws.c_str(), iLength, pUsedLen);
 }
 FX_FLOAT FXSYS_wcstof(const FX_WCHAR* pwsStr,
@@ -258,7 +259,7 @@ FX_DWORD FX_HashCode_String_GetW(const FX_WCHAR* pStr,
 }
 
 void* FX_Random_MT_Start(FX_DWORD dwSeed) {
-  FX_LPMTRANDOMCONTEXT pContext = FX_Alloc(FX_MTRANDOMCONTEXT, 1);
+  FX_MTRANDOMCONTEXT* pContext = FX_Alloc(FX_MTRANDOMCONTEXT, 1);
   pContext->mt[0] = dwSeed;
   FX_DWORD& i = pContext->mti;
   FX_DWORD* pBuf = pContext->mt;
@@ -270,7 +271,7 @@ void* FX_Random_MT_Start(FX_DWORD dwSeed) {
 }
 FX_DWORD FX_Random_MT_Generate(void* pContext) {
   FXSYS_assert(pContext);
-  FX_LPMTRANDOMCONTEXT pMTC = (FX_LPMTRANDOMCONTEXT)pContext;
+  FX_MTRANDOMCONTEXT* pMTC = static_cast<FX_MTRANDOMCONTEXT*>(pContext);
   FX_DWORD v;
   static FX_DWORD mag[2] = {0, MT_Matrix_A};
   FX_DWORD& mti = pMTC->mti;
@@ -331,9 +332,12 @@ void FX_Random_GenerateBase(FX_DWORD* pBuffer, int32_t iCount) {
       FX_HashCode_String_GetA((const FX_CHAR*)&st2, sizeof(st2), TRUE);
   ::srand((dwHash1 << 16) | (FX_DWORD)dwHash2);
 #else
-  time_t tmLast = time(NULL), tmCur;
-  while ((tmCur = time(NULL)) == tmLast)
-    ;
+  time_t tmLast = time(NULL);
+  time_t tmCur;
+  while ((tmCur = time(NULL)) == tmLast) {
+    continue;
+  }
+
   ::srand((tmCur << 16) | (tmLast & 0xFFFF));
 #endif
   while (iCount-- > 0) {

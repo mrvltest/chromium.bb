@@ -86,7 +86,9 @@ bool GrAADistanceFieldPathRenderer::onCanDrawPath(const CanDrawPathArgs& args) c
     // TODO: Support inverse fill
     if (!args.fShaderCaps->shaderDerivativeSupport() || !args.fAntiAlias ||
         SkStrokeRec::kHairline_Style == args.fStroke->getStyle() ||
-        args.fPath->isInverseFillType() || args.fPath->isVolatile()) {
+        args.fPath->isInverseFillType() || args.fPath->isVolatile() ||
+        // We don't currently apply the dash or factor it into the DF key. (skbug.com/5082)
+        args.fStroke->isDashed()) {
         return false;
     }
 
@@ -109,7 +111,7 @@ bool GrAADistanceFieldPathRenderer::onCanDrawPath(const CanDrawPathArgs& args) c
         }
         maxDim += extraWidth;
     }
-    
+
     return maxDim <= kMediumMIP && maxDim * maxScale <= 2.0f*kLargeMIP;
 }
 
@@ -158,7 +160,6 @@ public:
                                       GrBatchToXPOverrides* overrides) const override {
         color->setKnownFourComponents(fGeoData[0].fColor);
         coverage->setUnknownSingleComponent();
-        overrides->fUsePLSDstRead = false;
     }
 
 private:
@@ -462,11 +463,6 @@ private:
         width *= invScale;
         height *= invScale;
 
-        SkFixed tx = SkIntToFixed(pathData->fAtlasLocation.fX);
-        SkFixed ty = SkIntToFixed(pathData->fAtlasLocation.fY);
-        SkFixed tw = SkScalarToFixed(pathData->fBounds.width());
-        SkFixed th = SkScalarToFixed(pathData->fBounds.height());
-
         SkPoint* positions = reinterpret_cast<SkPoint*>(offset);
 
         // vertex positions
@@ -480,12 +476,15 @@ private:
             *colorPtr = color;
         }
 
+        const SkScalar tx = SkIntToScalar(pathData->fAtlasLocation.fX);
+        const SkScalar ty = SkIntToScalar(pathData->fAtlasLocation.fY);
+
         // vertex texture coords
         SkPoint* textureCoords = (SkPoint*)(offset + sizeof(SkPoint) + sizeof(GrColor));
-        textureCoords->setRectFan(SkFixedToFloat(texture->texturePriv().normalizeFixedX(tx)),
-                                  SkFixedToFloat(texture->texturePriv().normalizeFixedY(ty)),
-                                  SkFixedToFloat(texture->texturePriv().normalizeFixedX(tx + tw)),
-                                  SkFixedToFloat(texture->texturePriv().normalizeFixedY(ty + th)),
+        textureCoords->setRectFan(tx / texture->width(),
+                                  ty / texture->height(),
+                                  (tx + pathData->fBounds.width()) / texture->width(),
+                                  (ty + pathData->fBounds.height())  / texture->height(),
                                   vertexStride);
     }
 

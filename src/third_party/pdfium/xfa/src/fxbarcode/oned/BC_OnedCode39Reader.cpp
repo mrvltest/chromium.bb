@@ -22,11 +22,12 @@
 
 #include <algorithm>
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_OneDReader.h"
-#include "BC_OnedCode39Reader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedCode39Reader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 const FX_CHAR* CBC_OnedCode39Reader::ALPHABET_STRING =
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. *$/+%";
 const FX_CHAR* CBC_OnedCode39Reader::CHECKSUM_STRING =
@@ -38,6 +39,7 @@ const int32_t CBC_OnedCode39Reader::CHARACTER_ENCODINGS[44] = {
     0x106, 0x046, 0x016, 0x181, 0x0C1, 0x1C0, 0x091, 0x190, 0x0D0,
     0x085, 0x184, 0x0C4, 0x094, 0x0A8, 0x0A2, 0x08A, 0x02A};
 const int32_t CBC_OnedCode39Reader::ASTERISK_ENCODING = 0x094;
+
 CBC_OnedCode39Reader::CBC_OnedCode39Reader()
     : m_usingCheckDigit(FALSE), m_extendedMode(FALSE) {
 }
@@ -56,10 +58,7 @@ CFX_ByteString CBC_OnedCode39Reader::DecodeRow(int32_t rowNumber,
   CFX_Int32Array* start = FindAsteriskPattern(row, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
   int32_t nextStart = (*start)[1];
-  if (start != NULL) {
-    delete start;
-    start = NULL;
-  }
+  delete start;
   int32_t end = row->GetSize();
   while (nextStart < end && !row->Get(nextStart)) {
     nextStart++;
@@ -68,7 +67,6 @@ CFX_ByteString CBC_OnedCode39Reader::DecodeRow(int32_t rowNumber,
   CFX_Int32Array counters;
   counters.SetSize(9);
   FX_CHAR decodedChar;
-  int32_t lastStart;
   do {
     RecordPattern(row, nextStart, &counters, e);
     BC_EXCEPTION_CHECK_ReturnValue(e, "");
@@ -80,7 +78,6 @@ CFX_ByteString CBC_OnedCode39Reader::DecodeRow(int32_t rowNumber,
     decodedChar = PatternToChar(pattern, e);
     BC_EXCEPTION_CHECK_ReturnValue(e, "");
     result += decodedChar;
-    lastStart = nextStart;
     for (int32_t i = 0; i < counters.GetSize(); i++) {
       nextStart += counters[i];
     }

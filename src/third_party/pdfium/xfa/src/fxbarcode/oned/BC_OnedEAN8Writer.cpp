@@ -20,14 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/BC_Writer.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
+#include "xfa/src/fxbarcode/BC_Writer.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_OneDReader.h"
-#include "BC_OneDimWriter.h"
-#include "BC_OneDimReader.h"
-#include "BC_OnedEAN8Writer.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimWriter.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedEAN8Writer.h"
+
 CBC_OnedEAN8Writer::CBC_OnedEAN8Writer() {
   m_iDataLenth = 8;
   m_codeWidth = 3 + (7 * 4) + 5 + (7 * 4) + 3;
@@ -179,10 +179,9 @@ void CBC_OnedEAN8Writer::ShowChars(const CFX_WideStringC& contents,
   int32_t strWidth = 7 * multiple * 4;
   FX_FLOAT blank = 0.0;
   CFX_FxgeDevice geBitmap;
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     geBitmap.Attach(pOutBitmap);
   }
-  FX_FLOAT charsWidth = 0;
   int32_t iFontSize = (int32_t)fabs(m_fFontSize);
   int32_t iTextHeight = iFontSize + 1;
   if (pOutBitmap == NULL) {
@@ -212,7 +211,7 @@ void CBC_OnedEAN8Writer::ShowChars(const CFX_WideStringC& contents,
                blank);
   CFX_Matrix affine_matrix(1.0, 0.0, 0.0, -1.0, 0.0, (FX_FLOAT)iFontSize);
   CFX_FxgeDevice ge;
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     delete ge.GetBitmap();
     ge.Create(strWidth, iTextHeight, FXDIB_Argb);
     ge.GetBitmap()->Clear(m_backgroundColor);
@@ -233,10 +232,9 @@ void CBC_OnedEAN8Writer::ShowChars(const CFX_WideStringC& contents,
   }
   tempStr = str.Mid(4, 4);
   iLen = tempStr.GetLength();
-  charsWidth = 0.0f;
   CalcTextInfo(tempStr, pCharPos + 4, m_pFont, (FX_FLOAT)strWidth, iFontSize,
                blank);
-  if (pOutBitmap != NULL) {
+  if (pOutBitmap) {
     delete ge.GetBitmap();
     ge.Create(strWidth, iTextHeight, FXDIB_Argb);
     ge.GetBitmap()->Clear(m_backgroundColor);
@@ -251,7 +249,7 @@ void CBC_OnedEAN8Writer::ShowChars(const CFX_WideStringC& contents,
         1.0, 0.0, 0.0, -1.0,
         (FX_FLOAT)(leftPosition + 33 * multiple) * m_outputHScale,
         (FX_FLOAT)(m_Height - iTextHeight + iFontSize));
-    if (matrix != NULL) {
+    if (matrix) {
       affine_matrix1.Concat(*matrix);
     }
     device->DrawNormalText(iLen, pCharPos + 4, m_pFont,

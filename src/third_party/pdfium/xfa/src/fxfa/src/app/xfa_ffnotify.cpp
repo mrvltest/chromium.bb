@@ -5,31 +5,30 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffwidgethandler.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpushbutton.h"
-#include "xfa_ffcheckbutton.h"
-#include "xfa_ffchoicelist.h"
-#include "xfa_ffimageedit.h"
-#include "xfa_fftextedit.h"
-#include "xfa_ffbarcode.h"
-#include "xfa_ffdraw.h"
-#include "xfa_fftext.h"
-#include "xfa_ffpath.h"
-#include "xfa_ffimage.h"
-#include "xfa_ffexclgroup.h"
-#include "xfa_ffsubform.h"
-#include "xfa_ffsignature.h"
-#include "xfa_ffapp.h"
-#include "xfa_textlayout.h"
-#include "xfa_ffwidgetacc.h"
-#include "xfa_ffnotify.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffbarcode.h"
+#include "xfa/src/fxfa/src/app/xfa_ffcheckbutton.h"
+#include "xfa/src/fxfa/src/app/xfa_ffchoicelist.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdraw.h"
+#include "xfa/src/fxfa/src/app/xfa_ffexclgroup.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffimage.h"
+#include "xfa/src/fxfa/src/app/xfa_ffimageedit.h"
+#include "xfa/src/fxfa/src/app/xfa_ffnotify.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpath.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpushbutton.h"
+#include "xfa/src/fxfa/src/app/xfa_ffsignature.h"
+#include "xfa/src/fxfa/src/app/xfa_ffsubform.h"
+#include "xfa/src/fxfa/src/app/xfa_fftext.h"
+#include "xfa/src/fxfa/src/app/xfa_fftextedit.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidgetacc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidgethandler.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
 
 static void XFA_FFDeleteWidgetAcc(void* pData) {
   delete static_cast<CXFA_WidgetAcc*>(pData);
@@ -444,7 +443,7 @@ void CXFA_FFNotify::OnValueChanging(CXFA_Node* pSender,
         return;
       }
       CXFA_FFWidget* pWidget = NULL;
-      while ((pWidget = pWidgetAcc->GetNextWidget(pWidget)) != NULL) {
+      while ((pWidget = pWidgetAcc->GetNextWidget(pWidget))) {
         if (pWidget->IsLoaded()) {
           pWidget->AddInvalidateRect();
         }
@@ -523,7 +522,7 @@ void CXFA_FFNotify::OnValueChanged(CXFA_Node* pSender,
       }
     }
     CXFA_FFWidget* pWidget = NULL;
-    while ((pWidget = pWidgetAcc->GetNextWidget(pWidget)) != NULL) {
+    while ((pWidget = pWidgetAcc->GetNextWidget(pWidget))) {
       if (!pWidget->IsLoaded()) {
         continue;
       }
@@ -551,7 +550,7 @@ void CXFA_FFNotify::OnChildAdded(CXFA_Node* pSender,
   }
   FX_BOOL bLayoutReady =
       !(pDocView->m_bInLayoutStatus) &&
-      (pDocView->GetLayoutStatus() >= XFA_DOCVIEW_LAYOUTSTATUS_End);
+      (pDocView->GetLayoutStatus() == XFA_DOCVIEW_LAYOUTSTATUS_End);
   if (bLayoutReady) {
     m_pDoc->GetDocProvider()->SetChangeMark(m_pDoc);
   }
@@ -562,7 +561,7 @@ void CXFA_FFNotify::OnChildRemoved(CXFA_Node* pSender,
   if (CXFA_FFDocView* pDocView = m_pDoc->GetDocView()) {
     FX_BOOL bLayoutReady =
         !(pDocView->m_bInLayoutStatus) &&
-        (pDocView->GetLayoutStatus() >= XFA_DOCVIEW_LAYOUTSTATUS_End);
+        (pDocView->GetLayoutStatus() == XFA_DOCVIEW_LAYOUTSTATUS_End);
     if (bLayoutReady) {
       m_pDoc->GetDocProvider()->SetChangeMark(m_pDoc);
     }
@@ -580,33 +579,28 @@ void CXFA_FFNotify::OnLayoutItemAdd(CXFA_FFDocView* pDocView,
   FX_DWORD dwFilter = XFA_WIDGETSTATUS_Visible | XFA_WIDGETSTATUS_Viewable |
                       XFA_WIDGETSTATUS_Printable;
   pWidget->ModifyStatus(dwStatus, dwFilter);
-  if (pDocView->GetLayoutStatus() >= XFA_DOCVIEW_LAYOUTSTATUS_End) {
-    IXFA_PageView* pPrePageView = pWidget->GetPageView();
-    if (pPrePageView != pNewPageView ||
-        (dwStatus & (XFA_WIDGETSTATUS_Visible | XFA_WIDGETSTATUS_Viewable)) ==
-            (XFA_WIDGETSTATUS_Visible | XFA_WIDGETSTATUS_Viewable)) {
-      pWidget->SetPageView(pNewPageView);
-      m_pDoc->GetDocProvider()->WidgetEvent(pWidget, pWidget->GetDataAcc(),
-                                            XFA_WIDGETEVENT_PostAdded,
-                                            pNewPageView, pPrePageView);
-    }
-    if ((dwStatus & XFA_WIDGETSTATUS_Visible) == 0) {
-      return;
-    }
-    if (pWidget->IsLoaded()) {
-      CFX_RectF rtOld;
-      pWidget->GetWidgetRect(rtOld);
-      CFX_RectF rtNew = pWidget->ReCacheWidgetRect();
-      if (rtOld != rtNew) {
-        pWidget->PerformLayout();
-      }
-    } else {
-      pWidget->LoadWidget();
-    }
-    pWidget->AddInvalidateRect(NULL);
-  } else {
+  IXFA_PageView* pPrePageView = pWidget->GetPageView();
+  if (pPrePageView != pNewPageView ||
+      (dwStatus & (XFA_WIDGETSTATUS_Visible | XFA_WIDGETSTATUS_Viewable)) ==
+          (XFA_WIDGETSTATUS_Visible | XFA_WIDGETSTATUS_Viewable)) {
     pWidget->SetPageView(pNewPageView);
+    m_pDoc->GetDocProvider()->WidgetEvent(pWidget, pWidget->GetDataAcc(),
+                                          XFA_WIDGETEVENT_PostAdded,
+                                          pNewPageView, pPrePageView);
   }
+  if (pDocView->GetLayoutStatus() != XFA_DOCVIEW_LAYOUTSTATUS_End ||
+      !(dwStatus & XFA_WIDGETSTATUS_Visible)) {
+    return;
+  }
+  if (pWidget->IsLoaded()) {
+    CFX_RectF rtOld;
+    pWidget->GetWidgetRect(rtOld);
+    if (rtOld != pWidget->ReCacheWidgetRect())
+      pWidget->PerformLayout();
+  } else {
+    pWidget->LoadWidget();
+  }
+  pWidget->AddInvalidateRect(nullptr);
 }
 void CXFA_FFNotify::OnLayoutItemRemoving(CXFA_FFDocView* pDocView,
                                          IXFA_DocLayout* pLayout,
@@ -615,12 +609,10 @@ void CXFA_FFNotify::OnLayoutItemRemoving(CXFA_FFDocView* pDocView,
                                          void* pParam2) {
   CXFA_FFWidget* pWidget = static_cast<CXFA_FFWidget*>(pSender);
   pDocView->DeleteLayoutItem(pWidget);
-  if (pDocView->GetLayoutStatus() < XFA_DOCVIEW_LAYOUTSTATUS_End) {
-    return;
-  }
   m_pDoc->GetDocProvider()->WidgetEvent(pWidget, pWidget->GetDataAcc(),
-                                        XFA_WIDGETEVENT_PreRemoved, NULL, NULL);
-  pWidget->AddInvalidateRect(NULL);
+                                        XFA_WIDGETEVENT_PreRemoved, nullptr,
+                                        pWidget->GetPageView());
+  pWidget->AddInvalidateRect(nullptr);
 }
 void CXFA_FFNotify::OnLayoutItemRectChanged(CXFA_FFDocView* pDocView,
                                             IXFA_DocLayout* pLayout,

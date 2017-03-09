@@ -7,7 +7,8 @@
 #ifndef CORE_INCLUDE_FXCRT_FX_STREAM_H_
 #define CORE_INCLUDE_FXCRT_FX_STREAM_H_
 
-#include "fx_string.h"
+#include "core/include/fxcrt/fx_string.h"
+#include "core/include/fxcrt/fx_system.h"
 
 void* FX_OpenFolder(const FX_CHAR* path);
 void* FX_OpenFolder(const FX_WCHAR* path);
@@ -23,8 +24,8 @@ FX_WCHAR FX_GetFolderSeparator();
 #define FX_FILESIZE int32_t
 #else
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif

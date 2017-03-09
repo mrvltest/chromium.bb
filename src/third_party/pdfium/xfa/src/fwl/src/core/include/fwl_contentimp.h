@@ -4,11 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_CONTENT_IMP_H
-#define _FWL_CONTENT_IMP_H
-class CFWL_WidgetImp;
+#ifndef XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_CONTENTIMP_H_
+#define XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_CONTENTIMP_H_
+
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class IFWL_Widget;
-class CFWL_ContentImp;
+
 class CFWL_ContentImp : public CFWL_WidgetImp {
  public:
   CFWL_ContentImp(const CFWL_WidgetImpProperties& properties,
@@ -29,4 +31,5 @@ class CFWL_ContentImp : public CFWL_WidgetImp {
   FX_FLOAT m_fHeightMin;
   FX_FLOAT m_fHeightMax;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_CONTENTIMP_H_

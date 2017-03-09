@@ -4,13 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_FONTMGR_IMP
-#define _FX_FONTMGR_IMP
+#ifndef XFA_SRC_FGAS_SRC_FONT_FX_STDFONTMGR_H_
+#define XFA_SRC_FGAS_SRC_FONT_FX_STDFONTMGR_H_
+
+#include "xfa/src/fgas/include/fx_fnt.h"
+
 #if _FXM_PLATFORM_ == _FXM_PLATFORM_WINDOWS_
 int32_t FX_GetSimilarValue(FX_LPCFONTDESCRIPTOR pFont, FX_DWORD dwFontStyles);
 FX_LPCFONTDESCRIPTOR FX_DefFontMatcher(FX_LPFONTMATCHPARAMS pParams,
                                        const CFX_FontDescriptors& fonts,
                                        void* pUserData);
+
 class CFX_StdFontMgrImp : public IFX_FontMgr {
  public:
   CFX_StdFontMgrImp(FX_LPEnumAllFonts pEnumerator,
@@ -69,7 +73,9 @@ class CFX_StdFontMgrImp : public IFX_FontMgr {
   IFX_Font* GetFont(FX_LPCFONTDESCRIPTOR pFD, FX_DWORD dwFontStyles);
 };
 FX_DWORD FX_GetGdiFontStyles(const LOGFONTW& lf);
+
 #else
+
 class CFX_FontDescriptor {
  public:
   CFX_FontDescriptor()
@@ -91,21 +97,23 @@ class CFX_FontDescriptor {
   FX_DWORD m_dwCsb[2];
 };
 typedef CFX_ArrayTemplate<CFX_FontDescriptor*> CFX_FontDescriptors;
+
 struct FX_FontDescriptorInfo {
  public:
   CFX_FontDescriptor* pFont;
   int32_t nPenalty;
   FX_BOOL operator>(const FX_FontDescriptorInfo& x) {
-    return this->nPenalty > x.nPenalty;
+    return nPenalty > x.nPenalty;
   };
   FX_BOOL operator<(const FX_FontDescriptorInfo& x) {
-    return this->nPenalty < x.nPenalty;
+    return nPenalty < x.nPenalty;
   };
   FX_BOOL operator==(const FX_FontDescriptorInfo& x) {
-    return this->nPenalty == x.nPenalty;
+    return nPenalty == x.nPenalty;
   };
 };
 typedef CFX_ArrayTemplate<FX_FontDescriptorInfo> CFX_FontDescriptorInfos;
+
 struct FX_HandleParentPath {
   FX_HandleParentPath() {}
   FX_HandleParentPath(const FX_HandleParentPath& x) {
@@ -115,6 +123,7 @@ struct FX_HandleParentPath {
   void* pFileHandle;
   CFX_ByteString bsParentPath;
 };
+
 class CFX_FontSourceEnum_File : public IFX_FontSourceEnum {
  public:
   CFX_FontSourceEnum_File();
@@ -138,6 +147,7 @@ typedef CFX_MapPtrTemplate<FX_WCHAR, IFX_Font*> CFX_UnicodeFontMap;
 typedef CFX_MapPtrTemplate<IFX_FileAccess*, CFX_ArrayTemplate<IFX_Font*>*>
     CFX_FileFontMap;
 typedef CFX_MapPtrTemplate<IFX_Font*, IFX_FileRead*> CFX_FonStreamtMap;
+
 class CFX_FontMgrImp : public IFX_FontMgr {
  public:
   CFX_FontMgrImp(IFX_FontSourceEnum* pFontEnum,
@@ -179,14 +189,22 @@ class CFX_FontMgrImp : public IFX_FontMgr {
                              int32_t iFaceIndex,
                              int32_t* pFaceCount,
                              FX_BOOL bSaveStream = FALSE);
+  virtual IFX_Font* LoadFont(const CFX_WideString& wsFaceName,
+                             int32_t iFaceIndex,
+                             int32_t* pFaceCount);
   virtual void ClearFontCache();
   virtual void RemoveFont(IFX_Font* pFont);
   FX_BOOL EnumFonts();
+  FX_BOOL EnumFontsFromFontMapper();
+  FX_BOOL EnumFontsFromFiles();
 
  protected:
-  void ReportFace(FXFT_Face pFace,
-                  CFX_FontDescriptors& Fonts,
-                  IFX_FileAccess* pFontAccess);
+  void RegisterFace(FXFT_Face pFace,
+                    CFX_FontDescriptors& Fonts,
+                    const CFX_WideString* pFaceName,
+                    IFX_FileAccess* pFontAccess);
+  void RegisterFaces(IFX_FileRead* pFontStream,
+                     const CFX_WideString* pFaceName);
   void GetNames(const uint8_t* name_table, CFX_WideStringArray& Names);
   void GetCharsets(FXFT_Face pFace, CFX_WordArray& Charsets);
   void GetUSBCSB(FXFT_Face pFace, FX_DWORD* USB, FX_DWORD* CSB);
@@ -194,7 +212,6 @@ class CFX_FontMgrImp : public IFX_FontMgr {
   CFX_FontDescriptors m_InstalledFonts;
   FX_BOOL VerifyUnicode(CFX_FontDescriptor* pDesc, FX_WCHAR wcUnicode);
   FX_BOOL VerifyUnicode(IFX_Font* pFont, FX_WCHAR wcUnicode);
-  void NormalizeFontName(CFX_WideString& FontName);
   int32_t IsPartName(const CFX_WideString& Name1, const CFX_WideString& Name2);
   int32_t MatchFonts(CFX_FontDescriptorInfos& MatchedFonts,
                      FX_WORD wCodePage,
@@ -211,6 +228,10 @@ class CFX_FontMgrImp : public IFX_FontMgr {
                      int32_t* pFaceCount,
                      FX_BOOL bWantCache = FALSE);
   FXFT_Face LoadFace(IFX_FileRead* pFontStream, int32_t iFaceIndex);
+  IFX_FileRead* CreateFontStream(CFX_FontMapper* pFontMapper,
+                                 IFX_SystemFontInfo* pSystemFontInfo,
+                                 FX_DWORD index);
+  IFX_FileRead* CreateFontStream(const CFX_ByteString& bsFaceName);
   CFX_HashFontDescsMap m_Hash2CandidateList;
   CFX_HashFontsMap m_Hash2Fonts;
   CFX_HashFileMap m_Hash2FileAccess;
@@ -222,4 +243,5 @@ class CFX_FontMgrImp : public IFX_FontMgr {
   void* m_pUserData;
 };
 #endif
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_FONT_FX_STDFONTMGR_H_

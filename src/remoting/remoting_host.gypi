@@ -68,6 +68,10 @@
                     '../build/linux/system.gyp:xrandr',
                     '../build/linux/system.gyp:xtst',
                   ],
+                }, {
+                'sources!' : [
+                  'host/linux/unicode_to_keysym.cc',
+                ],
                 }],
                 ['chromeos==0 and use_ozone==0', {
                   'dependencies': [
@@ -331,13 +335,6 @@
             'host/setup/host_starter.h',
             'host/setup/start_host.cc',
           ],
-          'conditions': [
-            ['OS=="linux" and use_allocator!="none"', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
-          ],
         },  # end of target 'remoting_start_host'
         {
           # GN: //remoting/host:remoting_infoplist_strings
@@ -545,11 +542,6 @@
                 }],  # mac_breakpad==1
               ],  # conditions
             }],  # OS=mac
-            ['OS=="linux" and use_allocator!="none"', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],  # OS=linux
           ],  # end of 'conditions'
         },  # end of target 'remoting_me2me_host'
         {
@@ -575,11 +567,6 @@
             'host/setup/me2me_native_messaging_host_main.h',
           ],
           'conditions': [
-            ['OS=="linux" and use_allocator!="none"', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
             ['OS=="mac"', {
               'mac_bundle': 1,
               'variables': {
@@ -673,11 +660,6 @@
                   'dependencies': [
                     # Always use GTK on Linux, even for Aura builds.
                     '../build/linux/system.gyp:gtk2',
-                  ],
-                }],
-                ['OS=="linux" and use_allocator!="none"', {
-                  'dependencies': [
-                    '../base/allocator/allocator.gyp:allocator',
                   ],
                 }],
                 ['OS=="mac"', {

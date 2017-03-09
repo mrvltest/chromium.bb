@@ -4,10 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_COMMONCHARACTERSETECI_H_
-#define _BC_COMMONCHARACTERSETECI_H_
-class CBC_CommonECI;
-class CBC_CommonCharacterSetECI;
+#ifndef XFA_SRC_FXBARCODE_COMMON_BC_COMMONCHARACTERSETECI_H_
+#define XFA_SRC_FXBARCODE_COMMON_BC_COMMONCHARACTERSETECI_H_
+
+#include "core/include/fxcrt/fx_string.h"
+#include "xfa/src/fxbarcode/common/BC_CommonECI.h"
+
 class CBC_CommonCharacterSetECI : public CBC_CommonECI {
  public:
   CBC_CommonCharacterSetECI(int32_t value, CFX_ByteString encodingName);
@@ -23,4 +25,5 @@ class CBC_CommonCharacterSetECI : public CBC_CommonECI {
   CFX_ByteString m_encodingName;
   static void initialize();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_BC_COMMONCHARACTERSETECI_H_

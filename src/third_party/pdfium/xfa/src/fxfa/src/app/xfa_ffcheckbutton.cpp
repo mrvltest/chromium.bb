@@ -4,16 +4,19 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffcheckbutton.h"
+
+#include "xfa/include/fwl/core/fwl_widgetmgr.h"
+#include "xfa/include/fwl/lightwidget/checkbox.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffcheckbutton.h"
-#include "xfa_ffexclgroup.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffapp.h"
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffexclgroup.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+
 CXFA_FFCheckButton::CXFA_FFCheckButton(CXFA_FFPageView* pPageView,
                                        CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFField(pPageView, pDataAcc), m_pOldDelegate(NULL) {
@@ -87,13 +90,13 @@ FX_BOOL CXFA_FFCheckButton::PerformLayout() {
   CXFA_Margin mgWidget = m_pDataAcc->GetMargin();
   CFX_RectF rtWidget;
   GetRectWithoutRotate(rtWidget);
-  if (mgWidget.IsExistInXML()) {
+  if (mgWidget) {
     XFA_RectWidthoutMargin(rtWidget, mgWidget);
   }
   int32_t iCapPlacement = -1;
   FX_FLOAT fCapReserve = 0;
   CXFA_Caption caption = m_pDataAcc->GetCaption();
-  if (caption.IsExistInXML() && caption.GetPresence()) {
+  if (caption && caption.GetPresence()) {
     m_rtCaption.Set(rtWidget.left, rtWidget.top, rtWidget.width,
                     rtWidget.height);
     iCapPlacement = caption.GetPlacementType();
@@ -163,7 +166,7 @@ FX_BOOL CXFA_FFCheckButton::PerformLayout() {
   CXFA_Border borderUI = m_pDataAcc->GetUIBorder();
   if (borderUI) {
     CXFA_Margin margin = borderUI.GetMargin();
-    if (margin.IsExistInXML()) {
+    if (margin) {
       XFA_RectWidthoutMargin(m_rtUI, margin);
     }
   }

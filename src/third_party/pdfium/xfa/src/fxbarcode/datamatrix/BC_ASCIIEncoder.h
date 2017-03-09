@@ -4,11 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_ASCIIENCODER_H_
-#define _BC_ASCIIENCODER_H_
-class CBC_Encoder;
+#ifndef XFA_SRC_FXBARCODE_DATAMATRIX_BC_ASCIIENCODER_H_
+#define XFA_SRC_FXBARCODE_DATAMATRIX_BC_ASCIIENCODER_H_
+
+#include "xfa/src/fxbarcode/datamatrix/BC_Encoder.h"
+
 class CBC_EncoderContext;
-class CBC_ASCIIEncoder;
+
 class CBC_ASCIIEncoder : public CBC_Encoder {
  public:
   CBC_ASCIIEncoder();
@@ -21,4 +23,5 @@ class CBC_ASCIIEncoder : public CBC_Encoder {
                                     FX_WCHAR digit2,
                                     int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_DATAMATRIX_BC_ASCIIENCODER_H_

@@ -4,8 +4,9 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_TXTEDTPAGE_H
-#define _FDE_TXTEDTPAGE_H
+#ifndef XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTPAGE_H_
+#define XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTPAGE_H_
+
 class CFDE_TxtEdtEngine;
 class IFX_CharIter;
 class CFDE_TxtEdtPage;
@@ -51,14 +52,16 @@ inline FDE_TXTEDT_CHARTYPE FDE_GetEditSelCharType(FX_WCHAR wChar) {
     return FDE_TXTEDT_CHARTYPE_Char;
   }
 }
-typedef struct _FDE_TXTEDTPIECE {
+
+struct FDE_TEXTEDITPIECE {
   int32_t nStart;
   int32_t nCount;
   int32_t nBidiLevel;
   CFX_RectF rtPiece;
   FX_DWORD dwCharStyles;
-} FDE_TEXTEDITPIECE, *FDE_LPTEXTEDITPIECE;
+};
 typedef CFX_MassArrayTemplate<FDE_TEXTEDITPIECE> CFDE_TXTEDTPieceMassArray;
+
 class CFDE_TxtEdtTextSet : public IFDE_TextSet {
  public:
   CFDE_TxtEdtTextSet(CFDE_TxtEdtPage* pPage);
@@ -151,4 +154,5 @@ class CFDE_TxtEdtPage : public IFDE_TxtEdtPage {
   CFX_RectF m_rtPageCanvas;
   int32_t* m_pCharWidth;
 };
-#endif
+
+#endif  // XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTPAGE_H_

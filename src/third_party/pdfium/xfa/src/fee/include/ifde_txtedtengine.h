@@ -4,18 +4,25 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _IFDE_TXTEDTENGINE_H
-#define _IFDE_TXTEDTENGINE_H
+#ifndef XFA_SRC_FEE_INCLUDE_IFDE_TXTEDTENGINE_H_
+#define XFA_SRC_FEE_INCLUDE_IFDE_TXTEDTENGINE_H_
+
+#include "core/include/fxge/fx_dib.h"
+#include "xfa/src/fgas/include/fx_fnt.h"
+
 class IFDE_TxtEdtBuf;
 class IFDE_TxtEdtPage;
 class IFDE_TxtEdtEngine;
 class IFDE_TxtEdtEventSink;
 class IFDE_TxtEdtParag;
+
+typedef struct FDE_HTXTEDTFIND_ { void* pData; } * FDE_HTXTEDTFIND;
+
 #define FDE_TXTEDT_FIND_FLAGS_Prev (0L << 0)
 #define FDE_TXTEDT_FIND_FLAGS_Next (1L << 0)
 #define FDE_TXTEDT_FIND_FLAGS_WholeWord (1L << 1)
 #define FDE_TXTEDT_FIND_FLAGS_NoCase (1L << 2)
-typedef struct _FDE_HTXTEDTFIND { void* pData; } * FDE_HTXTEDTFIND;
+
 #define FDE_TEXTEDITMODE_MultiLines (1L << 0)
 #define FDE_TEXTEDITMODE_AutoLineWrap (1L << 1)
 #define FDE_TEXTEDITMODE_ReadOnly (1L << 2)
@@ -26,12 +33,14 @@ typedef struct _FDE_HTXTEDTFIND { void* pData; } * FDE_HTXTEDTFIND;
 #define FDE_TEXTEDITMODE_FIELD_AUTO (1L << 7)
 #define FDE_TEXTEDITMODE_Validate (1L << 8)
 #define FDE_TEXTEDITMODE_Password (1L << 9)
+
 #define FDE_TEXTEDITALIGN_Left (0L << 0)
 #define FDE_TEXTEDITALIGN_Center (1L << 0)
 #define FDE_TEXTEDITALIGN_Right (2L << 0)
 #define FDE_TEXTEDITALIGN_Normal (1L << 3)
 #define FDE_TEXTEDITALIGN_Justified (1L << 4)
 #define FDE_TEXTEDITALIGN_Distributed (1L << 5)
+
 #define FDE_TEXTEDITLAYOUT_DocVertical (1L << 0)
 #define FDE_TEXTEDITLAYOUT_CharVertial (1L << 1)
 #define FDE_TEXTEDITLAYOUT_LineReserve (1L << 2)
@@ -41,6 +50,7 @@ typedef struct _FDE_HTXTEDTFIND { void* pData; } * FDE_HTXTEDTFIND;
 #define FDE_TEXTEDITLAYOUT_ArabicContext (1L << 6)
 #define FDE_TEXTEDITLAYOUT_ArabicShapes (1L << 7)
 #define FDE_TEXTEDITLAYOUT_LastLineHeight (1L << 8)
+
 enum FDE_TXTEDTMOVECARET {
   MC_MoveNone = 0,
   MC_Left,
@@ -218,17 +228,6 @@ class IFDE_TxtEdtEngine {
                           const CFX_WideString& wsReplace) = 0;
   virtual void SetLimit(int32_t nLimit) = 0;
   virtual void SetAliasChar(FX_WCHAR wAlias) = 0;
-  virtual void SetFormatBlock(int32_t nIndex,
-                              const CFX_WideString& wsBlockFormat) = 0;
-  virtual int32_t CountEditBlocks() const = 0;
-  virtual void GetEditBlockText(int32_t nIndex,
-                                CFX_WideString& wsBlockText) const = 0;
-  virtual int32_t CountEditFields(int32_t nBlockIndex) const = 0;
-  virtual void GetEditFieldText(int32_t nBlockIndex,
-                                int32_t nFieldIndex,
-                                CFX_WideString& wsFieldText) const = 0;
-  virtual void StartEdit() = 0;
-  virtual void EndEdit() = 0;
   virtual void AddSelRange(int32_t nStart, int32_t nCount = -1) = 0;
   virtual int32_t CountSelRanges() = 0;
   virtual int32_t GetSelRange(int32_t nIndex, int32_t& nStart) = 0;
@@ -256,4 +255,5 @@ class IFDE_TxtEdtParag {
                             int32_t& nStart,
                             int32_t& nCount) const = 0;
 };
-#endif
+
+#endif  // XFA_SRC_FEE_INCLUDE_IFDE_TXTEDTENGINE_H_

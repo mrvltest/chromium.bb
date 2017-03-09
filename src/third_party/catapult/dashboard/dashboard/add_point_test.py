@@ -16,8 +16,8 @@ from google.appengine.ext import ndb
 
 from dashboard import add_point
 from dashboard import add_point_queue
-from dashboard import bot_whitelist
 from dashboard import layered_cache
+from dashboard import stored_object
 from dashboard import testing_common
 from dashboard import units_to_direction
 from dashboard import utils
@@ -25,6 +25,10 @@ from dashboard.models import anomaly
 from dashboard.models import anomaly_config
 from dashboard.models import graph_data
 from dashboard.models import sheriff
+
+# TODO(qyearsley): Shorten this module.
+# See https://github.com/catapult-project/catapult/issues/1917
+# pylint: disable=too-many-lines
 
 # A limit to the number of entities that can be fetched. This is just an
 # safe-guard to prevent possibly fetching too many entities.
@@ -316,7 +320,7 @@ class AddPointTest(testing_common.TestCase):
     self.assertEqual('mach_ports', tests[1].key.id())
     self.assertEqual('mach_ports_parent', tests[1].parent_test.id())
 
-  def test_LeadingSlash_Ignored(self):
+  def testPost_LeadingSlash_Ignored(self):
     point = copy.deepcopy(_SAMPLE_POINT)
     point['test'] = '/boot_time/pre_plugin_time'
     self.testapp.post(
@@ -415,8 +419,8 @@ class AddPointTest(testing_common.TestCase):
     self.assertFalse(hasattr(row, 'r_two'))
 
   def testPost_UnWhitelistedBots_MarkedInternalOnly(self):
-    bot_whitelist.BotWhitelist(
-        id=bot_whitelist.WHITELIST_KEY, bots=['linux-release', 'win7']).put()
+    stored_object.Set(
+        add_point_queue.BOT_WHITELIST_KEY, ['linux-release', 'win7'])
     parent = graph_data.Master(id='ChromiumPerf').put()
     parent = graph_data.Bot(
         id='suddenly_secret', parent=parent, internal_only=False).put()

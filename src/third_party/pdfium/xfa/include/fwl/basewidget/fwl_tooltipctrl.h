@@ -4,12 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_TOOLTIP_H
-#define _FWL_TOOLTIP_H
+#ifndef XFA_INCLUDE_FWL_BASEWIDGET_FWL_TOOLTIPCTRL_H_
+#define XFA_INCLUDE_FWL_BASEWIDGET_FWL_TOOLTIPCTRL_H_
+
+#include "xfa/include/fwl/core/fwl_form.h"
+
 class CFWL_WidgetImpProperties;
-class IFWL_Form;
 class IFWL_ToolTipDP;
 class IFWL_ToolTip;
+
 #define FWL_CLASS_ToolTip L"FWL_TOOLTIP"
 #define FWL_CLASSHASH_ToolTip 1111984755
 #define FWL_STYLEEXT_TTP_Rectangle (0L << 3)
@@ -20,6 +23,7 @@ class IFWL_ToolTip;
 #define FWL_PART_TTP_Border 1
 #define FWL_PART_TTP_Background 2
 #define FWL_PART_TTP_Caption 3
+
 class IFWL_ToolTipDP : public IFWL_DataProvider {
  public:
   virtual FWL_ERR GetCaption(IFWL_Widget* pWidget,
@@ -41,4 +45,5 @@ class IFWL_ToolTip : public IFWL_Form {
  protected:
   IFWL_ToolTip();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_BASEWIDGET_FWL_TOOLTIPCTRL_H_

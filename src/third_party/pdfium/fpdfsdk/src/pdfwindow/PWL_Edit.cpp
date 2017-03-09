@@ -15,6 +15,7 @@
 #include "fpdfsdk/include/pdfwindow/PWL_Utils.h"
 #include "fpdfsdk/include/pdfwindow/PWL_Wnd.h"
 #include "public/fpdf_fwlevent.h"
+#include "third_party/base/stl_util.h"
 
 CPWL_Edit::CPWL_Edit()
     : m_pFillerNotify(NULL), m_pSpellCheck(NULL), m_bFocus(FALSE) {
@@ -81,7 +82,7 @@ void CPWL_Edit::RePosChildWnd() {
 
   if (m_pEditCaret && !HasFlag(PES_TEXTOVERFLOW))
     m_pEditCaret->SetClipRect(CPWL_Utils::InflateRect(
-        GetClientRect(), 1.0f));  //+1 for caret beside border
+        GetClientRect(), 1.0f));  // +1 for caret beside border
 
   CPWL_EditCtrl::RePosChildWnd();
 }
@@ -238,7 +239,7 @@ void CPWL_Edit::SetParamByFlag() {
   } else {
     if (m_pEditCaret) {
       m_pEditCaret->SetClipRect(CPWL_Utils::InflateRect(
-          GetClientRect(), 1.0f));  //+1 for caret beside border
+          GetClientRect(), 1.0f));  // +1 for caret beside border
     }
   }
 
@@ -519,24 +520,21 @@ FX_BOOL CPWL_Edit::OnRButtonUp(const CPDF_Point& point, FX_DWORD nFlag) {
   if (!hPopup)
     return FALSE;
 
-  CFX_ByteStringArray sSuggestWords;
+  std::vector<CFX_ByteString> sSuggestWords;
   CPDF_Point ptPopup = point;
 
   if (!IsReadOnly()) {
     if (HasFlag(PES_SPELLCHECK) && !swLatin.IsEmpty()) {
       if (m_pSpellCheck) {
         CFX_ByteString sLatin = CFX_ByteString::FromUnicode(swLatin);
-
         if (!m_pSpellCheck->CheckWord(sLatin)) {
           m_pSpellCheck->SuggestWords(sLatin, sSuggestWords);
 
-          int32_t nSuggest = sSuggestWords.GetSize();
-
+          int32_t nSuggest = pdfium::CollectionSize<int32_t>(sSuggestWords);
           for (int32_t nWord = 0; nWord < nSuggest; nWord++) {
             pSH->AppendMenuItem(hPopup, WM_PWLEDIT_SUGGEST + nWord,
                                 sSuggestWords[nWord].UTF8Decode());
           }
-
           if (nSuggest > 0)
             pSH->AppendMenuItem(hPopup, 0, L"");
 
@@ -1168,20 +1166,20 @@ CPVT_WordRange CPWL_Edit::GetSameWordsRange(const CPVT_WordPlace& place,
 }
 
 void CPWL_Edit::GeneratePageObjects(
-    CPDF_PageObjects* pPageObjects,
+    CPDF_PageObjectHolder* pObjectHolder,
     const CPDF_Point& ptOffset,
     CFX_ArrayTemplate<CPDF_TextObject*>& ObjArray) {
   IFX_Edit::GeneratePageObjects(
-      pPageObjects, m_pEdit, ptOffset, NULL,
+      pObjectHolder, m_pEdit, ptOffset, NULL,
       CPWL_Utils::PWLColorToFXColor(GetTextColor(), GetTransparency()),
       ObjArray);
 }
 
-void CPWL_Edit::GeneratePageObjects(CPDF_PageObjects* pPageObjects,
+void CPWL_Edit::GeneratePageObjects(CPDF_PageObjectHolder* pObjectHolder,
                                     const CPDF_Point& ptOffset) {
   CFX_ArrayTemplate<CPDF_TextObject*> ObjArray;
   IFX_Edit::GeneratePageObjects(
-      pPageObjects, m_pEdit, ptOffset, NULL,
+      pObjectHolder, m_pEdit, ptOffset, NULL,
       CPWL_Utils::PWLColorToFXColor(GetTextColor(), GetTransparency()),
       ObjArray);
 }

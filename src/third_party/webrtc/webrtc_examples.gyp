@@ -14,8 +14,8 @@
       'target_name': 'relayserver',
       'type': 'executable',
       'dependencies': [
-        '../talk/libjingle.gyp:libjingle',
-        '../talk/libjingle.gyp:libjingle_p2p',
+        '<(webrtc_root)/base/base.gyp:rtc_base',
+        '<(webrtc_root)/pc/pc.gyp:rtc_pc',
       ],
       'sources': [
         'examples/relayserver/relayserver_main.cc',
@@ -25,8 +25,8 @@
       'target_name': 'stunserver',
       'type': 'executable',
       'dependencies': [
-        '../talk/libjingle.gyp:libjingle',
-        '../talk/libjingle.gyp:libjingle_p2p',
+        '<(webrtc_root)/base/base.gyp:rtc_base',
+        '<(webrtc_root)/pc/pc.gyp:rtc_pc',
       ],
       'sources': [
         'examples/stunserver/stunserver_main.cc',
@@ -36,8 +36,8 @@
       'target_name': 'turnserver',
       'type': 'executable',
       'dependencies': [
-        '../talk/libjingle.gyp:libjingle',
-        '../talk/libjingle.gyp:libjingle_p2p',
+        '<(webrtc_root)/base/base.gyp:rtc_base',
+        '<(webrtc_root)/pc/pc.gyp:rtc_pc',
       ],
       'sources': [
         'examples/turnserver/turnserver_main.cc',
@@ -56,8 +56,8 @@
         'examples/peerconnection/server/utils.h',
       ],
       'dependencies': [
+        '<(webrtc_root)/base/base.gyp:rtc_base',
         '<(webrtc_root)/common.gyp:webrtc_common',
-        '../talk/libjingle.gyp:libjingle',
       ],
       # TODO(ronghuawu): crbug.com/167187 fix size_t to int truncations.
       'msvs_disabled_warnings': [ 4309, ],
@@ -78,9 +78,8 @@
             'examples/peerconnection/client/peer_connection_client.h',
           ],
           'dependencies': [
-            '../talk/libjingle.gyp:libjingle_peerconnection',
+            'api/api.gyp:libjingle_peerconnection',
             '<(webrtc_root)/system_wrappers/system_wrappers.gyp:field_trial_default',
-            '<@(libjingle_tests_additional_deps)',
           ],
           'conditions': [
             ['build_json==1', {
@@ -139,6 +138,11 @@
                 ],
               },
             }],  # OS=="linux"
+            ['OS=="linux" and target_arch=="ia32"', {
+              'cflags': [
+                '-Wno-sentinel',
+              ],
+            }],  # OS=="linux" and target_arch=="ia32"
           ],  # conditions
         },  # target peerconnection_client
       ], # targets
@@ -151,7 +155,7 @@
           'type': 'static_library',
           'dependencies': [
             '<(webrtc_root)/system_wrappers/system_wrappers.gyp:field_trial_default',
-            '../talk/libjingle.gyp:libjingle_peerconnection_objc',
+            '../talk/app/webrtc/legacy_objc_api.gyp:libjingle_peerconnection_objc',
           ],
           'sources': [
             'examples/objc/AppRTCDemo/common/ARDUtilities.h',
@@ -166,6 +170,16 @@
             ],
           },
           'conditions': [
+            ['OS=="ios"', {
+              'xcode_settings': {
+                'WARNING_CFLAGS':  [
+                  # Suppress compiler warnings about deprecated that triggered
+                  # when moving from ios_deployment_target 7.0 to 9.0.
+                  # See webrtc:5549 for more details.
+                  '-Wno-deprecated-declarations',
+                ],
+              },
+            }],
             ['OS=="mac"', {
               'xcode_settings': {
                 'MACOSX_DEPLOYMENT_TARGET' : '10.8',
@@ -185,7 +199,8 @@
           'type': 'static_library',
           'dependencies': [
             'apprtc_common',
-            '../talk/libjingle.gyp:libjingle_peerconnection_objc',
+            'base/base.gyp:rtc_base_objc',
+            '../talk/app/webrtc/legacy_objc_api.gyp:libjingle_peerconnection_objc',
             'socketrocket',
           ],
           'sources': [
@@ -233,9 +248,20 @@
             ],
           },
           'export_dependent_settings': [
-            '../talk/libjingle.gyp:libjingle_peerconnection_objc',
+            'base/base.gyp:rtc_base_objc',
+            '../talk/app/webrtc/legacy_objc_api.gyp:libjingle_peerconnection_objc',
           ],
           'conditions': [
+            ['OS=="ios"', {
+              'xcode_settings': {
+                'WARNING_CFLAGS':  [
+                  # Suppress compiler warnings about deprecated that triggered
+                  # when moving from ios_deployment_target 7.0 to 9.0.
+                  # See webrtc:5549 for more details.
+                  '-Wno-deprecated-declarations',
+                ],
+              },
+            }],
             ['OS=="mac"', {
               'xcode_settings': {
                 'MACOSX_DEPLOYMENT_TARGET' : '10.8',
@@ -265,6 +291,7 @@
                 'examples/objc/AppRTCDemo/ios/resources/ic_clear_black_24dp@2x.png',
                 'examples/objc/AppRTCDemo/ios/resources/ic_switch_video_black_24dp.png',
                 'examples/objc/AppRTCDemo/ios/resources/ic_switch_video_black_24dp@2x.png',
+                'examples/objc/AppRTCDemo/ios/resources/mozart.mp3',
                 'examples/objc/Icon.png',
               ],
               'sources': [
@@ -287,6 +314,12 @@
               ],
               'xcode_settings': {
                 'INFOPLIST_FILE': 'examples/objc/AppRTCDemo/ios/Info.plist',
+                'WARNING_CFLAGS':  [
+                  # Suppress compiler warnings about deprecated that triggered
+                  # when moving from ios_deployment_target 7.0 to 9.0.
+                  # See webrtc:5549 for more details.
+                  '-Wno-deprecated-declarations',
+                ],
               },
             }],
             ['OS=="mac"', {
@@ -365,7 +398,7 @@
           'target_name': 'AppRTCDemo',
           'type': 'none',
           'dependencies': [
-            '../talk/libjingle.gyp:libjingle_peerconnection_java',
+            'api/api.gyp:libjingle_peerconnection_java',
           ],
           'variables': {
             'apk_name': 'AppRTCDemo',

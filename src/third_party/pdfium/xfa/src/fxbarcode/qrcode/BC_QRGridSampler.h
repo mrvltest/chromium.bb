@@ -4,12 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRGRIDSAMPLER_H_
-#define _BC_QRGRIDSAMPLER_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRGRIDSAMPLER_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRGRIDSAMPLER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_CommonBitMatrix;
 class CBC_CommonPerspectiveTransform;
 class CBC_CommonDefaultGridSampler;
-class CBC_QRGridSampler;
+
 class CBC_QRGridSampler {
  private:
   static CBC_QRGridSampler m_gridSampler;
@@ -43,4 +46,5 @@ class CBC_QRGridSampler {
                                   CFX_FloatArray* points,
                                   int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRGRIDSAMPLER_H_

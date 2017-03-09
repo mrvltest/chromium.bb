@@ -4,12 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_BINARIZER_H_
-#define _BC_BINARIZER_H_
+#ifndef XFA_SRC_FXBARCODE_BC_BINARIZER_H_
+#define XFA_SRC_FXBARCODE_BC_BINARIZER_H_
+
+#include <cstdint>
+
 class CBC_LuminanceSource;
 class CBC_CommonBitMatrix;
 class CBC_CommonBitArray;
 class CBC_BinaryBitmap;
+
 class CBC_Binarizer {
  public:
   CBC_Binarizer(CBC_LuminanceSource* source);
@@ -23,4 +27,5 @@ class CBC_Binarizer {
  private:
   CBC_LuminanceSource* m_source;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_BINARIZER_H_

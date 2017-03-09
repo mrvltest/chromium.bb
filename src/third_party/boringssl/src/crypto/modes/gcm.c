@@ -408,7 +408,7 @@ void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
 GCM128_CONTEXT *CRYPTO_gcm128_new(const void *key, block128_f block) {
   GCM128_CONTEXT *ret;
 
-  ret = (GCM128_CONTEXT *)OPENSSL_malloc(sizeof(GCM128_CONTEXT));
+  ret = OPENSSL_malloc(sizeof(GCM128_CONTEXT));
   if (ret != NULL) {
     CRYPTO_gcm128_init(ret, key, block);
   }
@@ -606,7 +606,8 @@ int CRYPTO_gcm128_aad(GCM128_CONTEXT *ctx, const uint8_t *aad, size_t len) {
   }
 
 #ifdef GHASH
-  if ((i = (len & (size_t) - 16))) {
+  i = len & kSizeTWithoutLower4Bits;
+  if (i != 0) {
     GHASH(ctx, aad, i);
     aad += i;
     len -= i;
@@ -895,7 +896,8 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx, const void *key,
     }
     len -= GHASH_CHUNK;
   }
-  if ((i = (len & (size_t) - 16))) {
+  i = len & kSizeTWithoutLower4Bits;
+  if (i != 0) {
     GHASH(ctx, in, i);
     while (len >= 16) {
       size_t *out_t = (size_t *)out;

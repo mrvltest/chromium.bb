@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_EXCLGROUP_IMP_H
-#define _FXFA_FORMFILLER_EXCLGROUP_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFEXCLGROUP_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFEXCLGROUP_H_
+
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+
 class CXFA_FFExclGroup : public CXFA_FFWidget {
  public:
   CXFA_FFExclGroup(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc);
@@ -15,7 +19,6 @@ class CXFA_FFExclGroup : public CXFA_FFWidget {
                             CFX_Matrix* pMatrix = NULL,
                             FX_DWORD dwStatus = 0,
                             int32_t iRotate = 0);
-
- protected:
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFEXCLGROUP_H_

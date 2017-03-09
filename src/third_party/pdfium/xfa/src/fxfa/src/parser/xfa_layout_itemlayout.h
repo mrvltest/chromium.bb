@@ -4,22 +4,34 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_LAYOUT_ITEMLAYOUT_H_
-#define _XFA_LAYOUT_ITEMLAYOUT_H_
+#ifndef XFA_SRC_FXFA_SRC_PARSER_XFA_LAYOUT_ITEMLAYOUT_H_
+#define XFA_SRC_FXFA_SRC_PARSER_XFA_LAYOUT_ITEMLAYOUT_H_
+
+#include <float.h>
+
+#include <list>
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "xfa/src/fxfa/src/common/xfa_doclayout.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+
 #define XFA_LAYOUT_INVALIDNODE ((CXFA_Node*)(intptr_t)-1)
 #define XFA_LAYOUT_FLOAT_PERCISION (0.0005f)
-#include "float.h"
 #define XFA_LAYOUT_FLOAT_MAX FLT_MAX
-class CXFA_ItemLayoutProcessor;
-class CXFA_LayoutPageMgr;
+
 class CXFA_ContainerLayoutItem;
 class CXFA_ContentLayoutItem;
+class CXFA_ItemLayoutProcessor;
+class CXFA_LayoutPageMgr;
+class CXFA_Node;
+
 enum XFA_ItemLayoutProcessorResult {
   XFA_ItemLayoutProcessorResult_Done,
   XFA_ItemLayoutProcessorResult_PageFullBreak,
   XFA_ItemLayoutProcessorResult_RowFullBreak,
   XFA_ItemLayoutProcessorResult_ManualBreak,
 };
+
 enum XFA_ItemLayoutProcessorStages {
   XFA_ItemLayoutProcessorStages_None,
   XFA_ItemLayoutProcessorStages_BookendLeader,
@@ -170,7 +182,7 @@ class CXFA_ItemLayoutProcessor {
   XFA_ItemLayoutProcessorStages m_nCurChildNodeStage;
   FX_FLOAT m_fUsedSize;
   CXFA_LayoutPageMgr* m_pPageMgr;
-  CFX_PtrList m_rgPendingNodes;
+  std::list<CXFA_Node*> m_PendingNodes;
   FX_BOOL m_bBreakPending;
   CFX_ArrayTemplate<FX_FLOAT> m_rgSpecifiedColumnWidths;
   CFX_ArrayTemplate<CXFA_ContentLayoutItem*> m_arrayKeepItems;
@@ -183,4 +195,5 @@ class CXFA_ItemLayoutProcessor {
   FX_BOOL m_bHasAvailHeight;
 };
 FX_BOOL XFA_ItemLayoutProcessor_IsTakingSpace(CXFA_Node* pNode);
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_PARSER_XFA_LAYOUT_ITEMLAYOUT_H_

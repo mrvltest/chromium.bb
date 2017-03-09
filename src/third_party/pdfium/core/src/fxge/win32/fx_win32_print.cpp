@@ -13,8 +13,8 @@
 #include "core/include/fxge/fx_freetype.h"
 #include "core/include/fxge/fx_ge_win32.h"
 #include "core/src/fxge/dib/dib_int.h"
-#include "core/src/fxge/ge/text_int.h"
-#include "win32_int.h"
+#include "core/src/fxge/ge/fx_text_int.h"
+#include "core/src/fxge/win32/win32_int.h"
 
 #define SIZETHRESHOLD 1000
 #define OUTPUTPSLEN 4096
@@ -149,8 +149,7 @@ static CFX_DIBitmap* Transform1bppBitmap(const CFX_DIBSource* pSrc,
   uint8_t* src_buf = pSrcBitmap->GetBuffer();
   FX_DWORD src_pitch = pSrcBitmap->GetPitch();
   FX_FLOAT dest_area = pDestMatrix->GetUnitArea();
-  FX_FLOAT area_scale =
-      FXSYS_Div((FX_FLOAT)(src_width * src_height), dest_area);
+  FX_FLOAT area_scale = ((FX_FLOAT)(src_width * src_height)) / dest_area;
   FX_FLOAT size_scale = FXSYS_sqrt(area_scale);
   CFX_Matrix adjusted_matrix(*pDestMatrix);
   adjusted_matrix.Scale(size_scale, size_scale);

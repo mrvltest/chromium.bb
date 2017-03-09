@@ -7,10 +7,9 @@
 #include <algorithm>
 
 #include "third_party/base/numerics/safe_math.h"
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "xfa/src/fxbarcode/BC_Writer.h"
 #include "xfa/src/fxbarcode/BC_TwoDimWriter.h"
+#include "xfa/src/fxbarcode/BC_Writer.h"
+#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
 
 CBC_TwoDimWriter::CBC_TwoDimWriter() {
   m_iCorrectLevel = 1;
@@ -18,10 +17,7 @@ CBC_TwoDimWriter::CBC_TwoDimWriter() {
   m_output = NULL;
 }
 CBC_TwoDimWriter::~CBC_TwoDimWriter() {
-  if (m_output != NULL) {
-    delete m_output;
-    m_output = NULL;
-  }
+  delete m_output;
 }
 void CBC_TwoDimWriter::RenderDeviceResult(CFX_RenderDevice* device,
                                           const CFX_Matrix* matrix) {

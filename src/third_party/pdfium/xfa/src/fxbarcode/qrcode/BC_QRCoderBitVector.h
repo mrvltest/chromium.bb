@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRECODERBITVECTOR_H_
-#define _BC_QRECODERBITVECTOR_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERBITVECTOR_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERBITVECTOR_H_
+
+#include <stdint.h>
+
 class CBC_QRCoderBitVector {
  private:
   int32_t m_sizeInBits;
@@ -28,4 +31,5 @@ class CBC_QRCoderBitVector {
   void Clear();
   virtual void Init();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERBITVECTOR_H_

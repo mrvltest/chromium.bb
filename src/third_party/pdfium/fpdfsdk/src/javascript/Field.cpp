@@ -4,20 +4,24 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "Field.h"
+#include "fpdfsdk/src/javascript/Field.h"
 
-#include "Document.h"
-#include "Icon.h"
-#include "JS_Context.h"
-#include "JS_Define.h"
-#include "JS_EventHandler.h"
-#include "JS_Object.h"
-#include "JS_Runtime.h"
-#include "JS_Value.h"
-#include "PublicMethods.h"
-#include "color.h"
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 #include "fpdfsdk/include/fsdk_mgr.h"  // For CPDFDoc_Environment.
 #include "fpdfsdk/include/javascript/IJavaScript.h"
+#include "fpdfsdk/src/javascript/Document.h"
+#include "fpdfsdk/src/javascript/Icon.h"
+#include "fpdfsdk/src/javascript/JS_Context.h"
+#include "fpdfsdk/src/javascript/JS_Define.h"
+#include "fpdfsdk/src/javascript/JS_EventHandler.h"
+#include "fpdfsdk/src/javascript/JS_Object.h"
+#include "fpdfsdk/src/javascript/JS_Runtime.h"
+#include "fpdfsdk/src/javascript/JS_Value.h"
+#include "fpdfsdk/src/javascript/PublicMethods.h"
+#include "fpdfsdk/src/javascript/color.h"
 
 BEGIN_JS_STATIC_CONST(CJS_Field)
 END_JS_STATIC_CONST()
@@ -2737,19 +2741,7 @@ FX_BOOL Field::value(IJS_Context* cc,
         return FALSE;
       case FIELDTYPE_COMBOBOX:
       case FIELDTYPE_TEXTFIELD: {
-        CFX_WideString swValue = pFormField->GetValue();
-
-        double dRet;
-        FX_BOOL bDot;
-        if (CJS_PublicMethods::ConvertStringToNumber(swValue.c_str(), dRet,
-                                                     bDot)) {
-          if (bDot)
-            vp << dRet;
-          else
-            vp << dRet;
-        } else {
-          vp << swValue;
-        }
+        vp << pFormField->GetValue();
       } break;
       case FIELDTYPE_LISTBOX: {
         if (pFormField->CountSelectedItems() > 1) {
@@ -2765,40 +2757,18 @@ FX_BOOL Field::value(IJS_Context* cc,
           }
           vp << ValueArray;
         } else {
-          CFX_WideString swValue = pFormField->GetValue();
-
-          double dRet;
-          FX_BOOL bDot;
-          if (CJS_PublicMethods::ConvertStringToNumber(swValue.c_str(), dRet,
-                                                       bDot)) {
-            if (bDot)
-              vp << dRet;
-            else
-              vp << dRet;
-          } else {
-            vp << swValue;
-          }
+          vp << pFormField->GetValue();
         }
       } break;
       case FIELDTYPE_CHECKBOX:
       case FIELDTYPE_RADIOBUTTON: {
-        FX_BOOL bFind = FALSE;
+        bool bFind = false;
         for (int i = 0, sz = pFormField->CountControls(); i < sz; i++) {
-          if (!pFormField->GetControl(i)->IsChecked())
-            continue;
-
-          CFX_WideString swValue = pFormField->GetControl(i)->GetExportValue();
-          double dRet;
-          FX_BOOL bDotDummy;
-          if (CJS_PublicMethods::ConvertStringToNumber(swValue.c_str(), dRet,
-                                                       bDotDummy)) {
-            vp << dRet;
-          } else {
-            vp << swValue;
+          if (pFormField->GetControl(i)->IsChecked()) {
+            vp << pFormField->GetControl(i)->GetExportValue();
+            bFind = true;
+            break;
           }
-
-          bFind = TRUE;
-          break;
         }
         if (!bFind)
           vp << L"Off";
@@ -2808,7 +2778,7 @@ FX_BOOL Field::value(IJS_Context* cc,
         break;
     }
   }
-
+  vp.MaybeCoerceToNumber();
   return TRUE;
 }
 
@@ -3116,10 +3086,6 @@ FX_BOOL Field::deleteItemAt(IJS_Context* cc,
   return TRUE;
 }
 
-int JS_COMPARESTRING(CFX_WideString* ps1, CFX_WideString* ps2) {
-  return ps1->Compare(*ps2);
-}
-
 FX_BOOL Field::getArray(IJS_Context* cc,
                         const std::vector<CJS_Value>& params,
                         CJS_Value& vRet,
@@ -3128,35 +3094,38 @@ FX_BOOL Field::getArray(IJS_Context* cc,
   if (FieldArray.empty())
     return FALSE;
 
-  CGW_ArrayTemplate<CFX_WideString*> swSort;
+  std::vector<std::unique_ptr<CFX_WideString>> swSort;
+  for (CPDF_FormField* pFormField : FieldArray) {
+    swSort.push_back(std::unique_ptr<CFX_WideString>(
+        new CFX_WideString(pFormField->GetFullName())));
+  }
 
-  for (CPDF_FormField* pFormField : FieldArray)
-    swSort.Add(new CFX_WideString(pFormField->GetFullName()));
-  swSort.Sort(JS_COMPARESTRING);
+  std::sort(
+      swSort.begin(), swSort.end(),
+      [](const std::unique_ptr<CFX_WideString>& p1,
+         const std::unique_ptr<CFX_WideString>& p2) { return *p1 < *p2; });
 
   CJS_Context* pContext = (CJS_Context*)cc;
   CJS_Runtime* pRuntime = pContext->GetJSRuntime();
-  ASSERT(pRuntime);
-
   CJS_Array FormFieldArray(pRuntime);
-  for (int j = 0, jsz = swSort.GetSize(); j < jsz; j++) {
-    std::unique_ptr<CFX_WideString> pStr(swSort.GetAt(j));
+
+  int j = 0;
+  for (const auto& pStr : swSort) {
     v8::Local<v8::Object> pObj = FXJS_NewFxDynamicObj(
         pRuntime->GetIsolate(), pRuntime, CJS_Field::g_nObjDefnID);
     ASSERT(!pObj.IsEmpty());
 
     CJS_Field* pJSField =
-        (CJS_Field*)FXJS_GetPrivate(pRuntime->GetIsolate(), pObj);
-    Field* pField = (Field*)pJSField->GetEmbedObject();
+        static_cast<CJS_Field*>(FXJS_GetPrivate(pRuntime->GetIsolate(), pObj));
+    Field* pField = static_cast<Field*>(pJSField->GetEmbedObject());
     pField->AttachField(m_pJSDoc, *pStr);
 
     CJS_Value FormFieldValue(pRuntime);
     FormFieldValue = pJSField;
-    FormFieldArray.SetElement(j, FormFieldValue);
+    FormFieldArray.SetElement(j++, FormFieldValue);
   }
 
   vRet = FormFieldArray;
-  swSort.RemoveAll();
   return TRUE;
 }
 

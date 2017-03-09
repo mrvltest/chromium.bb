@@ -4,8 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_BASEOBJECT_IMP
-#define _FDE_BASEOBJECT_IMP
+#ifndef XFA_SRC_FDP_SRC_FDE_FDE_OBJECT_H_
+#define XFA_SRC_FDP_SRC_FDE_FDE_OBJECT_H_
+
+#include <cstdint>
+
+#include "core/include/fxge/fx_dib.h"
+#include "xfa/src/fdp/include/fde_brs.h"
+#include "xfa/src/fdp/include/fde_pen.h"
+#include "xfa/src/fgas/include/fx_mem.h"
+
 class CFDE_Pen : public IFDE_Pen, public CFX_Target {
  public:
   CFDE_Pen()
@@ -234,4 +242,5 @@ class CFDE_LinearBrush : public IFDE_LinearGradientBrush, public CFX_Target {
   int32_t m_iWrapMode;
   CFX_Matrix m_Matrix;
 };
-#endif
+
+#endif  // XFA_SRC_FDP_SRC_FDE_FDE_OBJECT_H_

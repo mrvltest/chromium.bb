@@ -4,12 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_PUSHBUTTON_IMP_H
-#define _FXFA_FORMFILLER_PUSHBUTTON_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFPUSHBUTTON_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFPUSHBUTTON_H_
+
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+
 #define XFA_FWL_PSBSTYLEEXT_HiliteNone (0L << 0)
 #define XFA_FWL_PSBSTYLEEXT_HiliteInverted (1L << 0)
 #define XFA_FWL_PSBSTYLEEXT_HilitePush (2L << 0)
 #define XFA_FWL_PSBSTYLEEXT_HiliteOutLine (4L << 0)
+
 class CXFA_FFPushButton : public CXFA_FFField {
  public:
   CXFA_FFPushButton(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc);
@@ -40,4 +44,5 @@ class CXFA_FFPushButton : public CXFA_FFField {
   CXFA_TextProvider* m_pRollProvider;
   IFWL_WidgetDelegate* m_pOldDelegate;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFPUSHBUTTON_H_

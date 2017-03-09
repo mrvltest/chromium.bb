@@ -4,11 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_pictureboximp.h"
+
+#include "xfa/include/fwl/lightwidget/picturebox.h"
+#include "xfa/src/foxitlib.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 
 // static
 IFWL_PictureBox* IFWL_PictureBox::Create(
@@ -120,9 +122,9 @@ void CFWL_PictureBoxImp::DrawBkground(CFX_Graphics* pGraphics,
   if (fy > m_rtClient.height) {
     fy = m_rtClient.height;
   }
-  CFX_PointF pt;
-  pt.Set((m_rtClient.width - fx) / 2, (m_rtClient.height - fy) / 2);
-  pGraphics->DrawImage(pPicture, pt, &matrix);
+  pGraphics->DrawImage(pPicture, CFX_PointF((m_rtClient.width - fx) / 2,
+                                            (m_rtClient.height - fy) / 2),
+                       &matrix);
 }
 FX_BOOL CFWL_PictureBoxImp::VStyle(FX_BOOL dwStyle) {
   switch (dwStyle & FWL_STYLEEXT_PTB_VAlignMask) {

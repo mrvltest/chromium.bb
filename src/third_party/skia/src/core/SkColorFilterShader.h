@@ -15,7 +15,7 @@ class SkColorFilterShader : public SkShader {
 public:
     SkColorFilterShader(SkShader* shader, SkColorFilter* filter);
     
-    size_t contextSize() const override;
+    size_t contextSize(const ContextRec&) const override;
     
 #if SK_SUPPORT_GPU
     const GrFragmentProcessor* asFragmentProcessor(GrContext*,
@@ -33,7 +33,8 @@ public:
         uint32_t getFlags() const override;
         
         void shadeSpan(int x, int y, SkPMColor[], int count) override;
-        
+        void shadeSpan4f(int x, int y, SkPM4f[], int count) override;
+
         void set3DMask(const SkMask* mask) override {
             // forward to our proxy
             fShaderContext->set3DMask(mask);

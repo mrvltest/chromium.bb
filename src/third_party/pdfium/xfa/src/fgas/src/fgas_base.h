@@ -6,9 +6,10 @@
 
 // TODO(thestig): Remove this file and do IWYU.
 
-#ifndef _FXMATH_BASE_
-#define _FXMATH_BASE_
-#include "xfa/src/foxitlib.h"
+#ifndef XFA_SRC_FGAS_SRC_FGAS_BASE_H_
+#define XFA_SRC_FGAS_SRC_FGAS_BASE_H_
+
 #include "core/include/fxge/fx_freetype.h"
-#include "xfa/src/fgas/include/fgas.h"
-#endif
+#include "xfa/src/foxitlib.h"
+
+#endif  // XFA_SRC_FGAS_SRC_FGAS_BASE_H_

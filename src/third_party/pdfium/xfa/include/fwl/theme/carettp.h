@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_CARETTP_H
-#define _FWL_CARETTP_H
-class CFWL_WidgetTP;
-class CFWL_CaretTP;
+#ifndef XFA_INCLUDE_FWL_THEME_CARETTP_H_
+#define XFA_INCLUDE_FWL_THEME_CARETTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_CaretTP : public CFWL_WidgetTP {
  public:
   CFWL_CaretTP();
@@ -22,4 +23,5 @@ class CFWL_CaretTP : public CFWL_WidgetTP {
                    CFX_Color* crFill,
                    CFX_Matrix* pMatrix = NULL);
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_CARETTP_H_

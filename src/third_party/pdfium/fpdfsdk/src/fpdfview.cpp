@@ -241,7 +241,10 @@ DLLEXPORT void STDCALL FPDF_InitLibraryWithConfig(
   pModuleMgr->InitPageModule();
   pModuleMgr->InitRenderModule();
 #ifdef PDF_ENABLE_XFA
-  CPDFXFA_App::GetInstance()->Initialize();
+  CPDFXFA_App::GetInstance()->Initialize(
+      (cfg && cfg->version >= 2)
+          ? reinterpret_cast<FXJSE_HRUNTIME>(cfg->m_pIsolate)
+          : nullptr);
 #else   // PDF_ENABLE_XFA
   pModuleMgr->LoadEmbeddedGB1CMaps();
   pModuleMgr->LoadEmbeddedJapan1CMaps();
@@ -274,19 +277,23 @@ int GetLastError() {
 }
 #endif  // _WIN32
 
-void ProcessParseError(FX_DWORD err_code) {
+void ProcessParseError(CPDF_Parser::Error err) {
+  FX_DWORD err_code;
   // Translate FPDFAPI error code to FPDFVIEW error code
-  switch (err_code) {
-    case PDFPARSE_ERROR_FILE:
+  switch (err) {
+    case CPDF_Parser::SUCCESS:
+      err_code = FPDF_ERR_SUCCESS;
+      break;
+    case CPDF_Parser::FILE_ERROR:
       err_code = FPDF_ERR_FILE;
       break;
-    case PDFPARSE_ERROR_FORMAT:
+    case CPDF_Parser::FORMAT_ERROR:
       err_code = FPDF_ERR_FORMAT;
       break;
-    case PDFPARSE_ERROR_PASSWORD:
+    case CPDF_Parser::PASSWORD_ERROR:
       err_code = FPDF_ERR_PASSWORD;
       break;
-    case PDFPARSE_ERROR_HANDLER:
+    case CPDF_Parser::HANDLER_ERROR:
       err_code = FPDF_ERR_SECURITY;
       break;
   }
@@ -310,10 +317,10 @@ DLLEXPORT FPDF_DOCUMENT STDCALL FPDF_LoadDocument(FPDF_STRING file_path,
   CPDF_Parser* pParser = new CPDF_Parser;
   pParser->SetPassword(password);
 
-  FX_DWORD err_code = pParser->StartParse(pFileAccess);
-  if (err_code) {
+  CPDF_Parser::Error error = pParser->StartParse(pFileAccess);
+  if (error != CPDF_Parser::SUCCESS) {
     delete pParser;
-    ProcessParseError(err_code);
+    ProcessParseError(error);
     return NULL;
   }
 #ifdef PDF_ENABLE_XFA
@@ -343,7 +350,7 @@ DLLEXPORT FPDF_BOOL STDCALL FPDF_HasXFAField(FPDF_DOCUMENT document,
   if (!pRoot)
     return FALSE;
 
-  CPDF_Dictionary* pAcroForm = pRoot->GetDict("AcroForm");
+  CPDF_Dictionary* pAcroForm = pRoot->GetDictBy("AcroForm");
   if (!pAcroForm)
     return FALSE;
 
@@ -351,7 +358,7 @@ DLLEXPORT FPDF_BOOL STDCALL FPDF_HasXFAField(FPDF_DOCUMENT document,
   if (!pXFA)
     return FALSE;
 
-  FX_BOOL bDynamicXFA = pRoot->GetBoolean("NeedsRendering", FALSE);
+  FX_BOOL bDynamicXFA = pRoot->GetBooleanBy("NeedsRendering", FALSE);
 
   if (bDynamicXFA)
     *docType = DOCTYPE_DYNAMIC_XFA;
@@ -399,15 +406,15 @@ DLLEXPORT FPDF_DOCUMENT STDCALL FPDF_LoadMemDocument(const void* data_buf,
   CPDF_Parser* pParser = new CPDF_Parser;
   pParser->SetPassword(password);
   CMemFile* pMemFile = new CMemFile((uint8_t*)data_buf, size);
-  FX_DWORD err_code = pParser->StartParse(pMemFile);
-  if (err_code) {
+  CPDF_Parser::Error error = pParser->StartParse(pMemFile);
+  if (error != CPDF_Parser::SUCCESS) {
     delete pParser;
-    ProcessParseError(err_code);
+    ProcessParseError(error);
     return NULL;
   }
   CPDF_Document* pDoc = NULL;
   pDoc = pParser ? pParser->GetDocument() : NULL;
-  CheckUnSupportError(pDoc, err_code);
+  CheckUnSupportError(pDoc, error);
   return FPDFDocumentFromCPDFDocument(pParser->GetDocument());
 }
 
@@ -417,15 +424,15 @@ FPDF_LoadCustomDocument(FPDF_FILEACCESS* pFileAccess,
   CPDF_Parser* pParser = new CPDF_Parser;
   pParser->SetPassword(password);
   CPDF_CustomAccess* pFile = new CPDF_CustomAccess(pFileAccess);
-  FX_DWORD err_code = pParser->StartParse(pFile);
-  if (err_code) {
+  CPDF_Parser::Error error = pParser->StartParse(pFile);
+  if (error != CPDF_Parser::SUCCESS) {
     delete pParser;
-    ProcessParseError(err_code);
+    ProcessParseError(error);
     return NULL;
   }
   CPDF_Document* pDoc = NULL;
   pDoc = pParser ? pParser->GetDocument() : NULL;
-  CheckUnSupportError(pDoc, err_code);
+  CheckUnSupportError(pDoc, error);
   return FPDFDocumentFromCPDFDocument(pParser->GetDocument());
 }
 
@@ -459,7 +466,7 @@ DLLEXPORT unsigned long STDCALL FPDF_GetDocPermissions(FPDF_DOCUMENT document) {
 #endif  // PDF_ENABLE_XFA
 
   CPDF_Dictionary* pDict = pDoc->GetParser()->GetEncryptDict();
-  return pDict ? pDict->GetInteger("P") : (FX_DWORD)-1;
+  return pDict ? pDict->GetIntegerBy("P") : (FX_DWORD)-1;
 }
 
 DLLEXPORT int STDCALL FPDF_GetSecurityHandlerRevision(FPDF_DOCUMENT document) {
@@ -468,7 +475,7 @@ DLLEXPORT int STDCALL FPDF_GetSecurityHandlerRevision(FPDF_DOCUMENT document) {
     return -1;
 
   CPDF_Dictionary* pDict = pDoc->GetParser()->GetEncryptDict();
-  return pDict ? pDict->GetInteger("R") : -1;
+  return pDict ? pDict->GetIntegerBy("R") : -1;
 }
 
 DLLEXPORT int STDCALL FPDF_GetPageCount(FPDF_DOCUMENT document) {
@@ -493,7 +500,7 @@ DLLEXPORT FPDF_PAGE STDCALL FPDF_LoadPage(FPDF_DOCUMENT document,
     return NULL;
   CPDF_Page* pPage = new CPDF_Page;
   pPage->Load(pDoc, pDict);
-  pPage->ParseContent();
+  pPage->ParseContent(nullptr);
   return pPage;
 #endif  // PDF_ENABLE_XFA
 }
@@ -512,10 +519,6 @@ void DropContext(void* data) {
   delete (CRenderContext*)data;
 }
 
-#if defined(_DEBUG) || defined(DEBUG)
-#define DEBUG_TRACE
-#endif
-
 #if defined(_WIN32)
 DLLEXPORT void STDCALL FPDF_RenderPage(HDC dc,
                                        FPDF_PAGE page,
@@ -532,7 +535,7 @@ DLLEXPORT void STDCALL FPDF_RenderPage(HDC dc,
   CRenderContext* pContext = new CRenderContext;
   pPage->SetPrivateData((void*)1, pContext, DropContext);
 
-#ifndef _WIN32_WCE
+#if !defined(_WIN32_WCE)
   CFX_DIBitmap* pBitmap = nullptr;
   FX_BOOL bBackgroundAlphaNeeded = pPage->BackgroundAlphaNeeded();
   FX_BOOL bHasImageMask = pPage->HasImageMask();
@@ -584,16 +587,6 @@ DLLEXPORT void STDCALL FPDF_RenderPage(HDC dc,
   int width = rect.right - rect.left;
   int height = rect.bottom - rect.top;
 
-#ifdef DEBUG_TRACE
-  {
-    char str[128];
-    memset(str, 0, sizeof(str));
-    FXSYS_snprintf(str, sizeof(str) - 1, "Rendering DIB %d x %d", width,
-                   height);
-    CPDF_ModuleMgr::Get()->ReportError(999, str);
-  }
-#endif
-
   // Create a DIB section
   LPVOID pBuffer;
   BITMAPINFOHEADER bmih;
@@ -605,23 +598,7 @@ DLLEXPORT void STDCALL FPDF_RenderPage(HDC dc,
   bmih.biWidth = width;
   pContext->m_hBitmap = CreateDIBSection(dc, (BITMAPINFO*)&bmih, DIB_RGB_COLORS,
                                          &pBuffer, NULL, 0);
-  if (!pContext->m_hBitmap) {
-#if defined(DEBUG) || defined(_DEBUG)
-    char str[128];
-    memset(str, 0, sizeof(str));
-    FXSYS_snprintf(str, sizeof(str) - 1,
-                   "Error CreateDIBSection: %d x %d, error code = %d", width,
-                   height, GetLastError());
-    CPDF_ModuleMgr::Get()->ReportError(FPDFERR_OUT_OF_MEMORY, str);
-#else
-    CPDF_ModuleMgr::Get()->ReportError(FPDFERR_OUT_OF_MEMORY, NULL);
-#endif
-  }
   FXSYS_memset(pBuffer, 0xff, height * ((width * 3 + 3) / 4 * 4));
-
-#ifdef DEBUG_TRACE
-  { CPDF_ModuleMgr::Get()->ReportError(999, "DIBSection created"); }
-#endif
 
   // Create a device with this external buffer
   pContext->m_pBitmap = new CFX_DIBitmap;
@@ -629,54 +606,26 @@ DLLEXPORT void STDCALL FPDF_RenderPage(HDC dc,
   pContext->m_pDevice = new CPDF_FxgeDevice;
   ((CPDF_FxgeDevice*)pContext->m_pDevice)->Attach(pContext->m_pBitmap);
 
-#ifdef DEBUG_TRACE
-  CPDF_ModuleMgr::Get()->ReportError(999, "Ready for PDF rendering");
-#endif
-
   // output to bitmap device
   FPDF_RenderPage_Retail(pContext, page, start_x - rect.left,
                          start_y - rect.top, size_x, size_y, rotate, flags);
 
-#ifdef DEBUG_TRACE
-  CPDF_ModuleMgr::Get()->ReportError(999, "Finished PDF rendering");
-#endif
-
   // Now output to real device
   HDC hMemDC = CreateCompatibleDC(dc);
-  if (!hMemDC) {
-#if defined(DEBUG) || defined(_DEBUG)
-    char str[128];
-    memset(str, 0, sizeof(str));
-    FXSYS_snprintf(str, sizeof(str) - 1,
-                   "Error CreateCompatibleDC. Error code = %d", GetLastError());
-    CPDF_ModuleMgr::Get()->ReportError(FPDFERR_OUT_OF_MEMORY, str);
-#else
-    CPDF_ModuleMgr::Get()->ReportError(FPDFERR_OUT_OF_MEMORY, NULL);
-#endif
-  }
-
   HGDIOBJ hOldBitmap = SelectObject(hMemDC, pContext->m_hBitmap);
-
-#ifdef DEBUG_TRACE
-  CPDF_ModuleMgr::Get()->ReportError(999, "Ready for screen rendering");
-#endif
 
   BitBlt(dc, rect.left, rect.top, width, height, hMemDC, 0, 0, SRCCOPY);
   SelectObject(hMemDC, hOldBitmap);
   DeleteDC(hMemDC);
 
-#ifdef DEBUG_TRACE
-  CPDF_ModuleMgr::Get()->ReportError(999, "Finished screen rendering");
-#endif
-
-#endif
+#endif  // !defined(_WIN32_WCE)
   if (bBackgroundAlphaNeeded || bHasImageMask)
     delete pBitmap;
 
   delete pContext;
   pPage->RemovePrivateData((void*)1);
 }
-#endif
+#endif  // defined(_WIN32)
 
 DLLEXPORT void STDCALL FPDF_RenderPageBitmap(FPDF_BITMAP bitmap,
                                              FPDF_PAGE page,
@@ -951,7 +900,7 @@ void FPDF_RenderPage_Retail(CRenderContext* pContext,
   pContext->m_pDevice->SetClip_Rect(&clip);
 
   pContext->m_pContext = new CPDF_RenderContext(pPage);
-  pContext->m_pContext->AppendObjectList(pPage, &matrix);
+  pContext->m_pContext->AppendLayer(pPage, &matrix);
 
   if (flags & FPDF_ANNOT) {
     pContext->m_pAnnots = new CPDF_AnnotList(pPage);
@@ -1050,7 +999,7 @@ DLLEXPORT FPDF_DWORD STDCALL FPDF_CountNamedDests(FPDF_DOCUMENT document) {
 
   CPDF_NameTree nameTree(pDoc, "Dests");
   pdfium::base::CheckedNumeric<FPDF_DWORD> count = nameTree.GetCount();
-  CPDF_Dictionary* pDest = pRoot->GetDict("Dests");
+  CPDF_Dictionary* pDest = pRoot->GetDictBy("Dests");
   if (pDest)
     count += pDest->GetCount();
 
@@ -1150,7 +1099,7 @@ DLLEXPORT FPDF_DEST STDCALL FPDF_GetNamedDest(FPDF_DOCUMENT document,
   CPDF_NameTree nameTree(pDoc, "Dests");
   int count = nameTree.GetCount();
   if (index >= count) {
-    CPDF_Dictionary* pDest = pRoot->GetDict("Dests");
+    CPDF_Dictionary* pDest = pRoot->GetDictBy("Dests");
     if (!pDest)
       return nullptr;
 
@@ -1176,7 +1125,7 @@ DLLEXPORT FPDF_DEST STDCALL FPDF_GetNamedDest(FPDF_DOCUMENT document,
   if (!pDestObj)
     return nullptr;
   if (CPDF_Dictionary* pDict = pDestObj->AsDictionary()) {
-    pDestObj = pDict->GetArray("D");
+    pDestObj = pDict->GetArrayBy("D");
     if (!pDestObj)
       return nullptr;
   }

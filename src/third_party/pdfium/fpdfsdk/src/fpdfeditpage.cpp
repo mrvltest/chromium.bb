@@ -8,6 +8,7 @@
 
 #include "fpdfsdk/include/fsdk_define.h"
 #include "public/fpdf_formfill.h"
+#include "third_party/base/stl_util.h"
 
 #ifdef PDF_ENABLE_XFA
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_app.h"
@@ -91,7 +92,7 @@ DLLEXPORT FPDF_PAGE STDCALL FPDFPage_New(FPDF_DOCUMENT document,
 #else   // PDF_ENABLE_XFA
   CPDF_Page* pPage = new CPDF_Page;
   pPage->Load(pDoc, pPageDict);
-  pPage->ParseContent();
+  pPage->ParseContent(nullptr);
 #endif  // PDF_ENABLE_XFA
 
   return pPage;
@@ -135,32 +136,31 @@ DLLEXPORT void STDCALL FPDFPage_InsertObject(FPDF_PAGE page,
   CPDF_PageObject* pPageObj = (CPDF_PageObject*)page_obj;
   if (!pPageObj)
     return;
-  FX_POSITION LastPersition = pPage->GetLastObjectPosition();
 
-  pPage->InsertObject(LastPersition, pPageObj);
-  switch (pPageObj->m_Type) {
+  pPage->GetPageObjectList()->push_back(
+      std::unique_ptr<CPDF_PageObject>(pPageObj));
+
+  switch (pPageObj->GetType()) {
     case FPDF_PAGEOBJ_PATH: {
-      CPDF_PathObject* pPathObj = (CPDF_PathObject*)pPageObj;
+      CPDF_PathObject* pPathObj = pPageObj->AsPath();
       pPathObj->CalcBoundingBox();
       break;
     }
     case FPDF_PAGEOBJ_TEXT: {
-      //	CPDF_PathObject* pPathObj = (CPDF_PathObject*)pPageObj;
-      //	pPathObj->CalcBoundingBox();
       break;
     }
     case FPDF_PAGEOBJ_IMAGE: {
-      CPDF_ImageObject* pImageObj = (CPDF_ImageObject*)pPageObj;
+      CPDF_ImageObject* pImageObj = pPageObj->AsImage();
       pImageObj->CalcBoundingBox();
       break;
     }
     case FPDF_PAGEOBJ_SHADING: {
-      CPDF_ShadingObject* pShadingObj = (CPDF_ShadingObject*)pPageObj;
+      CPDF_ShadingObject* pShadingObj = pPageObj->AsShading();
       pShadingObj->CalcBoundingBox();
       break;
     }
     case FPDF_PAGEOBJ_FORM: {
-      CPDF_FormObject* pFormObj = (CPDF_FormObject*)pPageObj;
+      CPDF_FormObject* pFormObj = pPageObj->AsForm();
       pFormObj->CalcBoundingBox();
       break;
     }
@@ -177,7 +177,7 @@ DLLEXPORT int STDCALL FPDFPage_CountObject(FPDF_PAGE page) {
           "Page")) {
     return -1;
   }
-  return pPage->CountObjects();
+  return pdfium::CollectionSize<int>(*pPage->GetPageObjectList());
 }
 
 DLLEXPORT FPDF_PAGEOBJECT STDCALL FPDFPage_GetObject(FPDF_PAGE page,
@@ -186,9 +186,9 @@ DLLEXPORT FPDF_PAGEOBJECT STDCALL FPDFPage_GetObject(FPDF_PAGE page,
   if (!pPage || !pPage->m_pFormDict || !pPage->m_pFormDict->KeyExist("Type") ||
       pPage->m_pFormDict->GetElement("Type")->GetDirect()->GetString().Compare(
           "Page")) {
-    return NULL;
+    return nullptr;
   }
-  return pPage->GetObjectByIndex(index);
+  return pPage->GetPageObjectList()->GetPageObjectByIndex(index);
 }
 
 DLLEXPORT FPDF_BOOL STDCALL FPDFPage_HasTransparency(FPDF_PAGE page) {
@@ -216,13 +216,13 @@ FPDFPageObj_HasTransparency(FPDF_PAGEOBJECT pageObject) {
   if (pGeneralState && pGeneralState->m_FillAlpha != 1.0f)
     return TRUE;
 
-  if (pPageObj->m_Type == PDFPAGE_PATH) {
+  if (pPageObj->IsPath()) {
     if (pGeneralState && pGeneralState->m_StrokeAlpha != 1.0f)
       return TRUE;
   }
 
-  if (pPageObj->m_Type == PDFPAGE_FORM) {
-    CPDF_FormObject* pFormObj = (CPDF_FormObject*)pPageObj;
+  if (pPageObj->IsForm()) {
+    CPDF_FormObject* pFormObj = pPageObj->AsForm();
     if (pFormObj->m_pForm &&
         (pFormObj->m_pForm->m_Transparency & PDFTRANS_ISOLATED))
       return TRUE;
@@ -242,7 +242,7 @@ DLLEXPORT FPDF_BOOL STDCALL FPDFPage_GenerateContent(FPDF_PAGE page) {
           "Page")) {
     return FALSE;
   }
-  CPDF_PageContentGenerate CG(pPage);
+  CPDF_PageContentGenerator CG(pPage);
   CG.GenerateContent();
 
   return TRUE;
@@ -283,7 +283,7 @@ DLLEXPORT void STDCALL FPDFPage_TransformAnnots(FPDF_PAGE page,
                       (FX_FLOAT)e, (FX_FLOAT)f);
     rect.Transform(&matrix);
     CPDF_Array* pRectArray = NULL;
-    pRectArray = pAnnot->GetAnnotDict()->GetArray("Rect");
+    pRectArray = pAnnot->GetAnnotDict()->GetArrayBy("Rect");
     if (!pRectArray)
       pRectArray = new CPDF_Array;
     pRectArray->SetAt(0, new CPDF_Number(rect.left));

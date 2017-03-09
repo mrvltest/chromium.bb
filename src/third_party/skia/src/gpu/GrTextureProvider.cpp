@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015 Google Inc.
  *
@@ -30,7 +29,7 @@ GrTextureProvider::GrTextureProvider(GrGpu* gpu, GrResourceCache* cache, GrSingl
     {
 }
 
-GrTexture* GrTextureProvider::createTexture(const GrSurfaceDesc& desc, bool budgeted,
+GrTexture* GrTextureProvider::createTexture(const GrSurfaceDesc& desc, SkBudgeted budgeted,
                                             const void* srcData, size_t rowBytes) {
     ASSERT_SINGLE_OWNER
     if (this->isAbandoned()) {
@@ -40,13 +39,14 @@ GrTexture* GrTextureProvider::createTexture(const GrSurfaceDesc& desc, bool budg
         !fGpu->caps()->isConfigRenderable(desc.fConfig, desc.fSampleCnt > 0)) {
         return nullptr;
     }
-    if (!GrPixelConfigIsCompressed(desc.fConfig)) {
+    if (!GrPixelConfigIsCompressed(desc.fConfig) &&
+        !desc.fTextureStorageAllocator.fAllocateTextureStorage) {
         static const uint32_t kFlags = kExact_ScratchTextureFlag |
                                        kNoCreate_ScratchTextureFlag;
         if (GrTexture* texture = this->refScratchTexture(desc, kFlags)) {
             if (!srcData || texture->writePixels(0, 0, desc.fWidth, desc.fHeight, desc.fConfig,
                                                  srcData, rowBytes)) {
-                if (!budgeted) {
+                if (SkBudgeted::kNo == budgeted) {
                     texture->resourcePriv().makeUnbudgeted();
                 }
                 return texture;
@@ -117,7 +117,7 @@ GrTexture* GrTextureProvider::refScratchTexture(const GrSurfaceDesc& inDesc,
     }
 
     if (!(kNoCreate_ScratchTextureFlag & flags)) {
-        return fGpu->createTexture(*desc, true, nullptr, 0);
+        return fGpu->createTexture(*desc, SkBudgeted::kYes, nullptr, 0);
     }
 
     return nullptr;

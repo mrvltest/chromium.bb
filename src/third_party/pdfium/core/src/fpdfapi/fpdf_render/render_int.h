@@ -91,17 +91,10 @@ class CPDF_DocRenderData {
   CPDF_Type3CacheMap m_Type3FaceMap;
   CPDF_TransferFuncMap m_TransferFuncMap;
 };
-struct _PDF_RenderItem {
- public:
-  CPDF_PageObjects* m_pObjectList;
-  CFX_Matrix m_Matrix;
-};
-
-typedef CFX_ArrayTemplate<_PDF_RenderItem> CPDF_RenderLayer;
 
 class IPDF_ObjectRenderer {
  public:
-  static IPDF_ObjectRenderer* Create(int type);
+  static IPDF_ObjectRenderer* Create();
   virtual ~IPDF_ObjectRenderer() {}
   virtual FX_BOOL Start(CPDF_RenderStatus* pRenderStatus,
                         const CPDF_PageObject* pObj,
@@ -131,7 +124,7 @@ class CPDF_RenderStatus {
                      FX_ARGB fill_color = 0,
                      FX_DWORD GroupFamily = 0,
                      FX_BOOL bLoadMask = FALSE);
-  void RenderObjectList(const CPDF_PageObjects* pObjs,
+  void RenderObjectList(const CPDF_PageObjectHolder* pObjectHolder,
                         const CFX_Matrix* pObj2Device);
   void RenderSingleObject(const CPDF_PageObject* pObj,
                           const CFX_Matrix* pObj2Device);
@@ -158,27 +151,28 @@ class CPDF_RenderStatus {
                              const CFX_Matrix* pObj2Device);
   FX_BOOL DrawObjWithBlend(const CPDF_PageObject* pObj,
                            const CFX_Matrix* pObj2Device);
-  FX_BOOL ProcessPath(CPDF_PathObject* pPathObj, const CFX_Matrix* pObj2Device);
-  void ProcessPathPattern(CPDF_PathObject* pPathObj,
+  FX_BOOL ProcessPath(const CPDF_PathObject* pPathObj,
+                      const CFX_Matrix* pObj2Device);
+  void ProcessPathPattern(const CPDF_PathObject* pPathObj,
                           const CFX_Matrix* pObj2Device,
                           int& filltype,
                           FX_BOOL& bStroke);
-  void DrawPathWithPattern(CPDF_PathObject* pPathObj,
+  void DrawPathWithPattern(const CPDF_PathObject* pPathObj,
                            const CFX_Matrix* pObj2Device,
                            CPDF_Color* pColor,
                            FX_BOOL bStroke);
   void DrawTilingPattern(CPDF_TilingPattern* pPattern,
-                         CPDF_PageObject* pPageObj,
+                         const CPDF_PageObject* pPageObj,
                          const CFX_Matrix* pObj2Device,
                          FX_BOOL bStroke);
   void DrawShadingPattern(CPDF_ShadingPattern* pPattern,
-                          CPDF_PageObject* pPageObj,
+                          const CPDF_PageObject* pPageObj,
                           const CFX_Matrix* pObj2Device,
                           FX_BOOL bStroke);
-  FX_BOOL SelectClipPath(CPDF_PathObject* pPathObj,
+  FX_BOOL SelectClipPath(const CPDF_PathObject* pPathObj,
                          const CFX_Matrix* pObj2Device,
                          FX_BOOL bStroke);
-  FX_BOOL ProcessImage(CPDF_ImageObject* pImageObj,
+  FX_BOOL ProcessImage(const CPDF_ImageObject* pImageObj,
                        const CFX_Matrix* pObj2Device);
   FX_BOOL OutputBitmapAlpha(CPDF_ImageObject* pImageObj,
                             const CFX_Matrix* pImage2Device);
@@ -197,7 +191,7 @@ class CPDF_RenderStatus {
                          int bitmap_alpha,
                          int blend_mode,
                          int bIsolated);
-  FX_BOOL ProcessShading(CPDF_ShadingObject* pShadingObj,
+  FX_BOOL ProcessShading(const CPDF_ShadingObject* pShadingObj,
                          const CFX_Matrix* pObj2Device);
   void DrawShading(CPDF_ShadingPattern* pPattern,
                    CFX_Matrix* pMatrix,
@@ -216,7 +210,8 @@ class CPDF_RenderStatus {
                                const CFX_Matrix* pTextMatrix,
                                FX_BOOL bFill,
                                FX_BOOL bStroke);
-  FX_BOOL ProcessForm(CPDF_FormObject* pFormObj, const CFX_Matrix* pObj2Device);
+  FX_BOOL ProcessForm(const CPDF_FormObject* pFormObj,
+                      const CFX_Matrix* pObj2Device);
   CFX_DIBitmap* GetBackdrop(const CPDF_PageObject* pObj,
                             const FX_RECT& rect,
                             int& left,
@@ -345,7 +340,7 @@ class CPDF_ImageRenderer : public IPDF_ObjectRenderer {
 
  protected:
   CPDF_RenderStatus* m_pRenderStatus;
-  CPDF_ImageObject* m_pImageObject;
+  const CPDF_ImageObject* m_pImageObject;
   int m_Status;
   const CFX_Matrix* m_pObj2Device;
   CFX_Matrix m_ImageMatrix;
@@ -500,11 +495,12 @@ class CPDF_DIBSource : public CFX_DIBSource {
                           FX_BOOL bFlipX,
                           int clip_left,
                           int clip_width) const override;
-  void SetDownSampleSize(int dest_width, int dest_height) const override;
+  void SetDownSampleSize(int dest_width, int dest_height) override;
 
   CFX_DIBitmap* GetBitmap() const;
   void ReleaseBitmap(CFX_DIBitmap*) const;
   void ClearImageData();
+  FX_DWORD GetMatteColor() const { return m_MatteColor; }
 
   int StartLoadDIBSource(CPDF_Document* pDoc,
                          const CPDF_Stream* pStream,
@@ -520,14 +516,6 @@ class CPDF_DIBSource : public CFX_DIBSource {
   int ContinueLoadMaskDIB(IFX_Pause* pPause);
   int ContinueToLoadMask();
   CPDF_DIBSource* DetachMask();
-  CPDF_DIBSource* m_pMask;
-  FX_DWORD m_MatteColor;
-  void* m_pJbig2Context;
-  CPDF_StreamAcc* m_pGlobalStream;
-  FX_BOOL m_bStdCS;
-  int m_Status;
-  CPDF_Stream* m_pMaskStream;
-  FX_BOOL m_bHasMask;
 
  private:
   bool LoadColorInfo(const CPDF_Dictionary* pFormResources,
@@ -573,7 +561,7 @@ class CPDF_DIBSource : public CFX_DIBSource {
 
   CPDF_Document* m_pDocument;
   const CPDF_Stream* m_pStream;
-  CPDF_StreamAcc* m_pStreamAcc;
+  std::unique_ptr<CPDF_StreamAcc> m_pStreamAcc;
   const CPDF_Dictionary* m_pDict;
   CPDF_ColorSpace* m_pColorSpace;
   FX_DWORD m_Family;
@@ -581,16 +569,24 @@ class CPDF_DIBSource : public CFX_DIBSource {
   FX_DWORD m_bpc_orig;
   FX_DWORD m_nComponents;
   FX_DWORD m_GroupFamily;
+  FX_DWORD m_MatteColor;
   FX_BOOL m_bLoadMask;
   FX_BOOL m_bDefaultDecode;
   FX_BOOL m_bImageMask;
   FX_BOOL m_bDoBpcCheck;
   FX_BOOL m_bColorKey;
+  FX_BOOL m_bHasMask;
+  FX_BOOL m_bStdCS;
   DIB_COMP_DATA* m_pCompData;
   uint8_t* m_pLineBuf;
   uint8_t* m_pMaskedLine;
   std::unique_ptr<CFX_DIBitmap> m_pCachedBitmap;
-  ICodec_ScanlineDecoder* m_pDecoder;
+  std::unique_ptr<ICodec_ScanlineDecoder> m_pDecoder;
+  void* m_pJbig2Context;
+  CPDF_DIBSource* m_pMask;
+  std::unique_ptr<CPDF_StreamAcc> m_pGlobalStream;
+  CPDF_Stream* m_pMaskStream;
+  int m_Status;
 };
 
 #define FPDF_HUGE_IMAGE_SIZE 60000000

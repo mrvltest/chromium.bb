@@ -4,16 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_SDAPATER_IMP_H
-#define _FWL_SDAPATER_IMP_H
-class IFWL_AdapterNative;
-class IFWL_AdapterWidgetMgr;
-class IFWL_AdapterThreadMgr;
-class IFWL_AdapterTimerMgr;
-class IFWL_WidgetMgrDelegate;
-class CFWL_SDAdatperNative;
-class CFWL_SDAdapterWidgetMgr;
-class CFWL_SDAdapterTimerMgr;
+#ifndef XFA_INCLUDE_FWL_ADAPTER_FWL_SDADAPTERIMP_H_
+#define XFA_INCLUDE_FWL_ADAPTER_FWL_SDADAPTERIMP_H_
+
+#include "xfa/include/fwl/adapter/fwl_adapterthreadmgr.h"
+#include "xfa/include/fwl/adapter/fwl_adapterwidgetmgr.h"
+
 class CFWL_SDAdapterWidgetMgr : public IFWL_AdapterWidgetMgr {
  public:
   CFWL_SDAdapterWidgetMgr();
@@ -73,6 +69,7 @@ class CFWL_SDAdapterWidgetMgr : public IFWL_AdapterWidgetMgr {
                                   FX_FLOAT& r,
                                   FX_FLOAT& b);
 };
+
 class CFWL_SDAdapterThreadMgr : public IFWL_AdapterThreadMgr {
  public:
   CFWL_SDAdapterThreadMgr();
@@ -88,4 +85,5 @@ class CFWL_SDAdapterThreadMgr : public IFWL_AdapterThreadMgr {
   virtual FWL_ERR Stop(FWL_HTHREAD hThread, int32_t iExitCode);
   virtual IFWL_Thread* GetCurrentThread();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_ADAPTER_FWL_SDADAPTERIMP_H_

@@ -33,23 +33,21 @@ GrGLProgram* GrGLProgramBuilder::CreateProgram(const DrawArgs& args, GrGLGpu* gp
 
     // create a builder.  This will be handed off to effects so they can use it to add
     // uniforms, varyings, textures, etc
-    SkAutoTDelete<GrGLProgramBuilder> builder(new GrGLProgramBuilder(gpu, args));
-
-    GrGLProgramBuilder* pb = builder.get();
+    GrGLProgramBuilder builder(gpu, args);
 
     // TODO: Once all stages can handle taking a float or vec4 and correctly handling them we can
     // seed correctly here
     GrGLSLExpr4 inputColor;
     GrGLSLExpr4 inputCoverage;
 
-    if (!pb->emitAndInstallProcs(&inputColor,
-                                 &inputCoverage,
-                                 gpu->glCaps().maxFragmentTextureUnits())) {
-        pb->cleanupFragmentProcessors();
+    if (!builder.emitAndInstallProcs(&inputColor,
+                                     &inputCoverage,
+                                     gpu->glCaps().maxFragmentTextureUnits())) {
+        builder.cleanupFragmentProcessors();
         return nullptr;
     }
 
-    return pb->finalize();
+    return builder.finalize();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,12 +88,9 @@ void GrGLProgramBuilder::emitSamplers(const GrProcessor& processor,
     for (int t = 0; t < numTextures; ++t) {
         name.printf("Sampler%d", t);
         GrSLType samplerType = get_sampler_type(processor.textureAccess(t));
-        localSamplerUniforms[t] =
-            fUniformHandler.addUniform(GrGLSLUniformHandler::kFragment_Visibility,
-                                       samplerType, kDefault_GrSLPrecision,
-                                       name.c_str());
-        SkNEW_APPEND_TO_TARRAY(outSamplers, GrGLSLTextureSampler,
-                               (localSamplerUniforms[t], processor.textureAccess(t)));
+        localSamplerUniforms[t] = fUniformHandler.addUniform(kFragment_GrShaderFlag, samplerType,
+                                                             kDefault_GrSLPrecision, name.c_str());
+        outSamplers->emplace_back(localSamplerUniforms[t], processor.textureAccess(t));
         if (kSamplerExternal_GrSLType == samplerType) {
             const char* externalFeatureString = this->glslCaps()->externalTextureExtensionString();
             // We shouldn't ever create a GrGLTexture that requires external sampler type 
@@ -137,9 +132,10 @@ GrGLProgram* GrGLProgramBuilder::finalize() {
         return nullptr;
     }
 
+    this->finalizeShaders();
+
     // compile shaders and bind attributes / uniforms
     SkTDArray<GrGLuint> shadersToDelete;
-    fVS.finalize(GrGLSLUniformHandler::kVertex_Visibility);
     if (!this->compileAndAttachShaders(fVS, programID, GR_GL_VERTEX_SHADER, &shadersToDelete)) {
         this->cleanupProgram(programID, shadersToDelete);
         return nullptr;
@@ -156,7 +152,6 @@ GrGLProgram* GrGLProgramBuilder::finalize() {
         }
     }
 
-    fFS.finalize(GrGLSLUniformHandler::kFragment_Visibility);
     if (!this->compileAndAttachShaders(fFS, programID, GR_GL_FRAGMENT_SHADER, &shadersToDelete)) {
         this->cleanupProgram(programID, shadersToDelete);
         return nullptr;
@@ -236,7 +231,7 @@ void GrGLProgramBuilder::resolveProgramResourceLocations(GrGLuint programID) {
 
     // handle NVPR separable varyings
     if (!fGpu->glCaps().shaderCaps()->pathRenderingSupport() ||
-        !fGpu->glPathRendering()->shouldBindFragmentInputs()) {
+        fGpu->glPathRendering()->shouldBindFragmentInputs()) {
         return;
     }
     int count = fVaryingHandler.fPathProcVaryingInfos.count();

@@ -46,14 +46,14 @@ void SkMatrixImageFilter::flatten(SkWriteBuffer& buffer) const {
 SkMatrixImageFilter::~SkMatrixImageFilter() {
 }
 
-bool SkMatrixImageFilter::onFilterImage(Proxy* proxy,
-                                        const SkBitmap& source,
-                                        const Context& ctx,
-                                        SkBitmap* result,
-                                        SkIPoint* offset) const {
+bool SkMatrixImageFilter::onFilterImageDeprecated(Proxy* proxy,
+                                                  const SkBitmap& source,
+                                                  const Context& ctx,
+                                                  SkBitmap* result,
+                                                  SkIPoint* offset) const {
     SkBitmap src = source;
     SkIPoint srcOffset = SkIPoint::Make(0, 0);
-    if (!this->filterInput(0, proxy, source, ctx, &src, &srcOffset)) {
+    if (!this->filterInputDeprecated(0, proxy, source, ctx, &src, &srcOffset)) {
         return false;
     }
 
@@ -97,9 +97,6 @@ void SkMatrixImageFilter::computeFastBounds(const SkRect& src, SkRect* dst) cons
         getInput(0)->computeFastBounds(src, &bounds);
     }
     fTransform.mapRect(dst, bounds);
-#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
-    dst->join(bounds);   // Work around for skia:3194
-#endif
 }
 
 void SkMatrixImageFilter::onFilterNodeBounds(const SkIRect& src, const SkMatrix& ctm,

@@ -4,13 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_PANEL_IMP_H
-#define _FWL_PANEL_IMP_H
-class CFWL_WidgetImp;
+#ifndef XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_PANELIMP_H_
+#define XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_PANELIMP_H_
+
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_WidgetImpProperties;
 class IFWL_Widget;
 class IFWL_Content;
-class CFWL_PanelImp;
+
 class CFWL_PanelImp : public CFWL_WidgetImp {
  public:
   CFWL_PanelImp(const CFWL_WidgetImpProperties& properties,
@@ -26,4 +28,5 @@ class CFWL_PanelImp : public CFWL_WidgetImp {
  protected:
   IFWL_Content* m_pContent;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_PANELIMP_H_

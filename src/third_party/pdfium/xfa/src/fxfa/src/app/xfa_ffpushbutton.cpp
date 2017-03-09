@@ -4,15 +4,18 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffpushbutton.h"
+
+#include "xfa/include/fwl/core/fwl_widgetmgr.h"
+#include "xfa/include/fwl/lightwidget/pushbutton.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffwidgetacc.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffpushbutton.h"
-#include "xfa_textlayout.h"
-#include "xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidgetacc.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+
 CXFA_FFPushButton::CXFA_FFPushButton(CXFA_FFPageView* pPageView,
                                      CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFField(pPageView, pDataAcc),
@@ -122,8 +125,7 @@ FX_BOOL CXFA_FFPushButton::PerformLayout() {
 }
 FX_FLOAT CXFA_FFPushButton::GetLineWidth() {
   CXFA_Border border = m_pDataAcc->GetBorder();
-  if (border.IsExistInXML() &&
-      (border.GetPresence() == XFA_ATTRIBUTEENUM_Visible)) {
+  if (border && border.GetPresence() == XFA_ATTRIBUTEENUM_Visible) {
     CXFA_Edge edge = border.GetEdge(0);
     return edge.GetThickness();
   }
@@ -137,8 +139,7 @@ FX_ARGB CXFA_FFPushButton::GetFillColor() {
 }
 void CXFA_FFPushButton::LoadHighlightCaption() {
   CXFA_Caption caption = m_pDataAcc->GetCaption();
-  if (caption.IsExistInXML() &&
-      caption.GetPresence() != XFA_ATTRIBUTEENUM_Hidden) {
+  if (caption && caption.GetPresence() != XFA_ATTRIBUTEENUM_Hidden) {
     {
       CFX_WideString wsRollover;
       FX_BOOL bRichText;
@@ -161,8 +162,7 @@ void CXFA_FFPushButton::LoadHighlightCaption() {
   }
 }
 void CXFA_FFPushButton::LayoutHighlightCaption() {
-  CFX_SizeF sz;
-  sz.Set(m_rtCaption.width, m_rtCaption.height);
+  CFX_SizeF sz(m_rtCaption.width, m_rtCaption.height);
   LayoutCaption();
   if (m_pRolloverTextLayout) {
     m_pRolloverTextLayout->Layout(sz);
@@ -175,8 +175,7 @@ void CXFA_FFPushButton::RenderHighlightCaption(CFX_Graphics* pGS,
                                                CFX_Matrix* pMatrix) {
   CXFA_TextLayout* pCapTextLayout = m_pDataAcc->GetCaptionTextLayout();
   CXFA_Caption caption = m_pDataAcc->GetCaption();
-  if (caption.IsExistInXML() &&
-      caption.GetPresence() == XFA_ATTRIBUTEENUM_Visible) {
+  if (caption && caption.GetPresence() == XFA_ATTRIBUTEENUM_Visible) {
     CFX_RenderDevice* pRenderDevice = pGS->GetRenderDevice();
     CFX_RectF rtWidget;
     GetRectWithoutRotate(rtWidget);

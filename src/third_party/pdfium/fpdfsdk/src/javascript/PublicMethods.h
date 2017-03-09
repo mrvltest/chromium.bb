@@ -7,7 +7,7 @@
 #ifndef FPDFSDK_SRC_JAVASCRIPT_PUBLICMETHODS_H_
 #define FPDFSDK_SRC_JAVASCRIPT_PUBLICMETHODS_H_
 
-#include "JS_Define.h"
+#include "fpdfsdk/src/javascript/JS_Define.h"
 
 class CJS_PublicMethods : public CJS_Object {
  public:
@@ -144,18 +144,9 @@ class CJS_PublicMethods : public CJS_Object {
                                 bool* bWrongFormat);
   static CFX_WideString MakeFormatDate(double dDate,
                                        const CFX_WideString& format);
-  static FX_BOOL ConvertStringToNumber(const FX_WCHAR* swSource,
-                                       double& dRet,
-                                       FX_BOOL& bDot);
-  static double ParseStringToNumber(const FX_WCHAR* swSource);
   static double ParseNormalDate(const CFX_WideString& value,
                                 bool* bWrongFormat);
   static double MakeInterDate(CFX_WideString strValue);
-  static double ParseNumber(const FX_WCHAR* swSource,
-                            FX_BOOL& bAllDigits,
-                            FX_BOOL& bDot,
-                            FX_BOOL& bSign,
-                            FX_BOOL& bKXJS);
 
  public:
   static CFX_WideString StrLTrim(const FX_WCHAR* pStr);

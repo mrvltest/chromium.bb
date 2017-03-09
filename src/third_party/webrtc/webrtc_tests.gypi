@@ -34,7 +34,7 @@
         }],
         ['OS=="ios"', {
           'dependencies': [
-            'api/api_tests.gyp:rtc_api_objc_test',
+            'api/api_tests.gyp:rtc_api_objc_tests',
           ]
         }]
       ],
@@ -177,7 +177,6 @@
         'video/video_decoder_unittest.cc',
         'video/video_encoder_unittest.cc',
         'video/video_send_stream_tests.cc',
-        'video/vie_codec_unittest.cc',
         'video/vie_remb_unittest.cc',
       ],
       'dependencies': [
@@ -195,9 +194,20 @@
         'webrtc',
       ],
       'conditions': [
+        ['rtc_use_h264==1', {
+          'defines': [
+            'WEBRTC_END_TO_END_H264_TESTS',
+          ],
+        }],
         ['OS=="android"', {
           'dependencies': [
             '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
+          ],
+        }],
+        ['OS=="ios"', {
+          'mac_bundle_resources': [
+            '<(DEPTH)/resources/foreman_cif_short.yuv',
+            '<(DEPTH)/resources/voice_engine/audio_long16.pcm',
           ],
         }],
         ['enable_protobuf==1', {
@@ -349,6 +359,32 @@
           ],
           'sources': [
             'rtc_unittests.isolate',
+          ],
+        },
+        {
+          'target_name': 'rtc_media_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'rtc_media_unittests',
+          ],
+          'includes': [
+            'build/isolate.gypi',
+          ],
+          'sources': [
+            'rtc_media_unittests.isolate',
+          ],
+        },
+        {
+          'target_name': 'rtc_pc_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'rtc_pc_unittests',
+          ],
+          'includes': [
+            'build/isolate.gypi',
+          ],
+          'sources': [
+            'rtc_pc_unittests.isolate',
           ],
         },
         {

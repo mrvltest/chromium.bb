@@ -28,6 +28,8 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
+#include "internal.h"
+
 
 /* fe means field element. Here the field is \Z/(2^255-19). An element t,
  * entries t[0]...t[9], represents the integer t[0]+2^26 t[1]+2^51 t[2]+2^77
@@ -223,21 +225,6 @@ static void fe_0(fe h) { memset(h, 0, sizeof(int32_t) * 10); }
 static void fe_1(fe h) {
   memset(h, 0, sizeof(int32_t) * 10);
   h[0] = 1;
-}
-
-/* Replace (f,g) with (g,f) if b == 1;
- * replace (f,g) with (f,g) if b == 0.
- *
- * Preconditions: b in {0,1}. */
-static void fe_cswap(fe f, fe g, unsigned int b) {
-  b = 0-b;
-  unsigned i;
-  for (i = 0; i < 10; i++) {
-    int32_t x = f[i] ^ g[i];
-    x &= b;
-    f[i] ^= x;
-    g[i] ^= x;
-  }
 }
 
 /* h = f + g
@@ -720,70 +707,6 @@ static void fe_invert(fe out, const fe z) {
   fe_mul(out, t1, t0);
 }
 
-/* h = f * 121666
- * Can overlap h with f.
- *
- * Preconditions:
- *    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
- *
- * Postconditions:
- *    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc. */
-static void fe_mul121666(fe h, fe f) {
-  int32_t f0 = f[0];
-  int32_t f1 = f[1];
-  int32_t f2 = f[2];
-  int32_t f3 = f[3];
-  int32_t f4 = f[4];
-  int32_t f5 = f[5];
-  int32_t f6 = f[6];
-  int32_t f7 = f[7];
-  int32_t f8 = f[8];
-  int32_t f9 = f[9];
-  int64_t h0 = f0 * (int64_t) 121666;
-  int64_t h1 = f1 * (int64_t) 121666;
-  int64_t h2 = f2 * (int64_t) 121666;
-  int64_t h3 = f3 * (int64_t) 121666;
-  int64_t h4 = f4 * (int64_t) 121666;
-  int64_t h5 = f5 * (int64_t) 121666;
-  int64_t h6 = f6 * (int64_t) 121666;
-  int64_t h7 = f7 * (int64_t) 121666;
-  int64_t h8 = f8 * (int64_t) 121666;
-  int64_t h9 = f9 * (int64_t) 121666;
-  int64_t carry0;
-  int64_t carry1;
-  int64_t carry2;
-  int64_t carry3;
-  int64_t carry4;
-  int64_t carry5;
-  int64_t carry6;
-  int64_t carry7;
-  int64_t carry8;
-  int64_t carry9;
-
-  carry9 = (h9 + (int64_t) (1<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
-  carry1 = (h1 + (int64_t) (1<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry3 = (h3 + (int64_t) (1<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry5 = (h5 + (int64_t) (1<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
-  carry7 = (h7 + (int64_t) (1<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
-
-  carry0 = (h0 + (int64_t) (1<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry2 = (h2 + (int64_t) (1<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry4 = (h4 + (int64_t) (1<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry6 = (h6 + (int64_t) (1<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
-  carry8 = (h8 + (int64_t) (1<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
-
-  h[0] = h0;
-  h[1] = h1;
-  h[2] = h2;
-  h[3] = h3;
-  h[4] = h4;
-  h[5] = h5;
-  h[6] = h6;
-  h[7] = h7;
-  h[8] = h8;
-  h[9] = h9;
-}
-
 /* h = -f
  *
  * Preconditions:
@@ -1126,7 +1049,7 @@ static const fe d = {-10913610, 13857413, -15372611, 6949391,   114729,
 static const fe sqrtm1 = {-32595792, -7943725,  9377950,  3500415, 12389472,
                           -272473,   -25146209, -2005654, 326686,  11406482};
 
-static int ge_frombytes_negate_vartime(ge_p3 *h, const uint8_t *s) {
+static int ge_frombytes_vartime(ge_p3 *h, const uint8_t *s) {
   fe u;
   fe v;
   fe v3;
@@ -1161,7 +1084,7 @@ static int ge_frombytes_negate_vartime(ge_p3 *h, const uint8_t *s) {
     fe_mul(h->X, h->X, sqrtm1);
   }
 
-  if (fe_isnegative(h->X) == (s[31] >> 7)) {
+  if (fe_isnegative(h->X) != (s[31] >> 7)) {
     fe_neg(h->X, h->X);
   }
 
@@ -1335,7 +1258,7 @@ static void cmov(ge_precomp *t, ge_precomp *u, uint8_t b) {
  * element then consider i+1 as a four-bit number: (i₀, i₁, i₂, i₃) (where i₀
  * is the most significant bit). The value of the group element is then:
  * (i₀×2^192 + i₁×2^128 + i₂×2^64 + i₃)G, where G is the generator. */
-static const uint8_t kSmallPrecomp[15 * 2 * 32] = {
+static const uint8_t k25519SmallPrecomp[15 * 2 * 32] = {
     0x1a, 0xd5, 0x25, 0x8f, 0x60, 0x2d, 0x56, 0xc9, 0xb2, 0xa7, 0x25, 0x95,
     0x60, 0xc7, 0x2c, 0x69, 0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0,
     0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21, 0x58, 0x66, 0x66, 0x66,
@@ -1419,12 +1342,13 @@ static const uint8_t kSmallPrecomp[15 * 2 * 32] = {
 };
 
 static void ge_scalarmult_base(ge_p3 *h, const uint8_t a[32]) {
-  /* kSmallPrecomp is first expanded into matching |ge_precomp| elements. */
+  /* k25519SmallPrecomp is first expanded into matching |ge_precomp|
+   * elements. */
   ge_precomp multiples[15];
 
   unsigned i;
   for (i = 0; i < 15; i++) {
-    const uint8_t *bytes = &kSmallPrecomp[i*(2 * 32)];
+    const uint8_t *bytes = &k25519SmallPrecomp[i*(2 * 32)];
     fe x, y;
     fe_frombytes(x, bytes);
     fe_frombytes(y, bytes + 32);
@@ -1436,7 +1360,7 @@ static void ge_scalarmult_base(ge_p3 *h, const uint8_t a[32]) {
     fe_mul(out->xy2d, out->xy2d, d2);
   }
 
-  /* See the comment above |kSmallPrecomp| about the structure of the
+  /* See the comment above |k25519SmallPrecomp| about the structure of the
    * precomputed elements. This loop does 64 additions and 64 doublings to
    * calculate the result. */
   ge_p3_0(h);
@@ -1470,8 +1394,8 @@ static void ge_scalarmult_base(ge_p3 *h, const uint8_t a[32]) {
 
 #else
 
-/* base[i][j] = (j+1)*256^i*B */
-static ge_precomp base[32][8] = {
+/* k25519Precomp[i][j] = (j+1)*256^i*B */
+static ge_precomp k25519Precomp[32][8] = {
     {
         {
             {25967493, -14356035, 29566456, 3660896, -12694345, 4014787,
@@ -3598,14 +3522,14 @@ static void table_select(ge_precomp *t, int pos, signed char b) {
   uint8_t babs = b - (((-bnegative) & b) << 1);
 
   ge_precomp_0(t);
-  cmov(t, &base[pos][0], equal(babs, 1));
-  cmov(t, &base[pos][1], equal(babs, 2));
-  cmov(t, &base[pos][2], equal(babs, 3));
-  cmov(t, &base[pos][3], equal(babs, 4));
-  cmov(t, &base[pos][4], equal(babs, 5));
-  cmov(t, &base[pos][5], equal(babs, 6));
-  cmov(t, &base[pos][6], equal(babs, 7));
-  cmov(t, &base[pos][7], equal(babs, 8));
+  cmov(t, &k25519Precomp[pos][0], equal(babs, 1));
+  cmov(t, &k25519Precomp[pos][1], equal(babs, 2));
+  cmov(t, &k25519Precomp[pos][2], equal(babs, 3));
+  cmov(t, &k25519Precomp[pos][3], equal(babs, 4));
+  cmov(t, &k25519Precomp[pos][4], equal(babs, 5));
+  cmov(t, &k25519Precomp[pos][5], equal(babs, 6));
+  cmov(t, &k25519Precomp[pos][6], equal(babs, 7));
+  cmov(t, &k25519Precomp[pos][7], equal(babs, 8));
   fe_copy(minust.yplusx, t->yminusx);
   fe_copy(minust.yminusx, t->yplusx);
   fe_neg(minust.xy2d, t->xy2d);
@@ -4731,9 +4655,12 @@ int ED25519_verify(const uint8_t *message, size_t message_len,
                    const uint8_t signature[64], const uint8_t public_key[32]) {
   ge_p3 A;
   if ((signature[63] & 224) != 0 ||
-      ge_frombytes_negate_vartime(&A, public_key) != 0) {
+      ge_frombytes_vartime(&A, public_key) != 0) {
     return 0;
   }
+
+  fe_neg(A.X, A.X);
+  fe_neg(A.T, A.T);
 
   uint8_t pkcopy[32];
   memcpy(pkcopy, public_key, 32);
@@ -4759,6 +4686,95 @@ int ED25519_verify(const uint8_t *message, size_t message_len,
   ge_tobytes(rcheck, &R);
 
   return CRYPTO_memcmp(rcheck, rcopy, sizeof(rcheck)) == 0;
+}
+
+
+#if defined(BORINGSSL_X25519_X86_64)
+
+static void x25519_scalar_mult(uint8_t out[32], const uint8_t scalar[32],
+                               const uint8_t point[32]) {
+  x25519_x86_64(out, scalar, point);
+}
+
+#else
+
+/* Replace (f,g) with (g,f) if b == 1;
+ * replace (f,g) with (f,g) if b == 0.
+ *
+ * Preconditions: b in {0,1}. */
+static void fe_cswap(fe f, fe g, unsigned int b) {
+  b = 0-b;
+  unsigned i;
+  for (i = 0; i < 10; i++) {
+    int32_t x = f[i] ^ g[i];
+    x &= b;
+    f[i] ^= x;
+    g[i] ^= x;
+  }
+}
+
+/* h = f * 121666
+ * Can overlap h with f.
+ *
+ * Preconditions:
+ *    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+ *
+ * Postconditions:
+ *    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc. */
+static void fe_mul121666(fe h, fe f) {
+  int32_t f0 = f[0];
+  int32_t f1 = f[1];
+  int32_t f2 = f[2];
+  int32_t f3 = f[3];
+  int32_t f4 = f[4];
+  int32_t f5 = f[5];
+  int32_t f6 = f[6];
+  int32_t f7 = f[7];
+  int32_t f8 = f[8];
+  int32_t f9 = f[9];
+  int64_t h0 = f0 * (int64_t) 121666;
+  int64_t h1 = f1 * (int64_t) 121666;
+  int64_t h2 = f2 * (int64_t) 121666;
+  int64_t h3 = f3 * (int64_t) 121666;
+  int64_t h4 = f4 * (int64_t) 121666;
+  int64_t h5 = f5 * (int64_t) 121666;
+  int64_t h6 = f6 * (int64_t) 121666;
+  int64_t h7 = f7 * (int64_t) 121666;
+  int64_t h8 = f8 * (int64_t) 121666;
+  int64_t h9 = f9 * (int64_t) 121666;
+  int64_t carry0;
+  int64_t carry1;
+  int64_t carry2;
+  int64_t carry3;
+  int64_t carry4;
+  int64_t carry5;
+  int64_t carry6;
+  int64_t carry7;
+  int64_t carry8;
+  int64_t carry9;
+
+  carry9 = (h9 + (int64_t) (1<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
+  carry1 = (h1 + (int64_t) (1<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
+  carry3 = (h3 + (int64_t) (1<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
+  carry5 = (h5 + (int64_t) (1<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
+  carry7 = (h7 + (int64_t) (1<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+
+  carry0 = (h0 + (int64_t) (1<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
+  carry2 = (h2 + (int64_t) (1<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
+  carry4 = (h4 + (int64_t) (1<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
+  carry6 = (h6 + (int64_t) (1<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
+  carry8 = (h8 + (int64_t) (1<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+
+  h[0] = h0;
+  h[1] = h1;
+  h[2] = h2;
+  h[3] = h3;
+  h[4] = h4;
+  h[5] = h5;
+  h[6] = h6;
+  h[7] = h7;
+  h[8] = h8;
+  h[9] = h9;
 }
 
 static void x25519_scalar_mult_generic(uint8_t out[32],
@@ -4812,15 +4828,9 @@ static void x25519_scalar_mult_generic(uint8_t out[32],
   fe_tobytes(out, x2);
 }
 
-#if defined(OPENSSL_ARM)
-/* x25519_NEON is defined in asm/x25519-arm.S. */
-void x25519_NEON(uint8_t out[32], const uint8_t scalar[32],
-                 const uint8_t point[32]);
-#endif
-
 static void x25519_scalar_mult(uint8_t out[32], const uint8_t scalar[32],
                                const uint8_t point[32]) {
-#if defined(OPENSSL_ARM)
+#if defined(BORINGSSL_X25519_NEON)
   if (CRYPTO_is_NEON_capable()) {
     x25519_NEON(out, scalar, point);
     return;
@@ -4829,6 +4839,9 @@ static void x25519_scalar_mult(uint8_t out[32], const uint8_t scalar[32],
 
   x25519_scalar_mult_generic(out, scalar, point);
 }
+
+#endif  /* BORINGSSL_X25519_X86_64 */
+
 
 void X25519_keypair(uint8_t out_public_value[32], uint8_t out_private_key[32]) {
   RAND_bytes(out_private_key, 32);
@@ -4843,9 +4856,23 @@ int X25519(uint8_t out_shared_key[32], const uint8_t private_key[32],
   return CRYPTO_memcmp(kZeros, out_shared_key, 32) != 0;
 }
 
+#if defined(BORINGSSL_X25519_X86_64)
+
+/* When |BORINGSSL_X25519_X86_64| is set, base point multiplication is done with
+ * the Montgomery ladder because it's faster. Otherwise it's done using the
+ * Ed25519 tables. */
+
 void X25519_public_from_private(uint8_t out_public_value[32],
                                 const uint8_t private_key[32]) {
-#if defined(OPENSSL_ARM)
+  static const uint8_t kMongomeryBasePoint[32] = {9};
+  x25519_scalar_mult(out_public_value, private_key, kMongomeryBasePoint);
+}
+
+#else
+
+void X25519_public_from_private(uint8_t out_public_value[32],
+                                const uint8_t private_key[32]) {
+#if defined(BORINGSSL_X25519_NEON)
   if (CRYPTO_is_NEON_capable()) {
     static const uint8_t kMongomeryBasePoint[32] = {9};
     x25519_NEON(out_public_value, private_key, kMongomeryBasePoint);
@@ -4871,3 +4898,5 @@ void X25519_public_from_private(uint8_t out_public_value[32],
   fe_mul(zplusy, zplusy, zminusy_inv);
   fe_tobytes(out_public_value, zplusy);
 }
+
+#endif  /* BORINGSSL_X25519_X86_64 */

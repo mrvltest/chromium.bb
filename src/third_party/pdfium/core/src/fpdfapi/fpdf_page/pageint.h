@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "core/include/fpdfapi/fpdf_page.h"
@@ -68,7 +69,8 @@ class CPDF_StreamParser {
 
 #define PARAM_BUF_SIZE 16
 struct ContentParam {
-  int m_Type;
+  enum Type { OBJECT = 0, NUMBER, NAME };
+  Type m_Type;
   union {
     struct {
       FX_BOOL m_bInteger;
@@ -93,7 +95,7 @@ class CPDF_StreamContentParser {
                            CPDF_Dictionary* pPageResources,
                            CPDF_Dictionary* pParentResources,
                            CFX_Matrix* pmtContentToUser,
-                           CPDF_PageObjects* pObjList,
+                           CPDF_PageObjectHolder* pObjectHolder,
                            CPDF_Dictionary* pResources,
                            CFX_FloatRect* pBBox,
                            CPDF_ParseOptions* pOptions,
@@ -101,7 +103,7 @@ class CPDF_StreamContentParser {
                            int level);
   ~CPDF_StreamContentParser();
 
-  CPDF_PageObjects* GetObjectList() const { return m_pObjectList; }
+  CPDF_PageObjectHolder* GetPageObjectHolder() const { return m_pObjectHolder; }
   CPDF_AllStates* GetCurStates() const { return m_pCurStates.get(); }
   FX_BOOL IsColored() const { return m_bColored; }
   const FX_FLOAT* GetType3Data() const { return m_Type3Data; }
@@ -116,7 +118,7 @@ class CPDF_StreamContentParser {
   FX_FLOAT GetNumber(FX_DWORD index);
   FX_FLOAT GetNumber16(FX_DWORD index);
   int GetInteger(FX_DWORD index) { return (int32_t)(GetNumber(index)); }
-  FX_BOOL OnOperator(const FX_CHAR* op);
+  void OnOperator(const FX_CHAR* op);
   void BigCaseCaller(int index);
   FX_DWORD GetParsePos() { return m_pSyntax->GetPos(); }
   void AddTextObject(CFX_ByteString* pText,
@@ -150,11 +152,9 @@ class CPDF_StreamContentParser {
                                const CFX_ByteString& name);
 
  protected:
-  struct OpCode {
-    FX_DWORD m_OpId;
-    void (CPDF_StreamContentParser::*m_OpHandler)();
-  };
-  static const OpCode g_OpCodes[];
+  using OpCodes =
+      std::unordered_map<FX_DWORD, void (CPDF_StreamContentParser::*)()>;
+  static OpCodes InitializeOpCodes();
 
   void Handle_CloseFillStrokePath();
   void Handle_FillStrokePath();
@@ -164,7 +164,6 @@ class CPDF_StreamContentParser {
   void Handle_BeginImage();
   void Handle_BeginMarkedContent();
   void Handle_BeginText();
-  void Handle_BeginSectionUndefined();
   void Handle_CurveTo_123();
   void Handle_ConcatMatrix();
   void Handle_SetColorSpace_Fill();
@@ -177,7 +176,6 @@ class CPDF_StreamContentParser {
   void Handle_EndImage();
   void Handle_EndMarkedContent();
   void Handle_EndText();
-  void Handle_EndSectionUndefined();
   void Handle_FillPath();
   void Handle_FillPathOld();
   void Handle_EOFillPath();
@@ -235,12 +233,12 @@ class CPDF_StreamContentParser {
   CPDF_Dictionary* m_pPageResources;
   CPDF_Dictionary* m_pParentResources;
   CPDF_Dictionary* m_pResources;
-  CPDF_PageObjects* m_pObjectList;
+  CPDF_PageObjectHolder* m_pObjectHolder;
   int m_Level;
   CFX_Matrix m_mtContentToUser;
   CFX_FloatRect m_BBox;
   CPDF_ParseOptions m_Options;
-  ContentParam m_ParamBuf1[PARAM_BUF_SIZE];
+  ContentParam m_ParamBuf[PARAM_BUF_SIZE];
   FX_DWORD m_ParamStartPos;
   FX_DWORD m_ParamCount;
   CPDF_StreamParser* m_pSyntax;
@@ -249,7 +247,6 @@ class CPDF_StreamContentParser {
   CFX_ArrayTemplate<CPDF_TextObject*> m_ClipTextList;
   CPDF_TextObject* m_pLastTextObject;
   FX_FLOAT m_DefFontSize;
-  int m_CompatCount;
   FX_PATHPOINT* m_pPathPoints;
   int m_PathPointCount;
   int m_PathAllocSize;
@@ -297,7 +294,7 @@ class CPDF_ContentParser {
 
   ParseStatus m_Status;
   InternalStage m_InternalStage;
-  CPDF_PageObjects* m_pObjects;
+  CPDF_PageObjectHolder* m_pObjectHolder;
   FX_BOOL m_bForm;
   CPDF_ParseOptions m_Options;
   CPDF_Type3Char* m_pType3Char;
@@ -456,5 +453,6 @@ class CPDF_PatternCS : public CPDF_ColorSpace {
 };
 
 void PDF_ReplaceAbbr(CPDF_Object* pObj);
+bool IsPathOperator(const uint8_t* buf, size_t len);
 
 #endif  // CORE_SRC_FPDFAPI_FPDF_PAGE_PAGEINT_H_

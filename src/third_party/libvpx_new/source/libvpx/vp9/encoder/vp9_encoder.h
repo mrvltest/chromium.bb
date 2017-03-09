@@ -112,6 +112,7 @@ typedef enum {
   VARIANCE_AQ = 1,
   COMPLEXITY_AQ = 2,
   CYCLIC_REFRESH_AQ = 3,
+  EQUATOR360_AQ = 4,
   AQ_MODE_COUNT  // This should always be the last member of the enum
 } AQ_MODE;
 
@@ -487,11 +488,14 @@ typedef struct VP9_COMP {
 
   int resize_pending;
   int resize_state;
+  int external_resize;
   int resize_scale_num;
   int resize_scale_den;
   int resize_avg_qp;
   int resize_buffer_underflow;
   int resize_count;
+
+  int use_skin_detection;
 
   NOISE_ESTIMATE noise_estimate;
 

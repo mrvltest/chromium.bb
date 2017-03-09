@@ -20,11 +20,12 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_PDF417Codeword.h"
-#include "BC_PDF417BoundingBox.h"
-#include "BC_PDF417DetectionResultColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Codeword.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultColumn.h"
+
 int32_t CBC_DetectionResultColumn::MAX_NEARBY_DISTANCE = 5;
+
 CBC_DetectionResultColumn::CBC_DetectionResultColumn(
     CBC_BoundingBox* boundingBox) {
   m_boundingBox = boundingBox;
@@ -40,21 +41,21 @@ CBC_DetectionResultColumn::~CBC_DetectionResultColumn() {
 }
 CBC_Codeword* CBC_DetectionResultColumn::getCodewordNearby(int32_t imageRow) {
   CBC_Codeword* codeword = getCodeword(imageRow);
-  if (codeword != NULL) {
+  if (codeword) {
     return codeword;
   }
   for (int32_t i = 1; i < MAX_NEARBY_DISTANCE; i++) {
     int32_t nearImageRow = imageRowToCodewordIndex(imageRow) - i;
     if (nearImageRow >= 0) {
       codeword = (CBC_Codeword*)m_codewords->GetAt(nearImageRow);
-      if (codeword != NULL) {
+      if (codeword) {
         return codeword;
       }
     }
     nearImageRow = imageRowToCodewordIndex(imageRow) + i;
     if (nearImageRow < m_codewords->GetSize()) {
       codeword = (CBC_Codeword*)m_codewords->GetAt(nearImageRow);
-      if (codeword != NULL) {
+      if (codeword) {
         return codeword;
       }
     }

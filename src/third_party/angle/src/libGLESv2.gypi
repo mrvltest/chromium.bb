@@ -98,7 +98,6 @@
             'libANGLE/Program.h',
             'libANGLE/Query.cpp',
             'libANGLE/Query.h',
-            'libANGLE/RefCountObject.cpp',
             'libANGLE/RefCountObject.h',
             'libANGLE/Renderbuffer.cpp',
             'libANGLE/Renderbuffer.h',
@@ -308,8 +307,6 @@
             'libANGLE/renderer/d3d/d3d11/IndexBuffer11.h',
             'libANGLE/renderer/d3d/d3d11/InputLayoutCache.cpp',
             'libANGLE/renderer/d3d/d3d11/InputLayoutCache.h',
-            'libANGLE/renderer/d3d/d3d11/internal_format_initializer_table.h',
-            'libANGLE/renderer/d3d/d3d11/internal_format_initializer_table.cpp',
             'libANGLE/renderer/d3d/d3d11/load_functions_table.h',
             'libANGLE/renderer/d3d/d3d11/load_functions_table_autogen.cpp',
             'libANGLE/renderer/d3d/d3d11/NativeWindow.h',
@@ -390,6 +387,7 @@
             'libANGLE/renderer/d3d/d3d11/Trim11.cpp',
             'libANGLE/renderer/d3d/d3d11/Trim11.h',
             'libANGLE/renderer/d3d/d3d11/texture_format_table_autogen.cpp',
+            'libANGLE/renderer/d3d/d3d11/texture_format_table_autogen.h',
             'libANGLE/renderer/d3d/d3d11/texture_format_table.h',
             'libANGLE/renderer/d3d/d3d11/VertexArray11.h',
             'libANGLE/renderer/d3d/d3d11/VertexBuffer11.cpp',
@@ -462,6 +460,8 @@
         [
             'libANGLE/renderer/gl/wgl/DisplayWGL.cpp',
             'libANGLE/renderer/gl/wgl/DisplayWGL.h',
+            'libANGLE/renderer/gl/wgl/DXGISwapChainWindowSurfaceWGL.cpp',
+            'libANGLE/renderer/gl/wgl/DXGISwapChainWindowSurfaceWGL.h',
             'libANGLE/renderer/gl/wgl/FunctionsWGL.cpp',
             'libANGLE/renderer/gl/wgl/FunctionsWGL.h',
             'libANGLE/renderer/gl/wgl/PbufferSurfaceWGL.cpp',
@@ -481,6 +481,7 @@
             'libANGLE/renderer/gl/glx/FunctionsGLX.h',
             'libANGLE/renderer/gl/glx/PbufferSurfaceGLX.cpp',
             'libANGLE/renderer/gl/glx/PbufferSurfaceGLX.h',
+            'libANGLE/renderer/gl/glx/SurfaceGLX.h',
             'libANGLE/renderer/gl/glx/WindowSurfaceGLX.cpp',
             'libANGLE/renderer/gl/glx/WindowSurfaceGLX.h',
             'libANGLE/renderer/gl/glx/functionsglx_typedefs.h',
@@ -823,22 +824,5 @@
                 }],
             ],
         },
-    ],
-    'conditions':
-    [
-        ['angle_standalone==0 and OS!="win"',
-        {
-            'targets':
-            [
-                {
-                    'target_name': 'libGLESv2_ANGLE',
-                    'type': 'loadable_module',
-                    'dependencies':
-                    [
-                        'libGLESv2',
-                    ],
-                },
-            ],
-        }],
     ],
 }

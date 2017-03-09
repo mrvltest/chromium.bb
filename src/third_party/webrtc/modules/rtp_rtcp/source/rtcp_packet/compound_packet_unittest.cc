@@ -13,13 +13,14 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/bye.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/fir.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/receiver_report.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/sender_report.h"
 #include "webrtc/test/rtcp_packet_parser.h"
 
 using webrtc::rtcp::Bye;
 using webrtc::rtcp::CompoundPacket;
 using webrtc::rtcp::Fir;
-using webrtc::rtcp::RawPacket;
 using webrtc::rtcp::ReceiverReport;
 using webrtc::rtcp::ReportBlock;
 using webrtc::rtcp::SenderReport;
@@ -28,18 +29,21 @@ using webrtc::test::RtcpPacketParser;
 namespace webrtc {
 
 const uint32_t kSenderSsrc = 0x12345678;
+const uint32_t kRemoteSsrc = 0x23456789;
+const uint8_t kSeqNo = 13;
 
 TEST(RtcpCompoundPacketTest, AppendPacket) {
   Fir fir;
+  fir.WithRequestTo(kRemoteSsrc, kSeqNo);
   ReportBlock rb;
   ReceiverReport rr;
   rr.From(kSenderSsrc);
   EXPECT_TRUE(rr.WithReportBlock(rb));
   rr.Append(&fir);
 
-  rtc::scoped_ptr<RawPacket> packet(rr.Build());
+  rtc::Buffer packet = rr.Build();
   RtcpPacketParser parser;
-  parser.Parse(packet->Buffer(), packet->Length());
+  parser.Parse(packet.data(), packet.size());
   EXPECT_EQ(1, parser.receiver_report()->num_packets());
   EXPECT_EQ(kSenderSsrc, parser.receiver_report()->Ssrc());
   EXPECT_EQ(1, parser.report_block()->num_packets());
@@ -52,15 +56,16 @@ TEST(RtcpCompoundPacketTest, AppendPacketOnEmpty) {
   rr.From(kSenderSsrc);
   empty.Append(&rr);
 
-  rtc::scoped_ptr<RawPacket> packet(empty.Build());
+  rtc::Buffer packet = empty.Build();
   RtcpPacketParser parser;
-  parser.Parse(packet->Buffer(), packet->Length());
+  parser.Parse(packet.data(), packet.size());
   EXPECT_EQ(1, parser.receiver_report()->num_packets());
   EXPECT_EQ(0, parser.report_block()->num_packets());
 }
 
 TEST(RtcpCompoundPacketTest, AppendPacketWithOwnAppendedPacket) {
   Fir fir;
+  fir.WithRequestTo(kRemoteSsrc, kSeqNo);
   Bye bye;
   ReportBlock rb;
 
@@ -72,9 +77,9 @@ TEST(RtcpCompoundPacketTest, AppendPacketWithOwnAppendedPacket) {
   sr.Append(&bye);
   sr.Append(&rr);
 
-  rtc::scoped_ptr<RawPacket> packet(sr.Build());
+  rtc::Buffer packet = sr.Build();
   RtcpPacketParser parser;
-  parser.Parse(packet->Buffer(), packet->Length());
+  parser.Parse(packet.data(), packet.size());
   EXPECT_EQ(1, parser.sender_report()->num_packets());
   EXPECT_EQ(1, parser.receiver_report()->num_packets());
   EXPECT_EQ(1, parser.report_block()->num_packets());
@@ -84,6 +89,7 @@ TEST(RtcpCompoundPacketTest, AppendPacketWithOwnAppendedPacket) {
 
 TEST(RtcpCompoundPacketTest, BuildWithInputBuffer) {
   Fir fir;
+  fir.WithRequestTo(kRemoteSsrc, kSeqNo);
   ReportBlock rb;
   ReceiverReport rr;
   rr.From(kSenderSsrc);
@@ -115,6 +121,7 @@ TEST(RtcpCompoundPacketTest, BuildWithInputBuffer) {
 
 TEST(RtcpCompoundPacketTest, BuildWithTooSmallBuffer_FragmentedSend) {
   Fir fir;
+  fir.WithRequestTo(kRemoteSsrc, kSeqNo);
   ReportBlock rb;
   ReceiverReport rr;
   rr.From(kSenderSsrc);

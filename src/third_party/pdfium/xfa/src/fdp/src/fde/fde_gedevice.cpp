@@ -6,27 +6,22 @@
 
 #include <algorithm>
 
+#include "xfa/src/fdp/src/fde/fde_devbasic.h"
+#include "xfa/src/fdp/src/fde/fde_gedevice.h"
+#include "xfa/src/fdp/src/fde/fde_geobject.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_gedevice.h"
-#include "fde_geobject.h"
-#include "fde_devbasic.h"
-#ifndef _FDEPLUS
-#ifdef _cplusplus
-exten "C" {
-#endif
-  FX_BOOL FDE_GetStockHatchMask(int32_t iHatchStyle, CFX_DIBitmap & hatchMask) {
-    FDE_LPCHATCHDATA pData = FDE_DEVGetHatchData(iHatchStyle);
-    if (!pData) {
-      return FALSE;
-    }
-    hatchMask.Create(pData->iWidth, pData->iHeight, FXDIB_1bppMask);
-    FXSYS_memcpy(hatchMask.GetBuffer(), pData->MaskBits,
-                 hatchMask.GetPitch() * pData->iHeight);
-    return TRUE;
+
+FX_BOOL FDE_GetStockHatchMask(int32_t iHatchStyle, CFX_DIBitmap& hatchMask) {
+  FDE_LPCHATCHDATA pData = FDE_DEVGetHatchData(iHatchStyle);
+  if (!pData) {
+    return FALSE;
   }
-#ifdef _cplusplus
+  hatchMask.Create(pData->iWidth, pData->iHeight, FXDIB_1bppMask);
+  FXSYS_memcpy(hatchMask.GetBuffer(), pData->MaskBits,
+               hatchMask.GetPitch() * pData->iHeight);
+  return TRUE;
 }
-#endif
+
 IFDE_RenderDevice* IFDE_RenderDevice::Create(CFX_DIBitmap* pBitmap,
                                              FX_BOOL bRgbByteOrder) {
   if (pBitmap == NULL) {
@@ -169,7 +164,7 @@ FX_BOOL CFDE_FxgeDevice::DrawString(IFDE_Brush* pBrush,
       SubstFxFont.m_WeightCJK = SubstFxFont.m_Weight;
       SubstFxFont.m_ItalicAngle = dwFontStyle & FX_FONTSTYLE_Italic ? -12 : 0;
       SubstFxFont.m_bItlicCJK = !!(dwFontStyle & FX_FONTSTYLE_Italic);
-#endif
+#endif  // _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
       for (int32_t i = 0; i < iCount; ++i) {
         pSTFont = pFont->GetSubstFont((int32_t)pCP->m_GlyphIndex);
         pCP->m_GlyphIndex &= 0x00FFFFFF;
@@ -186,7 +181,7 @@ FX_BOOL CFDE_FxgeDevice::DrawString(IFDE_Brush* pBrush,
             m_pDevice->DrawNormalText(iCurCount, pCurCP, pFxFont, pCache,
                                       -fFontSize, (const CFX_Matrix*)pMatrix,
                                       argb, FXTEXT_CLEARTYPE);
-#endif
+#endif  // _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
           }
           pCurFont = pSTFont;
           pCurCP = pCP;
@@ -210,12 +205,12 @@ FX_BOOL CFDE_FxgeDevice::DrawString(IFDE_Brush* pBrush,
         return m_pDevice->DrawNormalText(iCurCount, pCurCP, pFxFont, pCache,
                                          -fFontSize, (const CFX_Matrix*)pMatrix,
                                          argb, FXTEXT_CLEARTYPE);
-#endif
+#endif  // _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
       }
 #if _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
       FxFont.SetSubstFont(nullptr);
       FxFont.SetFace(nullptr);
-#endif
+#endif  // _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
       return TRUE;
     } break;
     default:
@@ -450,13 +445,12 @@ FX_BOOL CFDE_FxgeDevice::FillTexturePath(IFDE_Brush* pBrush,
                                          const CFX_PathData* pPath,
                                          const CFX_Matrix* pMatrix) {
   FXSYS_assert(pPath && pBrush && pBrush->GetType() == FDE_BRUSHTYPE_Texture);
-  IFDE_TextureBrush* pTextureBrush = (IFDE_TextureBrush*)pBrush;
-  IFDE_Image* pImage = (IFDE_Image*)pTextureBrush->GetImage();
-  if (pImage == NULL) {
+  IFDE_TextureBrush* pTextureBrush = static_cast<IFDE_TextureBrush*>(pBrush);
+  IFDE_Image* pImage = pTextureBrush->GetImage();
+  if (!pImage)
     return FALSE;
-  }
-  CFX_Size size;
-  size.Set(pImage->GetImageWidth(), pImage->GetImageHeight());
+
+  CFX_Size size(pImage->GetImageWidth(), pImage->GetImageHeight());
   CFX_DIBitmap bmp;
   bmp.Create(size.x, size.y, FXDIB_Argb);
   if (!pImage->StartLoadImage(&bmp, 0, 0, size.x, size.y, 0, 0, size.x,
@@ -537,8 +531,7 @@ FX_BOOL CFDE_FxgeDevice::FillLinearGradientPath(IFDE_Brush* pBrush,
   IFDE_LinearGradientBrush* pLinearBrush = (IFDE_LinearGradientBrush*)pBrush;
   CFX_PointF pt0, pt1;
   pLinearBrush->GetLinearPoints(pt0, pt1);
-  CFX_VectorF fDiagonal;
-  fDiagonal.Set(pt0, pt1);
+  CFX_VectorF fDiagonal(pt0, pt1);
   FX_FLOAT fTheta = FXSYS_atan2(fDiagonal.y, fDiagonal.x);
   FX_FLOAT fLength = fDiagonal.Length();
   FX_FLOAT fTotalX = fLength / FXSYS_cos(fTheta);
@@ -576,4 +569,3 @@ FX_BOOL CFDE_FxgeDevice::FillLinearGradientPath(IFDE_Brush* pBrush,
   }
   return WrapTexture(pLinearBrush->GetWrapMode(), &bmp, pPath, pMatrix);
 }
-#endif

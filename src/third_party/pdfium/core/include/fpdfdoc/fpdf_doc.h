@@ -218,7 +218,7 @@ class CPDF_Action {
 
   CPDF_Dictionary* GetDict() const { return m_pDict; }
 
-  CFX_ByteString GetTypeName() const { return m_pDict->GetString("S"); }
+  CFX_ByteString GetTypeName() const { return m_pDict->GetStringBy("S"); }
 
   ActionType GetType() const;
 
@@ -226,19 +226,19 @@ class CPDF_Action {
 
   CFX_WideString GetFilePath() const;
 
-  FX_BOOL GetNewWindow() const { return m_pDict->GetBoolean("NewWindow"); }
+  FX_BOOL GetNewWindow() const { return m_pDict->GetBooleanBy("NewWindow"); }
 
   CFX_ByteString GetURI(CPDF_Document* pDoc) const;
 
-  FX_BOOL GetMouseMap() const { return m_pDict->GetBoolean("IsMap"); }
+  FX_BOOL GetMouseMap() const { return m_pDict->GetBooleanBy("IsMap"); }
 
   CPDF_ActionFields GetWidgets() const { return this; }
 
-  FX_BOOL GetHideStatus() const { return m_pDict->GetBoolean("H", TRUE); }
+  FX_BOOL GetHideStatus() const { return m_pDict->GetBooleanBy("H", TRUE); }
 
-  CFX_ByteString GetNamedAction() const { return m_pDict->GetString("N"); }
+  CFX_ByteString GetNamedAction() const { return m_pDict->GetStringBy("N"); }
 
-  FX_DWORD GetFlags() const { return m_pDict->GetInteger("Flags"); }
+  FX_DWORD GetFlags() const { return m_pDict->GetIntegerBy("Flags"); }
 
   CFX_WideString GetJavaScript() const;
 
@@ -246,15 +246,15 @@ class CPDF_Action {
 
   int32_t GetOperationType() const;
 
-  CPDF_Stream* GetSoundStream() const { return m_pDict->GetStream("Sound"); }
+  CPDF_Stream* GetSoundStream() const { return m_pDict->GetStreamBy("Sound"); }
 
-  FX_FLOAT GetVolume() const { return m_pDict->GetNumber("Volume"); }
+  FX_FLOAT GetVolume() const { return m_pDict->GetNumberBy("Volume"); }
 
-  FX_BOOL IsSynchronous() const { return m_pDict->GetBoolean("Synchronous"); }
+  FX_BOOL IsSynchronous() const { return m_pDict->GetBooleanBy("Synchronous"); }
 
-  FX_BOOL IsRepeat() const { return m_pDict->GetBoolean("Repeat"); }
+  FX_BOOL IsRepeat() const { return m_pDict->GetBooleanBy("Repeat"); }
 
-  FX_BOOL IsMixPlay() const { return m_pDict->GetBoolean("Mix"); }
+  FX_BOOL IsMixPlay() const { return m_pDict->GetBooleanBy("Mix"); }
 
   FX_DWORD GetSubActionsCount() const;
 
@@ -317,21 +317,23 @@ class CPDF_DocJSActions {
  protected:
   CPDF_Document* const m_pDocument;
 };
+
 class CPDF_FileSpec {
  public:
   CPDF_FileSpec();
-
   explicit CPDF_FileSpec(CPDF_Object* pObj) { m_pObj = pObj; }
 
-  operator CPDF_Object*() const { return m_pObj; }
+  // Convert a platform dependent file name into pdf format.
+  static CFX_WideString EncodeFileName(const CFX_WideStringC& filepath);
 
-  FX_BOOL IsURL() const;
+  // Convert a pdf file name into platform dependent format.
+  static CFX_WideString DecodeFileName(const CFX_WideStringC& filepath);
 
-  FX_BOOL GetFileName(CFX_WideString& wsFileName) const;
+  CPDF_Object* GetObj() const { return m_pObj; }
+  bool GetFileName(CFX_WideString* wsFileName) const;
 
-  CPDF_Stream* GetFileStream() const;
-
-  void SetFileName(const CFX_WideStringC& wsFileName, FX_BOOL bURL = FALSE);
+  // Set this file spec to refer to a file name (not a url).
+  void SetFileName(const CFX_WideStringC& wsFileName);
 
  protected:
   CPDF_Object* m_pObj;
@@ -563,8 +565,6 @@ class CPDF_InterForm : public CFX_PrivateData {
   CPDF_FormField* GetField(FX_DWORD index,
                            const CFX_WideString& csFieldName = L"");
 
-  void GetAllFieldNames(CFX_WideStringArray& allFieldNames);
-
   CPDF_FormField* GetFieldByDict(CPDF_Dictionary* pFieldDict) const;
 
   CPDF_FormControl* GetControlAtPoint(CPDF_Page* pPage,
@@ -734,12 +734,10 @@ class CPDF_FormField {
 
   CFX_WideString GetFullName();
 
-  Type GetType() { return m_Type; }
-
-  FX_DWORD GetFlags() { return m_Flags; }
+  Type GetType() const { return m_Type; }
+  FX_DWORD GetFlags() const { return m_Flags; }
 
   CPDF_Dictionary* GetFieldDict() const { return m_pDict; }
-
   void SetFieldDict(CPDF_Dictionary* pDict) { m_pDict = pDict; }
 
   FX_BOOL ResetField(FX_BOOL bNotify = FALSE);
@@ -799,8 +797,8 @@ class CPDF_FormField {
   int FindOptionValue(const CFX_WideString& csOptValue, int iStartIndex = 0);
 
   FX_BOOL CheckControl(int iControlIndex,
-                       FX_BOOL bChecked,
-                       FX_BOOL bNotify = FALSE);
+                       bool bChecked,
+                       bool bNotify = false);
 
   int GetTopVisibleIndex();
 
@@ -895,16 +893,15 @@ class CPDF_IconFit {
 #define TEXTPOS_RIGHT 4
 #define TEXTPOS_LEFT 5
 #define TEXTPOS_OVERLAID 6
+
 class CPDF_FormControl {
  public:
-  CPDF_FormField::Type GetType() { return m_pField->GetType(); }
+  enum HighlightingMode { None = 0, Invert, Outline, Push, Toggle };
 
+  CPDF_FormField::Type GetType() const { return m_pField->GetType(); }
   CPDF_InterForm* GetInterForm() const { return m_pForm; }
-
   CPDF_FormField* GetField() const { return m_pField; }
-
   CPDF_Dictionary* GetWidget() const { return m_pWidgetDict; }
-
   CFX_FloatRect GetRect() const;
 
   void DrawControl(CFX_RenderDevice* pDevice,
@@ -914,19 +911,13 @@ class CPDF_FormControl {
                    const CPDF_RenderOptions* pOptions = NULL);
 
   CFX_ByteString GetCheckedAPState();
-
   CFX_WideString GetExportValue();
 
-  FX_BOOL IsChecked();
-
-  FX_BOOL IsDefaultChecked();
-
-  enum HighlightingMode { None = 0, Invert, Outline, Push, Toggle };
+  bool IsChecked() const;
+  bool IsDefaultChecked() const;
 
   HighlightingMode GetHighlightingMode();
-
   bool HasMKEntry(CFX_ByteString csEntry) const;
-
   int GetRotation();
 
   inline FX_ARGB GetBorderColor(int& iColorType) {
@@ -982,8 +973,7 @@ class CPDF_FormControl {
  protected:
   CPDF_FormControl(CPDF_FormField* pField, CPDF_Dictionary* pWidgetDict);
 
-  CFX_ByteString GetOnStateName();
-
+  CFX_ByteString GetOnStateName() const;
   void SetOnStateName(const CFX_ByteString& csOn);
 
   void CheckControl(FX_BOOL bChecked);
@@ -1010,37 +1000,28 @@ class CPDF_FormControl {
   friend class CPDF_InterForm;
   friend class CPDF_FormField;
 };
+
 class CPDF_FormNotify {
  public:
   virtual ~CPDF_FormNotify() {}
 
-  virtual int BeforeValueChange(const CPDF_FormField* pField,
-                                CFX_WideString& csValue) {
+  virtual int BeforeValueChange(CPDF_FormField* pField,
+                                const CFX_WideString& csValue) {
     return 0;
   }
-
-  virtual int AfterValueChange(const CPDF_FormField* pField) { return 0; }
-
-  virtual int BeforeSelectionChange(const CPDF_FormField* pField,
-                                    CFX_WideString& csValue) {
+  virtual void AfterValueChange(CPDF_FormField* pField) {}
+  virtual int BeforeSelectionChange(CPDF_FormField* pField,
+                                    const CFX_WideString& csValue) {
     return 0;
   }
-
-  virtual int AfterSelectionChange(const CPDF_FormField* pField) { return 0; }
-
-  virtual int AfterCheckedStatusChange(const CPDF_FormField* pField,
-                                       const CFX_ByteArray& statusArray) {
-    return 0;
-  }
-
-  virtual int BeforeFormReset(const CPDF_InterForm* pForm) { return 0; }
-
-  virtual int AfterFormReset(const CPDF_InterForm* pForm) { return 0; }
-
-  virtual int BeforeFormImportData(const CPDF_InterForm* pForm) { return 0; }
-
-  virtual int AfterFormImportData(const CPDF_InterForm* pForm) { return 0; }
+  virtual void AfterSelectionChange(CPDF_FormField* pField) {}
+  virtual void AfterCheckedStatusChange(CPDF_FormField* pField) {}
+  virtual int BeforeFormReset(CPDF_InterForm* pForm) { return 0; }
+  virtual void AfterFormReset(CPDF_InterForm* pForm) {}
+  virtual int BeforeFormImportData(CPDF_InterForm* pForm) { return 0; }
+  virtual void AfterFormImportData(CPDF_InterForm* pForm) {}
 };
+
 FX_BOOL FPDF_GenerateAP(CPDF_Document* pDoc, CPDF_Dictionary* pAnnotDict);
 class CPDF_PageLabel {
  public:

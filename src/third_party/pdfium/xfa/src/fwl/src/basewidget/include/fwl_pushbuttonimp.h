@@ -4,14 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_PUSHBUTTON_IMP_H
-#define _FWL_PUSHBUTTON_IMP_H
-class CFWL_WidgetImp;
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_PUSHBUTTONIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_PUSHBUTTONIMP_H_
+
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
 class IFWL_Widget;
-class CFWL_PushButtonImp;
 class CFWL_PushButtonImpDelegate;
+
 class CFWL_PushButtonImp : public CFWL_WidgetImp {
  public:
   CFWL_PushButtonImp(const CFWL_WidgetImpProperties& properties,
@@ -60,4 +61,5 @@ class CFWL_PushButtonImpDelegate : public CFWL_WidgetImpDelegate {
   void OnKeyDown(CFWL_MsgKey* pMsg);
   CFWL_PushButtonImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_PUSHBUTTONIMP_H_

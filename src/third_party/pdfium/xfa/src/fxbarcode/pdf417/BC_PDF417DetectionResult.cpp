@@ -20,15 +20,16 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_PDF417Codeword.h"
-#include "BC_PDF417BarcodeMetadata.h"
-#include "BC_PDF417BoundingBox.h"
-#include "BC_PDF417DetectionResultColumn.h"
-#include "BC_PDF417Common.h"
-#include "BC_PDF417DetectionResultRowIndicatorColumn.h"
-#include "BC_PDF417DetectionResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeMetadata.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Codeword.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Common.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultRowIndicatorColumn.h"
+
 int32_t CBC_DetectionResult::ADJUST_ROW_NUMBER_SKIP = 2;
+
 CBC_DetectionResult::CBC_DetectionResult(CBC_BarcodeMetadata* barcodeMetadata,
                                          CBC_BoundingBox* boundingBox) {
   m_barcodeMetadata = barcodeMetadata;
@@ -109,7 +110,7 @@ CFX_ByteString CBC_DetectionResult::toString() {
 }
 void CBC_DetectionResult::adjustIndicatorColumnRowNumbers(
     CBC_DetectionResultColumn* detectionResultColumn) {
-  if (detectionResultColumn != NULL) {
+  if (detectionResultColumn) {
     ((CBC_DetectionResultRowIndicatorColumn*)detectionResultColumn)
         ->adjustCompleteIndicatorColumnRowNumbers(*m_barcodeMetadata);
   }
@@ -155,8 +156,8 @@ int32_t CBC_DetectionResult::adjustRowNumbersFromBothRI() {
           ->getCodewords();
   for (int32_t codewordsRow = 0; codewordsRow < LRIcodewords->GetSize();
        codewordsRow++) {
-    if (LRIcodewords->GetAt(codewordsRow) != NULL &&
-        RRIcodewords->GetAt(codewordsRow) != NULL &&
+    if (LRIcodewords->GetAt(codewordsRow) &&
+        RRIcodewords->GetAt(codewordsRow) &&
         ((CBC_Codeword*)LRIcodewords->GetAt(codewordsRow))->getRowNumber() ==
             ((CBC_Codeword*)RRIcodewords->GetAt(codewordsRow))
                 ->getRowNumber()) {
@@ -207,7 +208,7 @@ int32_t CBC_DetectionResult::adjustRowNumbersFromRRI() {
                               m_detectionResultColumns.GetAt(barcodeColumn))
               ->getCodewords()
               ->GetAt(codewordsRow);
-      if (codeword != NULL) {
+      if (codeword) {
         invalidRowCounts = adjustRowNumberIfValid(rowIndicatorRowNumber,
                                                   invalidRowCounts, codeword);
         if (!codeword->hasValidRowNumber()) {
@@ -242,7 +243,7 @@ int32_t CBC_DetectionResult::adjustRowNumbersFromLRI() {
                               m_detectionResultColumns[barcodeColumn])
               ->getCodewords()
               ->GetAt(codewordsRow);
-      if (codeword != NULL) {
+      if (codeword) {
         invalidRowCounts = adjustRowNumberIfValid(rowIndicatorRowNumber,
                                                   invalidRowCounts, codeword);
         if (!codeword->hasValidRowNumber()) {
@@ -279,7 +280,7 @@ void CBC_DetectionResult::adjustRowNumbers(int32_t barcodeColumn,
            barcodeColumn - 1))
           ->getCodewords();
   CFX_PtrArray* nextColumnCodewords = previousColumnCodewords;
-  if (m_detectionResultColumns[barcodeColumn + 1] != NULL) {
+  if (m_detectionResultColumns[barcodeColumn + 1]) {
     nextColumnCodewords = ((CBC_DetectionResultColumn*)
                                m_detectionResultColumns[barcodeColumn + 1])
                               ->getCodewords();

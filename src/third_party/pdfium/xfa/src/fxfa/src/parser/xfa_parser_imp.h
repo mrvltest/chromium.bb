@@ -4,10 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_PARSER_IMP
-#define _XFA_PARSER_IMP
-#define _XFA_VERIFY_Checksum_
+#ifndef XFA_SRC_FXFA_SRC_PARSER_XFA_PARSER_IMP_H_
+#define XFA_SRC_FXFA_SRC_PARSER_XFA_PARSER_IMP_H_
+
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+
 class CXFA_XMLParser;
+
 class CXFA_SimpleParser : public IXFA_Parser {
  public:
   CXFA_SimpleParser(IXFA_ObjFactory* pFactory, FX_BOOL bDocumentParser = FALSE);
@@ -76,6 +79,7 @@ class CXFA_SimpleParser : public IXFA_Parser {
   FX_BOOL m_bDocumentParser;
   friend class CXFA_DocumentParser;
 };
+
 class CXFA_DocumentParser : public IXFA_DocParser {
  public:
   CXFA_DocumentParser(IXFA_Notify* pNotify);
@@ -103,6 +107,7 @@ class CXFA_DocumentParser : public IXFA_DocParser {
   CXFA_Document* m_pDocument;
 };
 typedef CFX_StackTemplate<IFDE_XMLNode*> CXFA_XMLNodeStack;
+
 class CXFA_XMLParser : public IFDE_XMLParser {
  public:
   CXFA_XMLParser(IFDE_XMLNode* pRoot, IFX_Stream* pStream);
@@ -111,13 +116,11 @@ class CXFA_XMLParser : public IFDE_XMLParser {
   virtual void Release() { delete this; }
   virtual int32_t DoParser(IFX_Pause* pPause);
 
-#ifdef _XFA_VERIFY_Checksum_
   FX_FILESIZE m_nStart[2];
   size_t m_nSize[2];
   FX_FILESIZE m_nElementStart;
   FX_WORD m_dwCheckStatus;
   FX_WORD m_dwCurrentCheckStatus;
-#endif
 
  protected:
   IFDE_XMLNode* m_pRoot;
@@ -131,4 +134,5 @@ class CXFA_XMLParser : public IFDE_XMLParser {
   CFX_WideString m_ws2;
   FX_DWORD m_dwStatus;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_PARSER_XFA_PARSER_IMP_H_

@@ -1392,7 +1392,7 @@ ssl_create_cipher_list(const SSL_PROTOCOL_METHOD *ssl_method,
   /* Now we have to collect the available ciphers from the compiled in ciphers.
    * We cannot get more than the number compiled in, so it is used for
    * allocation. */
-  co_list = (CIPHER_ORDER *)OPENSSL_malloc(sizeof(CIPHER_ORDER) * kCiphersLen);
+  co_list = OPENSSL_malloc(sizeof(CIPHER_ORDER) * kCiphersLen);
   if (co_list == NULL) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
     return NULL;
@@ -1616,6 +1616,10 @@ int SSL_CIPHER_is_ECDSA(const SSL_CIPHER *cipher) {
   return (cipher->algorithm_auth & SSL_aECDSA) != 0;
 }
 
+int SSL_CIPHER_is_ECDHE(const SSL_CIPHER *cipher) {
+  return (cipher->algorithm_mkey & SSL_kECDHE) != 0;
+}
+
 uint16_t SSL_CIPHER_get_min_version(const SSL_CIPHER *cipher) {
   if (cipher->algorithm_prf != SSL_HANDSHAKE_MAC_DEFAULT) {
     /* Cipher suites before TLS 1.2 use the default PRF, while all those added
@@ -1800,7 +1804,6 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
                                    int len) {
   const char *kx, *au, *enc, *mac;
   uint32_t alg_mkey, alg_auth, alg_enc, alg_mac;
-  static const char *format = "%-23s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s\n";
 
   alg_mkey = cipher->algorithm_mkey;
   alg_auth = cipher->algorithm_auth;
@@ -1924,7 +1927,8 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
     return "Buffer too small";
   }
 
-  BIO_snprintf(buf, len, format, cipher->name, kx, au, enc, mac);
+  BIO_snprintf(buf, len, "%-23s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s\n",
+               cipher->name, kx, au, enc, mac);
   return buf;
 }
 

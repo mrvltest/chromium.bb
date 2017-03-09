@@ -4,11 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "fpdfsdk/include/fsdk_define.h"
-#include "fpdfsdk/include/fsdk_mgr.h"
-#include "fpdfsdk/include/fpdfxfa/fpdfxfa_util.h"
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_doc.h"
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_page.h"
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_util.h"
+#include "fpdfsdk/include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_mgr.h"
 
 CPDFXFA_Page::CPDFXFA_Page(CPDFXFA_Document* pDoc, int page_index)
     : m_pPDFPage(NULL),
@@ -53,7 +53,7 @@ FX_BOOL CPDFXFA_Page::LoadPDFPage() {
 
     m_pPDFPage = new CPDF_Page;
     m_pPDFPage->Load(pPDFDoc, pDict);
-    m_pPDFPage->ParseContent();
+    m_pPDFPage->ParseContent(nullptr);
     return TRUE;
   }
 
@@ -112,14 +112,12 @@ FX_BOOL CPDFXFA_Page::LoadPDFPage(CPDF_Dictionary* pageDict) {
 
   m_pPDFPage = new CPDF_Page();
   m_pPDFPage->Load(m_pDocument->GetPDFDoc(), pageDict);
-  m_pPDFPage->ParseContent();
+  m_pPDFPage->ParseContent(nullptr);
 
   return TRUE;
 }
 
 FX_FLOAT CPDFXFA_Page::GetPageWidth() {
-  ASSERT(m_pDocument != NULL);
-
   if (!m_pPDFPage && !m_pXFAPageView)
     return 0.0f;
 
@@ -145,8 +143,6 @@ FX_FLOAT CPDFXFA_Page::GetPageWidth() {
 }
 
 FX_FLOAT CPDFXFA_Page::GetPageHeight() {
-  ASSERT(m_pDocument != NULL);
-
   if (!m_pPDFPage && !m_pXFAPageView)
     return 0.0f;
 
@@ -180,8 +176,6 @@ void CPDFXFA_Page::DeviceToPage(int start_x,
                                 int device_y,
                                 double* page_x,
                                 double* page_y) {
-  ASSERT(m_pDocument != NULL);
-
   if (!m_pPDFPage && !m_pXFAPageView)
     return;
 
@@ -229,8 +223,6 @@ void CPDFXFA_Page::GetDisplayMatrix(CFX_Matrix& matrix,
                                     int xSize,
                                     int ySize,
                                     int iRotate) const {
-  ASSERT(m_pDocument != NULL);
-
   if (!m_pPDFPage && !m_pXFAPageView)
     return;
 

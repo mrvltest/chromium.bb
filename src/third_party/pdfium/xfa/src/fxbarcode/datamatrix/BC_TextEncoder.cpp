@@ -20,16 +20,16 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
 #include "xfa/src/fxbarcode/BC_Dimension.h"
-#include "BC_Encoder.h"
-#include "BC_SymbolShapeHint.h"
-#include "BC_SymbolInfo.h"
-#include "BC_EncoderContext.h"
-#include "BC_HighLevelEncoder.h"
-#include "BC_C40Encoder.h"
-#include "BC_TextEncoder.h"
+#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_C40Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_EncoderContext.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_HighLevelEncoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolInfo.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolShapeHint.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_TextEncoder.h"
+
 CBC_TextEncoder::CBC_TextEncoder() {}
 CBC_TextEncoder::~CBC_TextEncoder() {}
 int32_t CBC_TextEncoder::getEncodingMode() {
@@ -50,7 +50,7 @@ int32_t CBC_TextEncoder::encodeChar(FX_WCHAR c,
     sb += (FX_WCHAR)(c - 97 + 14);
     return 1;
   }
-  if (c >= '\0' && c <= 0x1f) {
+  if (c <= 0x1f) {
     sb += (FX_WCHAR)'\0';
     sb += c;
     return 2;

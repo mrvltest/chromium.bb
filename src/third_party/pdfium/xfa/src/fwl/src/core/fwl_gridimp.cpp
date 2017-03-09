@@ -5,12 +5,12 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_contentimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_gridimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 
 // static
 IFWL_Grid* IFWL_Grid::Create(const CFWL_WidgetImpProperties& properties) {
@@ -1164,16 +1164,11 @@ void CFWL_GridImp::SetAllWidgetsRect() {
         GetWidgetMargin(pWidget, FWL_GRIDMARGIN_Top, fTopMargin);
     FX_BOOL bBottomMargin =
         GetWidgetMargin(pWidget, FWL_GRIDMARGIN_Bottom, fBottomMargin);
-    FWL_LAYOUTDATA ltd;
-    ltd.fWidth = 0;
-    ltd.fHeight = 0;
     if (pInfo->m_Size[FWL_GRIDSIZE_Width].eUnit == FWL_GRIDUNIT_Fixed) {
       SetWidgetActualWidth(pInfo, pInfo->m_Size[FWL_GRIDSIZE_Width].fLength);
-      ltd.fWidth = pInfo->m_fActualWidth;
     } else {
       if (bLeftMargin && bRightMargin) {
         SetWidgetActualWidth(pInfo, fColumnWidth - fLeftMargin - fRightMargin);
-        ltd.fWidth = pInfo->m_fActualWidth;
       } else {
         CFX_RectF rtAuto;
         pWidget->GetWidgetRect(rtAuto, TRUE);
@@ -1182,11 +1177,9 @@ void CFWL_GridImp::SetAllWidgetsRect() {
     }
     if (pInfo->m_Size[FWL_GRIDSIZE_Height].eUnit == FWL_GRIDUNIT_Fixed) {
       SetWidgetActualHeight(pInfo, pInfo->m_Size[FWL_GRIDSIZE_Height].fLength);
-      ltd.fHeight = pInfo->m_fActualHeight;
     } else {
       if (bTopMargin && bBottomMargin) {
         SetWidgetActualHeight(pInfo, fRowHeight - fTopMargin - fBottomMargin);
-        ltd.fHeight = pInfo->m_fActualHeight;
       } else {
         CFX_RectF rtAuto;
         pWidget->GetWidgetRect(rtAuto, TRUE);

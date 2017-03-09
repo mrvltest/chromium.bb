@@ -5,10 +5,10 @@
 
 class RunReporter(object):
 
-  def __init__(self, run_info):
-    self.run_info = run_info
+  def __init__(self, canonical_url):
+    self.canonical_url = canonical_url
 
-  def DidAddValue(self, value):
+  def DidAddFailure(self, failure):
     pass
 
   def DidRun(self, run_failed):
@@ -19,8 +19,9 @@ class RunReporter(object):
 # to telemetry ProgressReporter.
 class ProgressReporter(object):
 
-  def WillRun(self, run_info):
-    return RunReporter(run_info)
+  def WillRun(self, canonical_url):
+    return RunReporter(canonical_url)
 
-  def DidFinishAllRuns(self, results):
+  # TODO(eakuefner): Implement reduction, make this not take a result list.
+  def DidFinishAllRuns(self, result_list):
     pass

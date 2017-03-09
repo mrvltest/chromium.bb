@@ -4,17 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_OBJECT_H_
-#define _XFA_OBJECT_H_
+#ifndef XFA_SRC_FXFA_SRC_COMMON_XFA_OBJECT_H_
+#define XFA_SRC_FXFA_SRC_COMMON_XFA_OBJECT_H_
+
+#include "xfa/src/fdp/include/fde_xml.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+
 class CXFA_Document;
-class IXFA_ObjFactory;
-class IXFA_Notify;
-class CXFA_Object;
-class CXFA_OrdinaryObject;
 class CXFA_Node;
 class CXFA_NodeList;
-class CXFA_ArrayNodeList;
-class CXFA_AttachNodeList;
+class CXFA_OrdinaryObject;
+
 enum XFA_OBJECTTYPE {
   XFA_OBJECTTYPE_OrdinaryObject = 0x0,
   XFA_OBJECTTYPE_OrdinaryList = 0x1,
@@ -41,21 +41,22 @@ enum XFA_OBJECTTYPE {
 class CXFA_Object {
  public:
   CXFA_Object(CXFA_Document* pDocument, FX_DWORD uFlags);
-  inline CXFA_Document* GetDocument() const { return m_pDocument; }
-  inline FX_DWORD GetFlag() const { return m_uFlags; }
-  inline XFA_OBJECTTYPE GetObjectType() const {
+  CXFA_Document* GetDocument() const { return m_pDocument; }
+  FX_DWORD GetFlag() const { return m_uFlags; }
+  XFA_OBJECTTYPE GetObjectType() const {
     return (XFA_OBJECTTYPE)(m_uFlags & XFA_OBJECTTYPEMASK);
   }
-  inline FX_BOOL IsNode() const {
+
+  FX_BOOL IsNode() const {
     return (m_uFlags & XFA_OBJECTTYPEMASK) >= XFA_OBJECTTYPE_Node;
   }
-  inline FX_BOOL IsOrdinaryObject() const {
+  FX_BOOL IsOrdinaryObject() const {
     return (m_uFlags & XFA_OBJECTTYPEMASK) == XFA_OBJECTTYPE_OrdinaryObject;
   }
-  inline FX_BOOL IsNodeList() const {
+  FX_BOOL IsNodeList() const {
     return (m_uFlags & XFA_OBJECTTYPEMASK) == XFA_OBJECTTYPE_NodeList;
   }
-  inline FX_BOOL IsOrdinaryList() const {
+  FX_BOOL IsOrdinaryList() const {
     return (m_uFlags & XFA_OBJECTTYPEMASK) == XFA_OBJECTTYPE_OrdinaryList;
   }
   FX_BOOL IsContentNode() const {
@@ -64,6 +65,15 @@ class CXFA_Object {
   FX_BOOL IsContainerNode() const {
     return (m_uFlags & XFA_OBJECTTYPEMASK) == XFA_OBJECTTYPE_ContainerNode;
   }
+
+  CXFA_Node* AsNode();
+  CXFA_OrdinaryObject* AsOrdinaryObject();
+  CXFA_NodeList* AsNodeList();
+
+  const CXFA_Node* AsNode() const;
+  const CXFA_OrdinaryObject* AsOrdinaryObject() const;
+  const CXFA_NodeList* AsNodeList() const;
+
   XFA_ELEMENT GetClassID() const;
   void GetClassName(CFX_WideStringC& wsName) const;
   uint32_t GetClassHashCode() const;
@@ -73,9 +83,10 @@ class CXFA_Object {
   void ThrowScriptErrorMessage(int32_t iStringID, ...);
 
  protected:
-  CXFA_Document* m_pDocument;
+  CXFA_Document* const m_pDocument;
   FX_DWORD m_uFlags;
 };
+
 #define XFA_NODEFILTER_Children 0x01
 #define XFA_NODEFILTER_Properties 0x02
 #define XFA_NODEFILTER_OneOfProperty 0x04
@@ -91,24 +102,28 @@ enum XFA_SOM_MESSAGETYPE {
   XFA_SOM_FormatMessage,
   XFA_SOM_MandatoryMessage
 };
+
+typedef CFX_ArrayTemplate<CXFA_Node*> CXFA_NodeArray;
 typedef CFX_StackTemplate<CXFA_Node*> CXFA_NodeStack;
 typedef CXFA_PtrSetTemplate<CXFA_Node*> CXFA_NodeSet;
 typedef void (*PD_CALLBACK_DUPLICATEDATA)(void*& pData);
-typedef struct _XFA_MAPDATABLOCKCALLBACKINFO {
+
+struct XFA_MAPDATABLOCKCALLBACKINFO {
   PD_CALLBACK_FREEDATA pFree;
   PD_CALLBACK_DUPLICATEDATA pCopy;
-} XFA_MAPDATABLOCKCALLBACKINFO;
-typedef struct _XFA_MAPDATABLOCK {
-  uint8_t* GetData() const {
-    return (uint8_t*)this + sizeof(_XFA_MAPDATABLOCK);
-  }
+};
+
+struct XFA_MAPDATABLOCK {
+  uint8_t* GetData() const { return (uint8_t*)this + sizeof(XFA_MAPDATABLOCK); }
   XFA_MAPDATABLOCKCALLBACKINFO* pCallbackInfo;
   int32_t iBytes;
-} XFA_MAPDATABLOCK, *XFA_LPMAPDATABLOCK;
-typedef struct _XFA_MAPMODULEDATA {
+};
+
+struct XFA_MAPMODULEDATA {
   CFX_MapPtrToPtr m_ValueMap;
-  CFX_MapPtrTemplate<void*, XFA_LPMAPDATABLOCK> m_BufferMap;
-} XFA_MAPMODULEDATA, *XFA_LPMAPMODULEDATA;
+  CFX_MapPtrTemplate<void*, XFA_MAPDATABLOCK*> m_BufferMap;
+};
+
 #define XFA_CalcRefCount (void*)(uintptr_t) FXBSTR_ID('X', 'F', 'A', 'R')
 #define XFA_CalcData (void*)(uintptr_t) FXBSTR_ID('X', 'F', 'A', 'C')
 #define XFA_LAYOUTITEMKEY (void*)(uintptr_t) FXBSTR_ID('L', 'Y', 'I', 'M')
@@ -220,11 +235,8 @@ class CXFA_Node : public CXFA_Object {
                      FX_BOOL bNotify = FALSE);
   FX_BOOL TryMeasure(XFA_ATTRIBUTE eAttr,
                      CXFA_Measurement& mValue,
-                     FX_BOOL bUseDefault = TRUE);
-  CXFA_Measurement GetMeasure(XFA_ATTRIBUTE eAttr) {
-    CXFA_Measurement mValue;
-    return TryMeasure(eAttr, mValue, TRUE) ? mValue : CXFA_Measurement();
-  }
+                     FX_BOOL bUseDefault = TRUE) const;
+  CXFA_Measurement GetMeasure(XFA_ATTRIBUTE eAttr) const;
   FX_BOOL SetObject(XFA_ATTRIBUTE eAttr,
                     void* pData,
                     XFA_MAPDATABLOCKCALLBACKINFO* pCallbackInfo = NULL);
@@ -262,7 +274,7 @@ class CXFA_Node : public CXFA_Object {
   CXFA_Node* CreateSamePacketNode(XFA_ELEMENT eElement,
                                   FX_DWORD dwFlags = XFA_NODEFLAG_Initialized);
   CXFA_Node* CloneTemplateToForm(FX_BOOL bRecursive);
-  CXFA_Node* GetTemplateNode();
+  CXFA_Node* GetTemplateNode() const;
   void SetTemplateNode(CXFA_Node* pTemplateNode);
   CXFA_Node* GetDataDescriptionNode();
   void SetDataDescriptionNode(CXFA_Node* pDataDescriptionNode);
@@ -598,7 +610,8 @@ class CXFA_Node : public CXFA_Object {
                            FX_BOOL bScriptModify = FALSE,
                            FX_BOOL bSyncData = TRUE);
   CFX_WideString GetScriptContent(FX_BOOL bScriptModify = FALSE);
-  XFA_LPMAPMODULEDATA GetMapModuleData(FX_BOOL bCreateNew);
+  XFA_MAPMODULEDATA* CreateMapModuleData();
+  XFA_MAPMODULEDATA* GetMapModuleData() const;
   void SetMapModuleValue(void* pKey, void* pValue);
   FX_BOOL GetMapModuleValue(void* pKey, void*& pValue);
   void SetMapModuleString(void* pKey, const CFX_WideStringC& wsValue);
@@ -610,7 +623,7 @@ class CXFA_Node : public CXFA_Object {
   FX_BOOL GetMapModuleBuffer(void* pKey,
                              void*& pValue,
                              int32_t& iBytes,
-                             FX_BOOL bProtoAlso = TRUE);
+                             FX_BOOL bProtoAlso = TRUE) const;
   FX_BOOL HasMapModuleKey(void* pKey, FX_BOOL bProtoAlso = FALSE);
   void RemoveMapModuleKey(void* pKey = NULL);
   void MergeAllData(void* pDstModule, FX_BOOL bUseSrcAttr = TRUE);
@@ -629,7 +642,7 @@ class CXFA_Node : public CXFA_Object {
   FX_WORD m_ePacket;
   FX_DWORD m_dwNameHash;
   CXFA_Node* m_pAuxNode;
-  XFA_LPMAPMODULEDATA m_pMapModuleData;
+  XFA_MAPMODULEDATA* m_pMapModuleData;
 };
 class CXFA_OrdinaryObject : public CXFA_Object {
  public:
@@ -664,7 +677,7 @@ class CXFA_ThisProxy : public CXFA_Object {
 };
 class CXFA_NodeList : public CXFA_Object {
  public:
-  CXFA_NodeList(CXFA_Document* pDocument);
+  explicit CXFA_NodeList(CXFA_Document* pDocument);
   virtual ~CXFA_NodeList() {}
   XFA_ELEMENT GetClassID() const { return XFA_ELEMENT_NodeList; }
   CXFA_Node* NamedItem(const CFX_WideStringC& wsName);
@@ -686,7 +699,7 @@ class CXFA_NodeList : public CXFA_Object {
 };
 class CXFA_ArrayNodeList : public CXFA_NodeList {
  public:
-  CXFA_ArrayNodeList(CXFA_Document* pDocument);
+  explicit CXFA_ArrayNodeList(CXFA_Document* pDocument);
   void SetArrayNodeList(const CXFA_NodeArray& srcArray);
   virtual int32_t GetLength();
   virtual FX_BOOL Append(CXFA_Node* pNode);
@@ -745,4 +758,46 @@ class CXFA_TraverseStrategy_XFANode {
 };
 typedef CXFA_NodeIteratorTemplate<CXFA_Node, CXFA_TraverseStrategy_XFANode>
     CXFA_NodeIterator;
-#endif
+
+inline CXFA_Node* CXFA_Object::AsNode() {
+  return IsNode() ? static_cast<CXFA_Node*>(this) : nullptr;
+}
+inline CXFA_OrdinaryObject* CXFA_Object::AsOrdinaryObject() {
+  return IsOrdinaryObject() ? static_cast<CXFA_OrdinaryObject*>(this) : nullptr;
+}
+inline CXFA_NodeList* CXFA_Object::AsNodeList() {
+  return IsNodeList() ? static_cast<CXFA_NodeList*>(this) : nullptr;
+}
+
+inline const CXFA_Node* CXFA_Object::AsNode() const {
+  return IsNode() ? static_cast<const CXFA_Node*>(this) : nullptr;
+}
+inline const CXFA_OrdinaryObject* CXFA_Object::AsOrdinaryObject() const {
+  return IsOrdinaryObject() ? static_cast<const CXFA_OrdinaryObject*>(this)
+                            : nullptr;
+}
+inline const CXFA_NodeList* CXFA_Object::AsNodeList() const {
+  return IsNodeList() ? static_cast<const CXFA_NodeList*>(this) : nullptr;
+}
+
+inline CXFA_Node* ToNode(CXFA_Object* pObj) {
+  return pObj ? pObj->AsNode() : nullptr;
+}
+inline CXFA_OrdinaryObject* ToOrdinaryObject(CXFA_Object* pObj) {
+  return pObj ? pObj->AsOrdinaryObject() : nullptr;
+}
+inline CXFA_NodeList* ToNodeList(CXFA_Object* pObj) {
+  return pObj ? pObj->AsNodeList() : nullptr;
+}
+
+inline const CXFA_Node* ToNode(const CXFA_Object* pObj) {
+  return pObj ? pObj->AsNode() : nullptr;
+}
+inline const CXFA_OrdinaryObject* ToOrdinaryObject(const CXFA_Object* pObj) {
+  return pObj ? pObj->AsOrdinaryObject() : nullptr;
+}
+inline const CXFA_NodeList* ToNodeList(const CXFA_Object* pObj) {
+  return pObj ? pObj->AsNodeList() : nullptr;
+}
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_XFA_OBJECT_H_

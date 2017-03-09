@@ -20,39 +20,42 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/BC_Reader.h"
+#include <limits>
+
 #include "xfa/src/fxbarcode/BC_BinaryBitmap.h"
-#include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/BC_BinaryBitmap.h"
 #include "xfa/src/fxbarcode/BC_DecoderResult.h"
-#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/BC_Reader.h"
+#include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "xfa/src/fxbarcode/common/BC_CommonDecoderResult.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_PDF417DetectorResult.h"
-#include "BC_PDF417Detector.h"
-#include "BC_PDF417DetectorResult.h"
-#include "BC_PDF417Codeword.h"
-#include "BC_PDF417Common.h"
-#include "BC_PDF417BarcodeValue.h"
-#include "BC_PDF417BarcodeMetadata.h"
-#include "BC_PDF417BoundingBox.h"
-#include "BC_PDF417DetectionResultColumn.h"
-#include "BC_PDF417DetectionResultRowIndicatorColumn.h"
-#include "BC_PDF417DetectionResult.h"
-#include "BC_PDF417DecodedBitStreamParser.h"
-#include "BC_PDF417CodewordDecoder.h"
-#include "BC_PDF417DecodedBitStreamParser.h"
-#include "BC_PDF417ECModulusPoly.h"
-#include "BC_PDF417ECModulusGF.h"
-#include "BC_PDF417ECErrorCorrection.h"
-#include "BC_PDF417DecodedBitStreamParser.h"
-#include "BC_PDF417ScanningDecoder.h"
-#include "BC_PDF417Reader.h"
-#define Integer_MAX_VALUE 2147483647
+#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/common/BC_CommonDecoderResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeMetadata.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeValue.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Codeword.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417CodewordDecoder.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Common.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DecodedBitStreamParser.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DecodedBitStreamParser.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DecodedBitStreamParser.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultRowIndicatorColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Detector.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectorResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectorResult.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECErrorCorrection.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECModulusGF.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECModulusPoly.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Reader.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ScanningDecoder.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_PDF417Reader::CBC_PDF417Reader() {}
 CBC_PDF417Reader::~CBC_PDF417Reader() {}
+
 CFX_ByteString CBC_PDF417Reader::Decode(CBC_BinaryBitmap* image, int32_t& e) {
   return Decode(image, 0, e);
 }
@@ -98,9 +101,8 @@ int32_t CBC_PDF417Reader::getMaxWidth(CBC_ResultPoint* p1,
 }
 int32_t CBC_PDF417Reader::getMinWidth(CBC_ResultPoint* p1,
                                       CBC_ResultPoint* p2) {
-  if (p1 == NULL || p2 == NULL) {
-    return Integer_MAX_VALUE;
-  }
+  if (!p1 || !p2)
+    return std::numeric_limits<int32_t>::max();
   return (int32_t)FXSYS_fabs(p1->GetX() - p2->GetX());
 }
 int32_t CBC_PDF417Reader::getMaxCodewordWidth(CFX_PtrArray& p) {

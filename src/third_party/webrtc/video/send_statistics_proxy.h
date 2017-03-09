@@ -24,6 +24,7 @@
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 #include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/video/overuse_frame_detector.h"
+#include "webrtc/video/report_block_stats.h"
 #include "webrtc/video/vie_encoder.h"
 #include "webrtc/video_send_stream.h"
 
@@ -52,12 +53,6 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
   // Used to update incoming frame rate.
   void OnIncomingFrame(int width, int height);
 
-  // Used to update encode time of frames.
-  void OnEncodedFrame(int encode_time_ms);
-
-  // From VideoEncoderRateObserver.
-  void OnSetRates(uint32_t bitrate_bps, int framerate) override;
-
   void OnEncoderImplementationName(const char* implementation_name);
   void OnOutgoingRate(uint32_t framerate, uint32_t bitrate);
   void OnSuspendChange(bool is_suspended);
@@ -67,9 +62,14 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
   // how stats are collected.
   void SetContentType(VideoEncoderConfig::ContentType content_type);
 
+  // Implements VideoEncoderRateObserver.
+  void OnSetRates(uint32_t bitrate_bps, int framerate) override;
+
+  // Implements CpuOveruseMetricsObserver.
+  void OnEncodedFrameTimeMeasured(int encode_time_ms,
+                                  const CpuOveruseMetrics& metrics) override;
+
  protected:
-  // From CpuOveruseMetricsObserver.
-  void CpuOveruseMetricsUpdated(const CpuOveruseMetrics& metrics) override;
   // From RtcpStatisticsCallback.
   void StatisticsUpdated(const RtcpStatistics& statistics,
                          uint32_t ssrc) override;
@@ -131,7 +131,7 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
 
   Clock* const clock_;
   const VideoSendStream::Config config_;
-  mutable rtc::CriticalSection crit_;
+  rtc::CriticalSection crit_;
   VideoEncoderConfig::ContentType content_type_ GUARDED_BY(crit_);
   VideoSendStream::Stats stats_ GUARDED_BY(crit_);
   uint32_t last_sent_frame_timestamp_ GUARDED_BY(crit_);
@@ -142,12 +142,16 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
   // content type changes between real-time video and screenshare, since these
   // will be reported separately.
   struct UmaSamplesContainer {
-    explicit UmaSamplesContainer(const char* prefix);
+    UmaSamplesContainer(const char* prefix,
+                        const VideoSendStream::Stats& start_stats,
+                        Clock* clock);
     ~UmaSamplesContainer();
 
-    void UpdateHistograms();
+    void UpdateHistograms(const VideoSendStream::Config& config,
+                          const VideoSendStream::Stats& current_stats);
 
     const std::string uma_prefix_;
+    Clock* const clock_;
     int max_sent_width_per_timestamp_;
     int max_sent_height_per_timestamp_;
     SampleCounter input_width_counter_;
@@ -164,6 +168,9 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
     SampleCounter max_delay_counter_;
     rtc::RateTracker input_frame_rate_tracker_;
     rtc::RateTracker sent_frame_rate_tracker_;
+    int64_t first_rtcp_stats_time_ms_;
+    ReportBlockStats report_block_stats_;
+    const VideoSendStream::Stats start_stats_;
   };
 
   rtc::scoped_ptr<UmaSamplesContainer> uma_container_ GUARDED_BY(crit_);

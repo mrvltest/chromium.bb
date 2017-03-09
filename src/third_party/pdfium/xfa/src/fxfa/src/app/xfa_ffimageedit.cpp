@@ -4,14 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffimageedit.h"
+
+#include "xfa/include/fwl/core/fwl_app.h"
+#include "xfa/include/fwl/lightwidget/picturebox.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffimageedit.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+
 CXFA_FFImageEdit::CXFA_FFImageEdit(CXFA_FFPageView* pPageView,
                                    CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFField(pPageView, pDataAcc), m_pOldDelegate(NULL) {}
@@ -30,7 +33,7 @@ FX_BOOL CXFA_FFImageEdit::LoadWidget() {
   pNoteDriver->RegisterEventTarget(pWidget, pWidget);
   m_pOldDelegate = pPictureBox->SetDelegate(this);
   CXFA_FFField::LoadWidget();
-  if (m_pDataAcc->GetImageEditImage() != NULL) {
+  if (m_pDataAcc->GetImageEditImage()) {
     return TRUE;
   }
   UpdateFWLData();
@@ -127,7 +130,7 @@ FX_BOOL CXFA_FFImageEdit::OnLButtonDown(FX_DWORD dwFlags,
   }
   CFX_WideString wsImage;
   IFX_FileRead* pFileRead = FX_CreateFileRead(wsFilePath);
-  if (pFileRead != NULL) {
+  if (pFileRead) {
     int32_t nDataSize = pFileRead->GetSize();
     if (nDataSize > 0) {
       CFX_ByteString bsBuf;
@@ -137,9 +140,7 @@ FX_BOOL CXFA_FFImageEdit::OnLButtonDown(FX_DWORD dwFlags,
       if (!bsBuf.IsEmpty()) {
         FX_CHAR* pData = XFA_Base64Encode(bsBuf, nDataSize);
         wsImage = CFX_WideString::FromLocal(pData);
-        if (pData != NULL) {
-          FX_Free(pData);
-        }
+        FX_Free(pData);
       }
     }
     m_pDataAcc->SetImageEditImage(NULL);

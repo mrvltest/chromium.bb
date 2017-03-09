@@ -7,10 +7,10 @@
 #ifndef FPDFSDK_INCLUDE_PDFWINDOW_PWL_UTILS_H_
 #define FPDFSDK_INCLUDE_PDFWINDOW_PWL_UTILS_H_
 
-#include "PWL_Wnd.h"
 #include "core/include/fpdfapi/fpdf_parser.h"  // For CPDF_Point.
 #include "core/include/fpdfdoc/fpdf_vt.h"      // For CPVT_WordRange.
 #include "fpdfsdk/include/fxedit/fx_edit.h"
+#include "fpdfsdk/include/pdfwindow/PWL_Wnd.h"
 
 class CFX_PathData;
 struct CPWL_Color;
@@ -64,9 +64,6 @@ T PWL_MAX(const T& i, const T& j) {
 #define PCS_DIAMOND 3
 #define PCS_SQUARE 4
 #define PCS_STAR 5
-
-#define PWL_PI 3.14159265358979f
-#define PWL_BEZIER 0.5522847498308f
 
 // pushbutton layout style
 #define PPBL_LABEL 0

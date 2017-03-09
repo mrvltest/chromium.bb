@@ -27,6 +27,7 @@ import (
 var (
 	useValgrind     = flag.Bool("valgrind", false, "If true, run code under valgrind")
 	useGDB          = flag.Bool("gdb", false, "If true, run BoringSSL code under gdb")
+	useLLDB         = flag.Bool("lldb", false, "If true, run BoringSSL code under lldb")
 	flagDebug       = flag.Bool("debug", false, "Hexdump the contents of the connection")
 	mallocTest      = flag.Int64("malloc-test", -1, "If non-negative, run each test with each malloc in turn failing from the given number onwards.")
 	mallocTestDebug = flag.Bool("malloc-test-debug", false, "If true, ask bssl_shim to abort rather than fail a malloc. This can be used with a specific value for --malloc-test to identity the malloc failing that is causing problems.")
@@ -521,6 +522,14 @@ func gdbOf(path string, args ...string) *exec.Cmd {
 	return exec.Command("xterm", xtermArgs...)
 }
 
+func lldbOf(path string, args ...string) *exec.Cmd {
+	xtermArgs := []string{"-e", "lldb", "--"}
+	xtermArgs = append(xtermArgs, path)
+	xtermArgs = append(xtermArgs, args...)
+
+	return exec.Command("xterm", xtermArgs...)
+}
+
 type moreMallocsError struct{}
 
 func (moreMallocsError) Error() string {
@@ -637,6 +646,8 @@ func runTest(test *testCase, shimPath string, mallocNumToFail int64) error {
 		shim = valgrindOf(false, shimPath, flags...)
 	} else if *useGDB {
 		shim = gdbOf(shimPath, flags...)
+	} else if *useLLDB {
+		shim = lldbOf(shimPath, flags...)
 	} else {
 		shim = exec.Command(shimPath, flags...)
 	}
@@ -825,6 +836,12 @@ var testCipherSuites = []struct {
 
 func hasComponent(suiteName, component string) bool {
 	return strings.Contains("-"+suiteName+"-", "-"+component+"-")
+}
+
+func isTLSOnly(suiteName string) bool {
+	// BoringSSL doesn't support ECDHE without a curves extension, and
+	// SSLv3 doesn't contain extensions.
+	return hasComponent(suiteName, "ECDHE") || isTLS12Only(suiteName)
 }
 
 func isTLS12Only(suiteName string) bool {
@@ -1680,14 +1697,13 @@ func addBasicTests() {
 		{
 			name: "UnsupportedCurve",
 			config: Config{
-				CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
-				// BoringSSL implements P-224 but doesn't enable it by
-				// default.
-				CurvePreferences: []CurveID{CurveP224},
+				CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				CurvePreferences: []CurveID{CurveP256},
 				Bugs: ProtocolBugs{
 					IgnorePeerCurvePreferences: true,
 				},
 			},
+			flags:         []string{"-p384-only"},
 			shouldFail:    true,
 			expectedError: ":WRONG_CURVE:",
 		},
@@ -1803,6 +1819,8 @@ func addBasicTests() {
 					NoSupportedCurves: true,
 				},
 			},
+			shouldFail:    true,
+			expectedError: ":NO_SHARED_CIPHER:",
 		},
 		{
 			testType: serverTest,
@@ -2070,6 +2088,15 @@ func addBasicTests() {
 			shouldFail:    true,
 			expectedError: ":BAD_HELLO_REQUEST:",
 		},
+		{
+			testType: serverTest,
+			name:     "SupportTicketsWithSessionID",
+			config: Config{
+				SessionTicketsDisabled: true,
+			},
+			resumeConfig:  &Config{},
+			resumeSession: true,
+		},
 	}
 	testCases = append(testCases, basicTests...)
 }
@@ -2108,20 +2135,12 @@ func addCipherSuiteTests() {
 				continue
 			}
 
-			testCases = append(testCases, testCase{
-				testType: clientTest,
-				name:     ver.name + "-" + suite.name + "-client",
-				config: Config{
-					MinVersion:           ver.version,
-					MaxVersion:           ver.version,
-					CipherSuites:         []uint16{suite.id},
-					Certificates:         []Certificate{cert},
-					PreSharedKey:         []byte(psk),
-					PreSharedKeyIdentity: pskIdentity,
-				},
-				flags:         flags,
-				resumeSession: true,
-			})
+			shouldFail := isTLSOnly(suite.name) && ver.version == VersionSSL30
+
+			expectedError := ""
+			if shouldFail {
+				expectedError = ":NO_SHARED_CIPHER:"
+			}
 
 			testCases = append(testCases, testCase{
 				testType: serverTest,
@@ -2136,6 +2155,27 @@ func addCipherSuiteTests() {
 				},
 				certFile:      certFile,
 				keyFile:       keyFile,
+				flags:         flags,
+				resumeSession: true,
+				shouldFail:    shouldFail,
+				expectedError: expectedError,
+			})
+
+			if shouldFail {
+				continue
+			}
+
+			testCases = append(testCases, testCase{
+				testType: clientTest,
+				name:     ver.name + "-" + suite.name + "-client",
+				config: Config{
+					MinVersion:           ver.version,
+					MaxVersion:           ver.version,
+					CipherSuites:         []uint16{suite.id},
+					Certificates:         []Certificate{cert},
+					PreSharedKey:         []byte(psk),
+					PreSharedKeyIdentity: pskIdentity,
+				},
 				flags:         flags,
 				resumeSession: true,
 			})
@@ -2247,6 +2287,16 @@ func addCipherSuiteTests() {
 			},
 		},
 		flags: []string{"-use-sparse-dh-prime"},
+	})
+
+	// The server must be tolerant to bogus ciphers.
+	const bogusCipher = 0x1234
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "UnknownCipher",
+		config: Config{
+			CipherSuites: []uint16{bogusCipher, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+		},
 	})
 
 	// versionSpecificCiphersTest specifies a test for the TLS 1.0 and TLS
@@ -2636,6 +2686,8 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 	tests = append(tests, testCase{
 		name:          "Basic-Client",
 		resumeSession: true,
+		// Ensure session tickets are used, not session IDs.
+		noSessionCache: true,
 	})
 	tests = append(tests, testCase{
 		name: "Basic-Client-RenewTicket",
@@ -2660,8 +2712,13 @@ func addStateMachineCoverageTests(async, splitHandshake bool, protocol protocol)
 		resumeSession: true,
 	})
 	tests = append(tests, testCase{
-		testType:      serverTest,
-		name:          "Basic-Server",
+		testType: serverTest,
+		name:     "Basic-Server",
+		config: Config{
+			Bugs: ProtocolBugs{
+				RequireSessionTickets: true,
+			},
+		},
 		resumeSession: true,
 	})
 	tests = append(tests, testCase{
@@ -3192,11 +3249,7 @@ func addMinimumVersionTests() {
 				} else {
 					shouldFail = true
 					expectedError = ":UNSUPPORTED_PROTOCOL:"
-					if runnerVers.version > VersionSSL30 {
-						expectedLocalError = "remote error: protocol version not supported"
-					} else {
-						expectedLocalError = "remote error: handshake failure"
-					}
+					expectedLocalError = "remote error: protocol version not supported"
 				}
 
 				testCases = append(testCases, testCase{
@@ -4056,7 +4109,6 @@ var testHashes = []struct {
 	id   uint8
 }{
 	{"SHA1", hashSHA1},
-	{"SHA224", hashSHA224},
 	{"SHA256", hashSHA256},
 	{"SHA384", hashSHA384},
 	{"SHA512", hashSHA512},
@@ -4607,6 +4659,104 @@ func addRSAClientKeyExchangeTests() {
 	}
 }
 
+var testCurves = []struct {
+	name string
+	id   CurveID
+}{
+	{"P-256", CurveP256},
+	{"P-384", CurveP384},
+	{"P-521", CurveP521},
+	{"X25519", CurveX25519},
+}
+
+func addCurveTests() {
+	for _, curve := range testCurves {
+		testCases = append(testCases, testCase{
+			name: "CurveTest-Client-" + curve.name,
+			config: Config{
+				CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				CurvePreferences: []CurveID{curve.id},
+			},
+			flags: []string{"-enable-all-curves"},
+		})
+		testCases = append(testCases, testCase{
+			testType: serverTest,
+			name:     "CurveTest-Server-" + curve.name,
+			config: Config{
+				CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				CurvePreferences: []CurveID{curve.id},
+			},
+			flags: []string{"-enable-all-curves"},
+		})
+	}
+
+	// The server must be tolerant to bogus curves.
+	const bogusCurve = 0x1234
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "UnknownCurve",
+		config: Config{
+			CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			CurvePreferences: []CurveID{bogusCurve, CurveP256},
+		},
+	})
+}
+
+func addKeyExchangeInfoTests() {
+	testCases = append(testCases, testCase{
+		name: "KeyExchangeInfo-RSA-Client",
+		config: Config{
+			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+		},
+		// key.pem is a 1024-bit RSA key.
+		flags: []string{"-expect-key-exchange-info", "1024"},
+	})
+	// TODO(davidben): key_exchange_info doesn't work for plain RSA on the
+	// server. Either fix this or change the API as it's not very useful in
+	// this case.
+
+	testCases = append(testCases, testCase{
+		name: "KeyExchangeInfo-DHE-Client",
+		config: Config{
+			CipherSuites: []uint16{TLS_DHE_RSA_WITH_AES_128_GCM_SHA256},
+			Bugs: ProtocolBugs{
+				// This is a 1234-bit prime number, generated
+				// with:
+				// openssl gendh 1234 | openssl asn1parse -i
+				DHGroupPrime: bigFromHex("0215C589A86BE450D1255A86D7A08877A70E124C11F0C75E476BA6A2186B1C830D4A132555973F2D5881D5F737BB800B7F417C01EC5960AEBF79478F8E0BBB6A021269BD10590C64C57F50AD8169D5488B56EE38DC5E02DA1A16ED3B5F41FEB2AD184B78A31F3A5B2BEC8441928343DA35DE3D4F89F0D4CEDE0034045084A0D1E6182E5EF7FCA325DD33CE81BE7FA87D43613E8FA7A1457099AB53"),
+			},
+		},
+		flags: []string{"-expect-key-exchange-info", "1234"},
+	})
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "KeyExchangeInfo-DHE-Server",
+		config: Config{
+			CipherSuites: []uint16{TLS_DHE_RSA_WITH_AES_128_GCM_SHA256},
+		},
+		// bssl_shim as a server configures a 2048-bit DHE group.
+		flags: []string{"-expect-key-exchange-info", "2048"},
+	})
+
+	testCases = append(testCases, testCase{
+		name: "KeyExchangeInfo-ECDHE-Client",
+		config: Config{
+			CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			CurvePreferences: []CurveID{CurveX25519},
+		},
+		flags: []string{"-expect-key-exchange-info", "29", "-enable-all-curves"},
+	})
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "KeyExchangeInfo-ECDHE-Server",
+		config: Config{
+			CipherSuites:     []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			CurvePreferences: []CurveID{CurveX25519},
+		},
+		flags: []string{"-expect-key-exchange-info", "29", "-enable-all-curves"},
+	})
+}
+
 func worker(statusChan chan statusMsg, c chan *testCase, shimPath string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -4704,6 +4854,8 @@ func main() {
 	addTLSUniqueTests()
 	addCustomExtensionTests()
 	addRSAClientKeyExchangeTests()
+	addCurveTests()
+	addKeyExchangeInfoTests()
 	for _, async := range []bool{false, true} {
 		for _, splitHandshake := range []bool{false, true} {
 			for _, protocol := range []protocol{tls, dtls} {

@@ -1,9 +1,10 @@
 solutions = [
   {
-    "url": "https://chromium.googlesource.com/chromium/src.git",
     "managed": False,
     "name": "src",
-    "deps_file": ".DEPS.git",
+    "url": "https://chromium.googlesource.com/chromium/src.git",
     "custom_deps": {},
+    "deps_file": ".DEPS.git",
+    "safesync_url": "https://chromium-status.appspot.com/git-lkgr",
   },
 ]

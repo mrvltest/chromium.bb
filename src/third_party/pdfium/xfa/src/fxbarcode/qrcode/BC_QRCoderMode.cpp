@@ -20,9 +20,10 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_QRCoderVersion.h"
-#include "BC_QRCoderMode.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderMode.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderVersion.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_QRCoderMode* CBC_QRCoderMode::sBYTE = NULL;
 CBC_QRCoderMode* CBC_QRCoderMode::sNUMERIC = NULL;
 CBC_QRCoderMode* CBC_QRCoderMode::sALPHANUMERIC = NULL;
@@ -33,6 +34,7 @@ CBC_QRCoderMode* CBC_QRCoderMode::sTERMINATOR = NULL;
 CBC_QRCoderMode* CBC_QRCoderMode::sFNC1_FIRST_POSITION = NULL;
 CBC_QRCoderMode* CBC_QRCoderMode::sFNC1_SECOND_POSITION = NULL;
 CBC_QRCoderMode* CBC_QRCoderMode::sSTRUCTURED_APPEND = NULL;
+
 CBC_QRCoderMode::CBC_QRCoderMode(int32_t* characterCountBitsForVersions,
                                  int32_t x1,
                                  int32_t x2,
@@ -40,7 +42,7 @@ CBC_QRCoderMode::CBC_QRCoderMode(int32_t* characterCountBitsForVersions,
                                  int32_t bits,
                                  CFX_ByteString name) {
   m_characterCountBitsForVersions = characterCountBitsForVersions;
-  if (m_characterCountBitsForVersions != NULL) {
+  if (m_characterCountBitsForVersions) {
     m_characterCountBitsForVersions[0] = x1;
     m_characterCountBitsForVersions[1] = x2;
     m_characterCountBitsForVersions[2] = x3;
@@ -49,9 +51,7 @@ CBC_QRCoderMode::CBC_QRCoderMode(int32_t* characterCountBitsForVersions,
   m_bits = bits;
 }
 CBC_QRCoderMode::~CBC_QRCoderMode() {
-  if (m_characterCountBitsForVersions != NULL) {
-    FX_Free(m_characterCountBitsForVersions);
-  }
+  FX_Free(m_characterCountBitsForVersions);
 }
 void CBC_QRCoderMode::Initialize() {
   sBYTE = new CBC_QRCoderMode(FX_Alloc(int32_t, 3), 8, 16, 16, 0x4, "BYTE");

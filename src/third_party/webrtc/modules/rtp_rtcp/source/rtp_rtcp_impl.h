@@ -16,13 +16,13 @@
 #include <utility>
 #include <vector>
 
+#include "webrtc/base/gtest_prod_util.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "webrtc/modules/rtp_rtcp/source/packet_loss_stats.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_receiver.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_sender.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_sender.h"
-#include "webrtc/test/testsupport/gtest_prod_util.h"
 
 namespace webrtc {
 
@@ -35,7 +35,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
   int64_t TimeUntilNextProcess() override;
 
   // Process any pending tasks such as timeouts.
-  int32_t Process() override;
+  void Process() override;
 
   // Receiver part.
 
@@ -93,7 +93,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
 
   void SetRtxSendPayloadType(int payload_type,
                              int associated_payload_type) override;
-  std::pair<int, int> RtxSendPayloadType() const override;
 
   // Sends kRtcpByeCode when going from true to false.
   int32_t SetSendingStatus(bool sending) override;

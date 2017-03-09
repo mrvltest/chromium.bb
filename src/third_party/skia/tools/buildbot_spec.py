@@ -119,6 +119,10 @@ def gyp_defines(builder_dict):
   if builder_dict.get('extra_config') == 'Shared':
     gyp_defs['skia_shared_lib'] = '1'
 
+  # Build fastest Skia possible.
+  if builder_dict.get('extra_config') == 'Fast':
+    gyp_defs['skia_fast'] = '1'
+
   # PDF viewer in GM.
   if (builder_dict.get('os') == 'Mac10.8' and
       builder_dict.get('arch') == 'x86_64' and
@@ -215,16 +219,16 @@ def device_cfg(builder_dict):
     }.get(builder_dict['target_arch'], 'arm_v7_neon')
   elif builder_dict.get('os') == 'Android':
     return {
-      'AndroidOne': 'arm_v7_neon',
-      'GalaxyS3': 'arm_v7_neon',
-      'GalaxyS4': 'arm_v7_neon',
-      'Nexus5': 'arm_v7', # This'd be 'nexus_5', but we simulate no-NEON Clank.
-      'Nexus6': 'arm_v7_neon',
-      'Nexus7': 'nexus_7',
-      'Nexus9': 'nexus_9',
-      'Nexus10': 'nexus_10',
-      'NexusPlayer': 'x86',
+      'AndroidOne':    'arm_v7_neon',
+      'GalaxyS3':      'arm_v7_neon',
+      'GalaxyS4':      'arm_v7_neon',
       'NVIDIA_Shield': 'arm64',
+      'Nexus10':       'arm_v7_neon',
+      'Nexus5':        'arm_v7_neon',
+      'Nexus6':        'arm_v7_neon',
+      'Nexus7':        'arm_v7_neon',
+      'Nexus9':        'arm64',
+      'NexusPlayer':   'x86',
     }[builder_dict['model']]
 
   # ChromeOS.
@@ -292,6 +296,7 @@ def get_builder_spec(builder_name):
   skip_upload_bots = [
     'ASAN',
     'Coverage',
+    'MSAN',
     'TSAN',
     'UBSAN',
     'Valgrind',
@@ -336,6 +341,7 @@ def self_test():
         ('Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-'
          'SK_USE_DISCARDABLE_SCALEDIMAGECACHE'),
         'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-SKNX_NO_SIMD',
+        'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-Fast',
         'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-Shared',
         'Test-Ubuntu-GCC-ShuttleA-GPU-GTX550Ti-x86_64-Release-Valgrind',
         'Test-Win8-MSVC-ShuttleB-GPU-HD4600-x86-Release-ANGLE',

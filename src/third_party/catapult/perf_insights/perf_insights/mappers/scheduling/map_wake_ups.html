@@ -6,9 +6,7 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/perf_insights/function_handle.html">
-<link rel="import" href="/perf_insights/value/value.html">
 <link rel="import" href="/tracing/base/range.html">
-<link rel="import" href="/tracing/extras/chrome/chrome_model_helper.html">
 
 <script>
 'use strict';
@@ -88,7 +86,7 @@ tr.exportTo('pie', function() {
     }
   }
 
-  function mapWakeUps(results, runInfo, model) {
+  function mapWakeUps(result, model) {
     var allWakeUps = {};
     for (var pid in model.processes) {
       var process = model.processes[pid];
@@ -117,13 +115,11 @@ tr.exportTo('pie', function() {
     }
 
     if (!foundAnyWakeUps) {
-      results.addValue(new pi.v.SkipValue(runInfo, 'wakeUps'));
+      result.addPair('wakeUps', null);
       return;
     }
 
-    results.addValue(new pi.v.DictValue(
-        runInfo,
-        'wakeUps', allWakeUps));
+    result.addPair('wakeUps', allWakeUps);
   }
 
   pi.FunctionRegistry.register(mapWakeUps);

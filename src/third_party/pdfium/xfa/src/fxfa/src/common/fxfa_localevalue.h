@@ -4,11 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_WIDGETVALUE_H
-#define _FXFA_WIDGETVALUE_H
+#ifndef XFA_SRC_FXFA_SRC_COMMON_FXFA_LOCALEVALUE_H_
+#define XFA_SRC_FXFA_SRC_COMMON_FXFA_LOCALEVALUE_H_
+
+#include "xfa/include/fxfa/fxfa_objectacc.h"
+
 class IFX_Locale;
 class CFX_Unitime;
 class CXFA_LocaleMgr;
+
 #define XFA_VT_NULL 0
 #define XFA_VT_BOOLEAN 1
 #define XFA_VT_INTEGER 2
@@ -18,6 +22,7 @@ class CXFA_LocaleMgr;
 #define XFA_VT_DATE 32
 #define XFA_VT_TIME 64
 #define XFA_VT_DATETIME 128
+
 class CXFA_LocaleValue {
  public:
   CXFA_LocaleValue();
@@ -103,4 +108,5 @@ class CXFA_LocaleValue {
   FX_DWORD m_dwType;
   FX_BOOL m_bValid;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_FXFA_LOCALEVALUE_H_
