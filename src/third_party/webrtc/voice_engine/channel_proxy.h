@@ -15,6 +15,7 @@
 #include "webrtc/voice_engine/channel_manager.h"
 #include "webrtc/voice_engine/include/voe_rtp_rtcp.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,13 +48,17 @@ class ChannelProxy {
   virtual void SetRTCP_CNAME(const std::string& c_name);
   virtual void SetSendAbsoluteSenderTimeStatus(bool enable, int id);
   virtual void SetSendAudioLevelIndicationStatus(bool enable, int id);
-  virtual void EnableSendTransportSequenceNumber(int id);
   virtual void SetReceiveAbsoluteSenderTimeStatus(bool enable, int id);
   virtual void SetReceiveAudioLevelIndicationStatus(bool enable, int id);
-  virtual void SetCongestionControlObjects(
+  virtual void EnableSendTransportSequenceNumber(int id);
+  virtual void EnableReceiveTransportSequenceNumber(int id);
+  virtual void RegisterSenderCongestionControlObjects(
       RtpPacketSender* rtp_packet_sender,
       TransportFeedbackObserver* transport_feedback_observer,
       PacketRouter* packet_router);
+  virtual void RegisterReceiverCongestionControlObjects(
+      PacketRouter* packet_router);
+  virtual void ResetCongestionControlObjects();
 
   virtual CallStatistics GetRTCPStatistics() const;
   virtual std::vector<ReportBlock> GetRemoteRTCPReportBlocks() const;
@@ -65,7 +70,7 @@ class ChannelProxy {
   virtual bool SetSendTelephoneEventPayloadType(int payload_type);
   virtual bool SendTelephoneEventOutband(uint8_t event, uint32_t duration_ms);
 
-  virtual void SetSink(rtc::scoped_ptr<AudioSinkInterface> sink);
+  virtual void SetSink(std::unique_ptr<AudioSinkInterface> sink);
 
  private:
   Channel* channel() const;

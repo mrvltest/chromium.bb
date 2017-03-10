@@ -4,8 +4,8 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_MEMORY
-#define _FX_MEMORY
+#ifndef XFA_SRC_FGAS_INCLUDE_FX_MEM_H_
+#define XFA_SRC_FGAS_INCLUDE_FX_MEM_H_
 
 #include "core/include/fxcrt/fx_memory.h"  // For FX_Alloc().
 
@@ -47,10 +47,12 @@ class CFX_Target {
   void* operator new(size_t size, void* place) { return place; }
   void operator delete(void* p, void* place) {}
 };
+
 #define FXTARGET_NewWith(__allocator__) new (__allocator__)
 #define FXTARGET_DeleteWith(__class__, __allocator__, pointer) \
   {                                                            \
     (pointer)->~__class__();                                   \
     (pointer)->operator delete((pointer), (__allocator__));    \
   }
-#endif
+
+#endif  // XFA_SRC_FGAS_INCLUDE_FX_MEM_H_

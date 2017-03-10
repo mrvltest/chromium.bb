@@ -4,9 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "xfa_fm2js.h"
 #include <time.h>
+
+#include "xfa/src/fxfa/src/common/fxfa_localevalue.h"
+#include "xfa/src/fxfa/src/fm2js/xfa_fm2js.h"
+
 #define FINANCIAL_PRECISION 0.00000001
+
+namespace {
+
 struct XFA_FMHtmlReserveCode {
   uint32_t m_uCode;
   const FX_WCHAR* m_htmlReserve;
@@ -16,7 +22,8 @@ struct XFA_FMHtmlHashedReserveCode {
   const FX_WCHAR* m_htmlReserve;
   uint32_t m_uCode;
 };
-static XFA_FMHtmlHashedReserveCode reservesForDecode[] = {
+
+const XFA_FMHtmlHashedReserveCode reservesForDecode[] = {
     {0x00018b62, L"Mu", 924},       {0x00019083, L"Nu", 925},
     {0x00019ab9, L"Pi", 928},       {0x0001c3c1, L"Xi", 926},
     {0x000210ac, L"ge", 8805},      {0x000210bb, L"gt", 62},
@@ -144,7 +151,8 @@ static XFA_FMHtmlHashedReserveCode reservesForDecode[] = {
     {0xf88c8430, L"ocirc", 244},    {0xf9676178, L"frasl", 8260},
     {0xfd01885e, L"igrave", 236},   {0xff3281da, L"egrave", 232},
 };
-static XFA_FMHtmlReserveCode reservesForEncode[] = {
+
+const XFA_FMHtmlReserveCode reservesForEncode[] = {
     {34, L"quot"},     {38, L"amp"},      {39, L"apos"},
     {60, L"lt"},       {62, L"gt"},       {160, L"nbsp"},
     {161, L"iexcl"},   {162, L"cent"},    {163, L"pund"},
@@ -230,6 +238,9 @@ static XFA_FMHtmlReserveCode reservesForEncode[] = {
     {9002, L"rang"},   {9674, L"loz"},    {9824, L"spades"},
     {9827, L"clubs"},  {9829, L"hearts"}, {9830, L"diams"},
 };
+
+}  // namespace
+
 void CXFA_FM2JSContext::Abs(FXJSE_HOBJECT hThis,
                             const CFX_ByteStringC& szFuncName,
                             CFXJSE_Arguments& args) {
@@ -1549,9 +1560,10 @@ void CXFA_FM2JSContext::Time2Num(FXJSE_HOBJECT hThis,
       IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
       IFX_Locale* pLocale = NULL;
       if (localString.IsEmpty()) {
-        CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-        FXSYS_assert(pThisNode->IsNode());
-        CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+        CXFA_Node* pThisNode =
+            ToNode(pDoc->GetScriptContext()->GetThisObject());
+        FXSYS_assert(pThisNode);
+        CXFA_WidgetData widgetData(pThisNode);
         pLocale = widgetData.GetLocal();
       } else {
         pLocale = pMgr->GetLocaleByName(
@@ -1578,7 +1590,7 @@ void CXFA_FM2JSContext::Time2Num(FXJSE_HOBJECT hThis,
         int32_t milSecond = uniTime.GetMillisecond();
         int32_t mins = hour * 60 + min;
         IXFA_TimeZoneProvider* pProvider = IXFA_TimeZoneProvider::Get();
-        if (pProvider != NULL) {
+        if (pProvider) {
           FX_TIMEZONE tz;
           pProvider->GetTimeZone(tz);
           mins -= (tz.tzHour * 60);
@@ -1998,9 +2010,9 @@ FX_BOOL CXFA_FM2JSContext::Local2IsoDate(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocale.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2038,9 +2050,9 @@ FX_BOOL CXFA_FM2JSContext::Local2IsoTime(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocale.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2081,9 +2093,9 @@ FX_BOOL CXFA_FM2JSContext::IsoDate2Local(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocale.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2123,9 +2135,9 @@ FX_BOOL CXFA_FM2JSContext::IsoTime2Local(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocale.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2167,9 +2179,9 @@ FX_BOOL CXFA_FM2JSContext::GetGMTTime(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocale.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2352,9 +2364,9 @@ void CXFA_FM2JSContext::GetLocalDateFormat(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocalStr.IsEmpty()) {
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
     pLocale = pMgr->GetLocaleByName(
@@ -2407,9 +2419,8 @@ void CXFA_FM2JSContext::GetLocalTimeFormat(FXJSE_HOBJECT hThis,
   IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
   IFX_Locale* pLocale = NULL;
   if (szLocalStr.IsEmpty()) {
-    CXFA_Object* pThisObject = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisObject->IsNode());
-    CXFA_Node* pThisNode = (CXFA_Node*)pThisObject;
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
     CXFA_WidgetData widgetData(pThisNode);
     pLocale = widgetData.GetLocal();
   } else {
@@ -2472,8 +2483,8 @@ void CXFA_FM2JSContext::Num2AllTime(FXJSE_HOBJECT hThis,
   if (!iRet) {
     strTime = "";
   }
-  return;
 }
+
 void CXFA_FM2JSContext::GetLocalTimeZone(int32_t& iHour,
                                          int32_t& iMin,
                                          int32_t& iSec) {
@@ -3267,11 +3278,12 @@ void CXFA_FM2JSContext::Ref(FXJSE_HOBJECT hThis,
         FXJSE_Value_Release(rgValues[i]);
       }
     } else if (FXJSE_Value_IsArray(argOne)) {
+#ifndef NDEBUG
       FXJSE_HVALUE lengthValue = FXJSE_Value_Create(hruntime);
       FXJSE_Value_GetObjectProp(argOne, "length", lengthValue);
-      int32_t iLength = FXJSE_Value_ToInteger(lengthValue);
+      FXSYS_assert(FXJSE_Value_ToInteger(lengthValue) >= 3);
       FXJSE_Value_Release(lengthValue);
-      FXSYS_assert(iLength >= 3);
+#endif
       FXJSE_HVALUE propertyValue = FXJSE_Value_Create(hruntime);
       FXJSE_HVALUE jsObjectValue = FXJSE_Value_Create(hruntime);
       FXJSE_Value_GetObjectPropByIdx(argOne, 1, propertyValue);
@@ -3760,8 +3772,9 @@ void CXFA_FM2JSContext::DecodeURL(const CFX_ByteStringC& szURLString,
     ++i;
   }
   wsResultBuf.AppendChar(0);
-  szResultString =
-      FX_UTF8Encode(wsResultBuf.GetBuffer(), wsResultBuf.GetLength());
+  szResultString.Clear();
+  szResultString << FX_UTF8Encode(wsResultBuf.GetBuffer(),
+                                  wsResultBuf.GetLength());
 }
 void CXFA_FM2JSContext::DecodeHTML(const CFX_ByteStringC& szHTMLString,
                                    CFX_ByteTextBuf& szResultString) {
@@ -3833,8 +3846,9 @@ void CXFA_FM2JSContext::DecodeHTML(const CFX_ByteStringC& szHTMLString,
     ++i;
   }
   wsResultBuf.AppendChar(0);
-  szResultString =
-      FX_UTF8Encode(wsResultBuf.GetBuffer(), wsResultBuf.GetLength());
+  szResultString.Clear();
+  szResultString << FX_UTF8Encode(wsResultBuf.GetBuffer(),
+                                  wsResultBuf.GetLength());
 }
 void CXFA_FM2JSContext::DecodeXML(const CFX_ByteStringC& szXMLString,
                                   CFX_ByteTextBuf& szResultString) {
@@ -3930,7 +3944,8 @@ void CXFA_FM2JSContext::DecodeXML(const CFX_ByteStringC& szXMLString,
     iCode = 0;
   }
   wsXMLBuf.AppendChar(0);
-  szResultString = FX_UTF8Encode(wsXMLBuf.GetBuffer(), wsXMLBuf.GetLength());
+  szResultString.Clear();
+  szResultString << FX_UTF8Encode(wsXMLBuf.GetBuffer(), wsXMLBuf.GetLength());
 }
 void CXFA_FM2JSContext::Encode(FXJSE_HOBJECT hThis,
                                const CFX_ByteStringC& szFuncName,
@@ -4043,7 +4058,7 @@ void CXFA_FM2JSContext::EncodeURL(const CFX_ByteStringC& szURLString,
       strEncode[1] = strCode[iIndex];
       strEncode[2] = strCode[ch - iIndex * 16];
       wsResultBuf << FX_WSTRC(strEncode);
-    } else if ((ch >= 0x0 && ch <= 0x1f) || ch == 0x7f) {
+    } else if (ch <= 0x1f || ch == 0x7f) {
       int32_t iIndex = ch / 16;
       strEncode[1] = strCode[iIndex];
       strEncode[2] = strCode[ch - iIndex * 16];
@@ -4083,7 +4098,9 @@ void CXFA_FM2JSContext::EncodeURL(const CFX_ByteStringC& szURLString,
     }
   }
   wsResultBuf.AppendChar(0);
-  szResultBuf = FX_UTF8Encode(wsResultBuf.GetBuffer(), wsResultBuf.GetLength());
+  szResultBuf.Clear();
+  szResultBuf << FX_UTF8Encode(wsResultBuf.GetBuffer(),
+                               wsResultBuf.GetLength());
 }
 void CXFA_FM2JSContext::EncodeHTML(const CFX_ByteStringC& szHTMLString,
                                    CFX_ByteTextBuf& szResultBuf) {
@@ -4135,7 +4152,9 @@ void CXFA_FM2JSContext::EncodeHTML(const CFX_ByteStringC& szHTMLString,
     ++i;
   }
   wsResultBuf.AppendChar(0);
-  szResultBuf = FX_UTF8Encode(wsResultBuf.GetBuffer(), wsResultBuf.GetLength());
+  szResultBuf.Clear();
+  szResultBuf << FX_UTF8Encode(wsResultBuf.GetBuffer(),
+                               wsResultBuf.GetLength());
 }
 void CXFA_FM2JSContext::EncodeXML(const CFX_ByteStringC& szXMLString,
                                   CFX_ByteTextBuf& szResultBuf) {
@@ -4215,7 +4234,9 @@ void CXFA_FM2JSContext::EncodeXML(const CFX_ByteStringC& szXMLString,
     }
   }
   wsResultBuf.AppendChar(0);
-  szResultBuf = FX_UTF8Encode(wsResultBuf.GetBuffer(), wsResultBuf.GetLength());
+  szResultBuf.Clear();
+  szResultBuf << FX_UTF8Encode(wsResultBuf.GetBuffer(),
+                               wsResultBuf.GetLength());
 }
 FX_BOOL CXFA_FM2JSContext::HTMLSTR2Code(const CFX_WideStringC& pData,
                                         uint32_t& iCode) {
@@ -4359,9 +4380,9 @@ void CXFA_FM2JSContext::Format(FXJSE_HOBJECT hThis,
     HValueToUTF8String(argTwo, szValue);
     CXFA_Document* pDoc = pContext->GetDocument();
     IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
-    CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-    FXSYS_assert(pThisNode->IsNode());
-    CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+    CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+    FXSYS_assert(pThisNode);
+    CXFA_WidgetData widgetData(pThisNode);
     IFX_Locale* pLocale = widgetData.GetLocal();
     FX_DWORD patternType;
     FX_BOOL bCompelte = XFA_PATTERN_STRING_Type(szPattern, patternType);
@@ -4571,9 +4592,9 @@ void CXFA_FM2JSContext::Parse(FXJSE_HOBJECT hThis,
       HValueToUTF8String(argTwo, szValue);
       CXFA_Document* pDoc = pContext->GetDocument();
       IFX_LocaleMgr* pMgr = (IFX_LocaleMgr*)pDoc->GetLocalMgr();
-      CXFA_Object* pThisNode = pDoc->GetScriptContext()->GetThisObject();
-      FXSYS_assert(pThisNode->IsNode());
-      CXFA_WidgetData widgetData((CXFA_Node*)pThisNode);
+      CXFA_Node* pThisNode = ToNode(pDoc->GetScriptContext()->GetThisObject());
+      FXSYS_assert(pThisNode);
+      CXFA_WidgetData widgetData(pThisNode);
       IFX_Locale* pLocale = widgetData.GetLocal();
       FX_DWORD patternType;
       FX_BOOL bCompletePattern =
@@ -4697,16 +4718,13 @@ void CXFA_FM2JSContext::Replace(FXJSE_HOBJECT hThis,
                                 CFXJSE_Arguments& args) {
   int32_t argc = args.GetLength();
   if ((argc == 2) || (argc == 3)) {
-    FX_BOOL bFlags = FALSE;
     FXJSE_HVALUE argOne = GetSimpleHValue(hThis, args, 0);
     FXJSE_HVALUE argTwo = GetSimpleHValue(hThis, args, 1);
     FXJSE_HVALUE argThree = 0;
     CFX_ByteString oneString;
     CFX_ByteString twoString;
     CFX_ByteString threeString;
-    if ((HValueIsNull(hThis, argOne)) || (HValueIsNull(hThis, argTwo))) {
-      bFlags = TRUE;
-    } else {
+    if (!HValueIsNull(hThis, argOne) && !HValueIsNull(hThis, argTwo)) {
       HValueToUTF8String(argOne, oneString);
       HValueToUTF8String(argTwo, twoString);
     }
@@ -4974,7 +4992,6 @@ void CXFA_FM2JSContext::Stuff(FXJSE_HOBJECT hThis,
                               CFXJSE_Arguments& args) {
   int32_t argc = args.GetLength();
   if ((argc == 3) || (argc == 4)) {
-    FX_BOOL bFlags = FALSE;
     CFX_ByteString sourceString;
     CFX_ByteString insertString;
     int32_t iLength = 0;
@@ -4984,10 +5001,8 @@ void CXFA_FM2JSContext::Stuff(FXJSE_HOBJECT hThis,
     FXJSE_HVALUE startValue = GetSimpleHValue(hThis, args, 1);
     FXJSE_HVALUE deleteValue = GetSimpleHValue(hThis, args, 2);
     FXJSE_HVALUE insertValue = 0;
-    if ((FXJSE_Value_IsNull(sourceValue)) || (FXJSE_Value_IsNull(startValue)) ||
-        (FXJSE_Value_IsNull(deleteValue))) {
-      bFlags = TRUE;
-    } else {
+    if (!FXJSE_Value_IsNull(sourceValue) && !FXJSE_Value_IsNull(startValue) &&
+        !FXJSE_Value_IsNull(deleteValue)) {
       HValueToUTF8String(sourceValue, sourceString);
       iLength = sourceString.GetLength();
       iStart = (int32_t)HValueToFloat(hThis, startValue);
@@ -6433,17 +6448,18 @@ void CXFA_FM2JSContext::get_fm_jsobj(FXJSE_HOBJECT hThis,
                                      const CFX_ByteStringC& szFuncName,
                                      CFXJSE_Arguments& args) {
   CXFA_FM2JSContext* pContext =
-      (CXFA_FM2JSContext*)FXJSE_Value_ToObject(hThis, NULL);
-  FXJSE_HRUNTIME hruntime = pContext->GetScriptRuntime();
+      static_cast<CXFA_FM2JSContext*>(FXJSE_Value_ToObject(hThis, nullptr));
   int32_t argc = args.GetLength();
   if (argc == 1) {
     FXJSE_HVALUE argOne = args.GetValue(0);
     if (FXJSE_Value_IsArray(argOne)) {
+#ifndef NDEBUG
+      FXJSE_HRUNTIME hruntime = pContext->GetScriptRuntime();
       FXJSE_HVALUE lengthValue = FXJSE_Value_Create(hruntime);
       FXJSE_Value_GetObjectProp(argOne, "length", lengthValue);
-      int32_t iLength = FXJSE_Value_ToInteger(lengthValue);
-      FXSYS_assert(iLength >= 3);
+      FXSYS_assert(FXJSE_Value_ToInteger(lengthValue) >= 3);
       FXJSE_Value_Release(lengthValue);
+#endif
       FXJSE_Value_GetObjectPropByIdx(argOne, 2, args.GetReturnValue());
     } else {
       FXJSE_Value_Set(args.GetReturnValue(), argOne);
@@ -6463,11 +6479,12 @@ void CXFA_FM2JSContext::fm_var_filter(FXJSE_HOBJECT hThis,
   if (argc == 1) {
     FXJSE_HVALUE argOne = args.GetValue(0);
     if (FXJSE_Value_IsArray(argOne)) {
+#ifndef NDEBUG
       FXJSE_HVALUE lengthValue = FXJSE_Value_Create(hruntime);
       FXJSE_Value_GetObjectProp(argOne, "length", lengthValue);
-      int32_t iLength = FXJSE_Value_ToInteger(lengthValue);
-      FXSYS_assert(iLength >= 3);
+      FXSYS_assert(FXJSE_Value_ToInteger(lengthValue) >= 3);
       FXJSE_Value_Release(lengthValue);
+#endif
       FXJSE_HVALUE flagsValue = FXJSE_Value_Create(hruntime);
       FXJSE_Value_GetObjectPropByIdx(argOne, 0, flagsValue);
       int32_t iFlags = FXJSE_Value_ToInteger(flagsValue);
@@ -6753,24 +6770,23 @@ void CXFA_FM2JSContext::unfoldArgs(FXJSE_HOBJECT hThis,
 }
 void CXFA_FM2JSContext::GetObjectDefaultValue(FXJSE_HVALUE hObjectValue,
                                               FXJSE_HVALUE hDefaultValue) {
-  CXFA_Object* pNode = (CXFA_Object*)FXJSE_Value_ToObject(hObjectValue, NULL);
-  if (pNode && pNode->IsNode()) {
-    ((CXFA_Node*)pNode)
-        ->Script_Som_DefaultValue(hDefaultValue, FALSE, (XFA_ATTRIBUTE)-1);
+  CXFA_Node* pNode =
+      ToNode((CXFA_Object*)FXJSE_Value_ToObject(hObjectValue, NULL));
+  if (pNode) {
+    pNode->Script_Som_DefaultValue(hDefaultValue, FALSE, (XFA_ATTRIBUTE)-1);
   } else {
     FXJSE_Value_SetNull(hDefaultValue);
   }
 }
 FX_BOOL CXFA_FM2JSContext::SetObjectDefaultValue(FXJSE_HVALUE hObjectValue,
                                                  FXJSE_HVALUE hNewValue) {
-  FX_BOOL bSuccess = FALSE;
-  CXFA_Object* pNode = (CXFA_Object*)FXJSE_Value_ToObject(hObjectValue, NULL);
-  if (pNode && pNode->IsNode()) {
-    ((CXFA_Node*)pNode)
-        ->Script_Som_DefaultValue(hNewValue, TRUE, (XFA_ATTRIBUTE)-1);
-    bSuccess = TRUE;
+  CXFA_Node* pNode =
+      ToNode((CXFA_Object*)FXJSE_Value_ToObject(hObjectValue, NULL));
+  if (pNode) {
+    pNode->Script_Som_DefaultValue(hNewValue, TRUE, (XFA_ATTRIBUTE)-1);
+    return TRUE;
   }
-  return bSuccess;
+  return FALSE;
 }
 void CXFA_FM2JSContext::GenerateSomExpression(const CFX_ByteStringC& szName,
                                               int32_t iIndexFlags,
@@ -6855,8 +6871,7 @@ int32_t CXFA_FM2JSContext::ResolveObjects(FXJSE_HOBJECT hThis,
       FXSYS_assert(pNode);
       if (bHasNoResolveName) {
         CFX_WideString wsName;
-        if (pNode->IsNode()) {
-          CXFA_Node* pXFANode = (CXFA_Node*)pNode;
+        if (CXFA_Node* pXFANode = pNode->AsNode()) {
           pXFANode->GetAttribute(XFA_ATTRIBUTE_Name, wsName, FALSE);
         }
         if (wsName.IsEmpty()) {
@@ -7152,7 +7167,7 @@ static FXJSE_FUNCTION formcalc_fm2js_functions[] = {
 };
 CXFA_FM2JSContext::CXFA_FM2JSContext()
     : m_hFMClass(nullptr), m_pDocument(nullptr) {
-  FX_memset(&m_fmClass, 0, sizeof(FXJSE_CLASS));
+  FXSYS_memset(&m_fmClass, 0, sizeof(FXJSE_CLASS));
 }
 CXFA_FM2JSContext::~CXFA_FM2JSContext() {
   m_pDocument = NULL;

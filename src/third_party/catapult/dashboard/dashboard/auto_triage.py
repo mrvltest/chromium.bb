@@ -20,7 +20,6 @@ from dashboard import issue_tracker_service
 from dashboard import math_utils
 from dashboard import quick_logger
 from dashboard import request_handler
-from dashboard import rietveld_service
 from dashboard import utils
 from dashboard.models import anomaly
 from dashboard.models import anomaly_config
@@ -150,11 +149,8 @@ class TriageBugs(object):
     bug.put()
     comment = cls._RecoveredBugComment(bug_id)
 
-    credentials = rietveld_service.Credentials(
-        rietveld_service.GetDefaultRietveldConfig(),
-        rietveld_service.PROJECTHOSTING_SCOPE)
     issue_tracker = issue_tracker_service.IssueTrackerService(
-        additional_credentials=credentials)
+        additional_credentials=utils.ServiceAccountCredentials())
     issue_tracker.AddBugComment(bug_id, comment)
 
   @classmethod
@@ -232,12 +228,12 @@ def _AddLogForRecoveredAnomaly(anomaly_entity):
     return
   sheriff_name = sheriff_key.string_id()
   logger = quick_logger.QuickLogger('auto_triage', sheriff_name, formatter)
-  logger.Log(
-      'Alert on %s has recovered. See <a href="%s">graph</a>.%s',
-      utils.TestPath(anomaly_entity.test),
-      ('https://chromeperf.appspot.com/group_report?keys=' +
-       anomaly_entity.key.urlsafe()),
-      _BugLink(anomaly_entity))
+  message = ('Alert on %s has recovered. See <a href="%s">graph</a>.%s' %
+             (utils.TestPath(anomaly_entity.test),
+              ('https://chromeperf.appspot.com/group_report?keys=' +
+               anomaly_entity.key.urlsafe()),
+              _BugLink(anomaly_entity)))
+  logger.Log(message)
   logger.Save()
 
 

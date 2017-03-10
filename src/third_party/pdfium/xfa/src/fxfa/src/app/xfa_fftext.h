@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_DRAWTEXT_IMP_H
-#define _FXFA_FORMFILLER_DRAWTEXT_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFTEXT_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFTEXT_H_
+
+#include "xfa/src/fxfa/src/app/xfa_ffdraw.h"
+
 class CXFA_TextLayout;
+
 class CXFA_FFText : public CXFA_FFDraw {
  public:
   CXFA_FFText(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc);
@@ -26,4 +30,5 @@ class CXFA_FFText : public CXFA_FFDraw {
   virtual const FX_WCHAR* GetLinkURLAtPoint(FX_FLOAT fx, FX_FLOAT fy);
   void FWLToClient(FX_FLOAT& fx, FX_FLOAT& fy);
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFTEXT_H_

@@ -4,8 +4,8 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "codec_int.h"
 #include "core/include/fxcodec/fx_codec.h"
+#include "core/src/fxcodec/codec/codec_int.h"
 #include "third_party/lcms2-2.6/include/lcms2.h"
 
 const FX_DWORD N_COMPONENT_LAB = 3;
@@ -424,11 +424,13 @@ void* CCodec_IccModule::CreateProfile(ICodec_IccModule::IccParam* pIccParam,
         case IccCS_Gray:
           text.Format("%lf", pIccParam->Gamma);
           break;
-        default:;
+        default:
+          break;
       }
       MD5ComputeID(text.GetBuffer(0), text.GetLength(), ID);
       break;
-    default:;
+    default:
+      break;
   }
   key.AppendBlock(ID, 16);
   CFX_ByteString ProfileKey(key.GetBuffer(), key.GetSize());

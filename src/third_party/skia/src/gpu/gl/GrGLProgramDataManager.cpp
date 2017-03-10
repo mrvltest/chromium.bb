@@ -32,12 +32,12 @@ GrGLProgramDataManager::GrGLProgramDataManager(GrGLGpu* gpu, GrGLuint programID,
         );
         // TODO: Move the Xoom uniform array in both FS and VS bug workaround here.
 
-        if (GrGLSLUniformHandler::kVertex_Visibility & builderUniform.fVisibility) {
+        if (kVertex_GrShaderFlag & builderUniform.fVisibility) {
             uniform.fVSLocation = builderUniform.fLocation;
         } else {
             uniform.fVSLocation = kUnusedUniform;
         }
-        if (GrGLSLUniformHandler::kFragment_Visibility & builderUniform.fVisibility) {
+        if (kFragment_GrShaderFlag & builderUniform.fVisibility) {
             uniform.fFSLocation = builderUniform.fLocation;
         } else {
             uniform.fFSLocation = kUnusedUniform;
@@ -261,21 +261,6 @@ void GrGLProgramDataManager::setMatrix4fv(UniformHandle u,
         GR_GL_CALL(fGpu->glInterface(),
                    UniformMatrix4fv(uni.fVSLocation, arrayCount, false, matrices));
     }
-}
-
-void GrGLProgramDataManager::setSkMatrix(UniformHandle u, const SkMatrix& matrix) const {
-    float mt[] = {
-        matrix.get(SkMatrix::kMScaleX),
-        matrix.get(SkMatrix::kMSkewY),
-        matrix.get(SkMatrix::kMPersp0),
-        matrix.get(SkMatrix::kMSkewX),
-        matrix.get(SkMatrix::kMScaleY),
-        matrix.get(SkMatrix::kMPersp1),
-        matrix.get(SkMatrix::kMTransX),
-        matrix.get(SkMatrix::kMTransY),
-        matrix.get(SkMatrix::kMPersp2),
-    };
-    this->setMatrix3f(u, mt);
 }
 
 void GrGLProgramDataManager::setPathFragmentInputTransform(VaryingHandle u,

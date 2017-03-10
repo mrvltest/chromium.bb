@@ -14,8 +14,8 @@ from dashboard import auto_bisect
 from dashboard import auto_triage
 from dashboard import bisect_stats
 from dashboard import bisect_fyi
-from dashboard import bot_whitelist
 from dashboard import buildbucket_job_status
+from dashboard import can_bisect
 from dashboard import change_internal_only
 from dashboard import debug_alert
 from dashboard import dump_graph_json
@@ -39,8 +39,10 @@ from dashboard import load_from_prod
 from dashboard import main
 from dashboard import migrate_test_names
 from dashboard import mr
+from dashboard import navbar
 from dashboard import new_points
 from dashboard import oauth2_decorator
+from dashboard import post_bisect_results
 from dashboard import put_entities_task
 from dashboard import report
 from dashboard import send_stoppage_alert_emails
@@ -62,9 +64,9 @@ _URL_MAPPING = [
     ('/auto_triage', auto_triage.AutoTriageHandler),
     ('/bisect_fyi', bisect_fyi.BisectFYIHandler),
     ('/bisect_stats', bisect_stats.BisectStatsHandler),
-    ('/bot_whitelist', bot_whitelist.BotWhitelistHandler),
     (r'/buildbucket_job_status/(\d+)',
      buildbucket_job_status.BuildbucketJobStatusHandler),
+    ('/can_bisect', can_bisect.CanBisectHandler),
     ('/change_internal_only', change_internal_only.ChangeInternalOnlyHandler),
     ('/debug_alert', debug_alert.DebugAlertHandler),
     ('/delete_expired_entities', layered_cache.DeleteExpiredEntitiesHandler),
@@ -88,7 +90,9 @@ _URL_MAPPING = [
     ('/', main.MainHandler),
     ('/migrate_test_names', migrate_test_names.MigrateTestNamesHandler),
     ('/mr_deprecate_tests', mr.MRDeprecateTestsHandler),
+    ('/navbar', navbar.NavbarHandler),
     ('/new_points', new_points.NewPointsHandler),
+    ('/post_bisect_results', post_bisect_results.PostBisectResultsHandler),
     ('/put_entities_task', put_entities_task.PutEntitiesTaskHandler),
     ('/report', report.ReportHandler),
     ('/send_stoppage_alert_emails',
@@ -103,8 +107,8 @@ _URL_MAPPING = [
     ('/update_bug_with_results',
      update_bug_with_results.UpdateBugWithResultsHandler),
     ('/update_test_suites', update_test_suites.UpdateTestSuitesHandler),
-    (oauth2_decorator.decorator.callback_path,
-     oauth2_decorator.decorator.callback_handler())
+    (oauth2_decorator.DECORATOR.callback_path,
+     oauth2_decorator.DECORATOR.callback_handler())
 ]
 
-app = webapp2.WSGIApplication(_URL_MAPPING, debug=False)
+APP = webapp2.WSGIApplication(_URL_MAPPING, debug=False)

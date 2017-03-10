@@ -15,6 +15,7 @@ GrShaderCaps::GrShaderCaps() {
     fPathRenderingSupport = false;
     fDstReadInShaderSupport = false;
     fDualSourceBlendingSupport = false;
+    fIntegerSupport = false;
     fShaderPrecisionVaries = false;
 }
 
@@ -50,6 +51,7 @@ SkString GrShaderCaps::dump() const {
     r.appendf("Path Rendering Support             : %s\n", gNY[fPathRenderingSupport]);
     r.appendf("Dst Read In Shader Support         : %s\n", gNY[fDstReadInShaderSupport]);
     r.appendf("Dual Source Blending Support       : %s\n", gNY[fDualSourceBlendingSupport]);
+    r.appendf("Integer Support                    : %s\n", gNY[fIntegerSupport]);
 
     r.appendf("Shader Float Precisions (varies: %s):\n", gNY[fShaderPrecisionVaries]);
 
@@ -90,7 +92,7 @@ GrCaps::GrCaps(const GrContextOptions& options) {
     fCompressedTexSubImageSupport = false;
     fOversizedStencilSupport = false;
     fTextureBarrierSupport = false;
-    fMixedSamplesSupport = false;
+    fUsesMixedSamples = false;
     fSupportsInstancedDraws = false;
     fFullClearIsFree = false;
     fMustClearUploadedBufferData = false;
@@ -104,13 +106,16 @@ GrCaps::GrCaps(const GrContextOptions& options) {
 
     fMaxRenderTargetSize = 1;
     fMaxTextureSize = 1;
-    fMaxSampleCount = 0;
+    fMaxColorSampleCount = 0;
+    fMaxStencilSampleCount = 0;
+    fMaxRasterSamples = 0;
 
     fSuppressPrints = options.fSuppressPrints;
     fImmediateFlush = options.fImmediateMode;
     fDrawPathMasksToCompressedTextureSupport = options.fDrawPathToCompressedTexture;
     fGeometryBufferMapThreshold = options.fGeometryBufferMapThreshold;
     fUseDrawInsteadOfPartialRenderTargetWrite = options.fUseDrawInsteadOfPartialRenderTargetWrite;
+    fUseDrawInsteadOfAllRenderTargetWrites = false;
 
     fPreferVRAMUseOverFlushes = true;
 }
@@ -160,7 +165,7 @@ SkString GrCaps::dump() const {
     r.appendf("Compressed Update Support          : %s\n", gNY[fCompressedTexSubImageSupport]);
     r.appendf("Oversized Stencil Support          : %s\n", gNY[fOversizedStencilSupport]);
     r.appendf("Texture Barrier Support            : %s\n", gNY[fTextureBarrierSupport]);
-    r.appendf("Mixed Samples Support              : %s\n", gNY[fMixedSamplesSupport]);
+    r.appendf("Uses Mixed Samples                 : %s\n", gNY[fUsesMixedSamples]);
     r.appendf("Supports instanced draws           : %s\n", gNY[fSupportsInstancedDraws]);
     r.appendf("Full screen clear is free          : %s\n", gNY[fFullClearIsFree]);
     r.appendf("Must clear buffer memory           : %s\n", gNY[fMustClearUploadedBufferData]);
@@ -175,7 +180,9 @@ SkString GrCaps::dump() const {
 
     r.appendf("Max Texture Size                   : %d\n", fMaxTextureSize);
     r.appendf("Max Render Target Size             : %d\n", fMaxRenderTargetSize);
-    r.appendf("Max Sample Count                   : %d\n", fMaxSampleCount);
+    r.appendf("Max Color Sample Count             : %d\n", fMaxColorSampleCount);
+    r.appendf("Max Stencil Sample Count           : %d\n", fMaxStencilSampleCount);
+    r.appendf("Max Raster Samples                 : %d\n", fMaxRasterSamples);
 
     static const char* kBlendEquationSupportNames[] = {
         "Basic",

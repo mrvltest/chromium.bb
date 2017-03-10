@@ -55,4 +55,4 @@ void WebTestingSupport::resetInternalsObject(WebLocalFrame* frame)
     // WebCoreTestSupport::resetInternalsObject(frame->mainWorldScriptContext());
 }
 
-}
+} // namespace blink

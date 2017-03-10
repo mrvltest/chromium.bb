@@ -33,6 +33,7 @@ class Renderer;
 
 namespace egl
 {
+class AttributeMap;
 class Surface;
 struct Config;
 }
@@ -59,12 +60,9 @@ class Context final : public ValidationContext
 {
   public:
     Context(const egl::Config *config,
-            int clientVersion,
             const Context *shareContext,
             rx::Renderer *renderer,
-            bool notifyResets,
-            bool robustAccess,
-            bool debug);
+            const egl::AttributeMap &attribs);
 
     virtual ~Context();
 
@@ -113,8 +111,8 @@ class Context final : public ValidationContext
     void bindArrayBuffer(GLuint buffer);
     void bindElementArrayBuffer(GLuint buffer);
     void bindTexture(GLenum target, GLuint handle);
-    void bindReadFramebuffer(GLuint framebuffer);
-    void bindDrawFramebuffer(GLuint framebuffer);
+    void bindReadFramebuffer(GLuint framebufferHandle);
+    void bindDrawFramebuffer(GLuint framebufferHandle);
     void bindRenderbuffer(GLuint renderbuffer);
     void bindVertexArray(GLuint vertexArray);
     void bindSampler(GLuint textureUnit, GLuint sampler);
@@ -131,6 +129,12 @@ class Context final : public ValidationContext
 
     Error beginQuery(GLenum target, GLuint query);
     Error endQuery(GLenum target);
+    Error queryCounter(GLuint id, GLenum target);
+    void getQueryiv(GLenum target, GLenum pname, GLint *params);
+    Error getQueryObjectiv(GLuint id, GLenum pname, GLint *params);
+    Error getQueryObjectuiv(GLuint id, GLenum pname, GLuint *params);
+    Error getQueryObjecti64v(GLuint id, GLenum pname, GLint64 *params);
+    Error getQueryObjectui64v(GLuint id, GLenum pname, GLuint64 *params);
 
     void setVertexAttribDivisor(GLuint index, GLuint divisor);
 
@@ -177,6 +181,12 @@ class Context final : public ValidationContext
     bool getQueryParameterInfo(GLenum pname, GLenum *type, unsigned int *numParams);
     bool getIndexedQueryParameterInfo(GLenum target, GLenum *type, unsigned int *numParams);
 
+    void clear(GLbitfield mask);
+    void clearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *values);
+    void clearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *values);
+    void clearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *values);
+    void clearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+
     Error drawArrays(GLenum mode, GLint first, GLsizei count);
     Error drawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
 
@@ -198,6 +208,160 @@ class Context final : public ValidationContext
                             GLenum type,
                             const GLvoid *indices,
                             const IndexRange &indexRange);
+
+    void blitFramebuffer(GLint srcX0,
+                         GLint srcY0,
+                         GLint srcX1,
+                         GLint srcY1,
+                         GLint dstX0,
+                         GLint dstY0,
+                         GLint dstX1,
+                         GLint dstY1,
+                         GLbitfield mask,
+                         GLenum filter);
+
+    void readPixels(GLint x,
+                    GLint y,
+                    GLsizei width,
+                    GLsizei height,
+                    GLenum format,
+                    GLenum type,
+                    GLvoid *pixels);
+
+    void copyTexImage2D(GLenum target,
+                        GLint level,
+                        GLenum internalformat,
+                        GLint x,
+                        GLint y,
+                        GLsizei width,
+                        GLsizei height,
+                        GLint border);
+
+    void copyTexSubImage2D(GLenum target,
+                           GLint level,
+                           GLint xoffset,
+                           GLint yoffset,
+                           GLint x,
+                           GLint y,
+                           GLsizei width,
+                           GLsizei height);
+
+    void copyTexSubImage3D(GLenum target,
+                           GLint level,
+                           GLint xoffset,
+                           GLint yoffset,
+                           GLint zoffset,
+                           GLint x,
+                           GLint y,
+                           GLsizei width,
+                           GLsizei height);
+
+    void framebufferTexture2D(GLenum target,
+                              GLenum attachment,
+                              GLenum textarget,
+                              GLuint texture,
+                              GLint level);
+
+    void framebufferRenderbuffer(GLenum target,
+                                 GLenum attachment,
+                                 GLenum renderbuffertarget,
+                                 GLuint renderbuffer);
+
+    void framebufferTextureLayer(GLenum target,
+                                 GLenum attachment,
+                                 GLuint texture,
+                                 GLint level,
+                                 GLint layer);
+
+    void drawBuffers(GLsizei n, const GLenum *bufs);
+    void readBuffer(GLenum mode);
+
+    void discardFramebuffer(GLenum target, GLsizei numAttachments, const GLenum *attachments);
+    void invalidateFramebuffer(GLenum target, GLsizei numAttachments, const GLenum *attachments);
+    void invalidateSubFramebuffer(GLenum target,
+                                  GLsizei numAttachments,
+                                  const GLenum *attachments,
+                                  GLint x,
+                                  GLint y,
+                                  GLsizei width,
+                                  GLsizei height);
+
+    void texImage2D(GLenum target,
+                    GLint level,
+                    GLint internalformat,
+                    GLsizei width,
+                    GLsizei height,
+                    GLint border,
+                    GLenum format,
+                    GLenum type,
+                    const GLvoid *pixels);
+    void texImage3D(GLenum target,
+                    GLint level,
+                    GLint internalformat,
+                    GLsizei width,
+                    GLsizei height,
+                    GLsizei depth,
+                    GLint border,
+                    GLenum format,
+                    GLenum type,
+                    const GLvoid *pixels);
+    void texSubImage2D(GLenum target,
+                       GLint level,
+                       GLint xoffset,
+                       GLint yoffset,
+                       GLsizei width,
+                       GLsizei height,
+                       GLenum format,
+                       GLenum type,
+                       const GLvoid *pixels);
+    void texSubImage3D(GLenum target,
+                       GLint level,
+                       GLint xoffset,
+                       GLint yoffset,
+                       GLint zoffset,
+                       GLsizei width,
+                       GLsizei height,
+                       GLsizei depth,
+                       GLenum format,
+                       GLenum type,
+                       const GLvoid *pixels);
+    void compressedTexImage2D(GLenum target,
+                              GLint level,
+                              GLenum internalformat,
+                              GLsizei width,
+                              GLsizei height,
+                              GLint border,
+                              GLsizei imageSize,
+                              const GLvoid *data);
+    void compressedTexImage3D(GLenum target,
+                              GLint level,
+                              GLenum internalformat,
+                              GLsizei width,
+                              GLsizei height,
+                              GLsizei depth,
+                              GLint border,
+                              GLsizei imageSize,
+                              const GLvoid *data);
+    void compressedTexSubImage2D(GLenum target,
+                                 GLint level,
+                                 GLint xoffset,
+                                 GLint yoffset,
+                                 GLsizei width,
+                                 GLsizei height,
+                                 GLenum format,
+                                 GLsizei imageSize,
+                                 const GLvoid *data);
+    void compressedTexSubImage3D(GLenum target,
+                                 GLint level,
+                                 GLint xoffset,
+                                 GLint yoffset,
+                                 GLint zoffset,
+                                 GLsizei width,
+                                 GLsizei height,
+                                 GLsizei depth,
+                                 GLenum format,
+                                 GLsizei imageSize,
+                                 const GLvoid *data);
 
     Error flush();
     Error finish();
@@ -226,12 +390,16 @@ class Context final : public ValidationContext
 
     State &getState() { return mState; }
 
-    void syncRendererState();
-    void syncRendererState(const State::DirtyBits &bitMask);
-
   private:
+    void syncRendererState();
+    void syncRendererState(const State::DirtyBits &bitMask, const State::DirtyObjects &objectMask);
+    void syncStateForReadPixels();
+    void syncStateForTexImage();
+    void syncStateForClear();
+    void syncStateForBlit();
     void checkVertexArrayAllocation(GLuint vertexArray);
     void checkTransformFeedbackAllocation(GLuint transformFeedback);
+    Framebuffer *checkFramebufferAllocation(GLuint framebufferHandle);
 
     void detachBuffer(GLuint buffer);
     void detachTexture(GLuint texture);
@@ -302,8 +470,17 @@ class Context final : public ValidationContext
     egl::Surface *mCurrentSurface;
 
     ResourceManager *mResourceManager;
+
+    State::DirtyBits mTexImageDirtyBits;
+    State::DirtyObjects mTexImageDirtyObjects;
+    State::DirtyBits mReadPixelsDirtyBits;
+    State::DirtyObjects mReadPixelsDirtyObjects;
+    State::DirtyBits mClearDirtyBits;
+    State::DirtyObjects mClearDirtyObjects;
+    State::DirtyBits mBlitDirtyBits;
+    State::DirtyObjects mBlitDirtyObjects;
 };
 
-}
+}  // namespace gl
 
 #endif   // LIBANGLE_CONTEXT_H_

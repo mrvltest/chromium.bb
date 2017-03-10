@@ -4,19 +4,21 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+
+#include "xfa/src/fdp/include/fde_rdr.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffdocview.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpushbutton.h"
-#include "xfa_ffcheckbutton.h"
-#include "xfa_ffchoicelist.h"
-#include "xfa_ffimageedit.h"
-#include "xfa_fftextedit.h"
+#include "xfa/src/fxfa/src/app/xfa_ffcheckbutton.h"
+#include "xfa/src/fxfa/src/app/xfa_ffchoicelist.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffimageedit.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpushbutton.h"
+#include "xfa/src/fxfa/src/app/xfa_fftextedit.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+
 CXFA_FFPageView::CXFA_FFPageView(CXFA_FFDocView* pDocView, CXFA_Node* pPageArea)
     : CXFA_ContainerLayoutItem(pPageArea),
       m_pDocView(pDocView),
@@ -266,9 +268,9 @@ CXFA_FFWidget* CXFA_FFTabOrderPageWidgetIterator::GetTraverseWidget(
     CXFA_FFWidget* pWidget) {
   CXFA_WidgetAcc* pAcc = pWidget->GetDataAcc();
   CXFA_Node* pTraversal = pAcc->GetNode()->GetChild(0, XFA_ELEMENT_Traversal);
-  if (pTraversal != NULL) {
+  if (pTraversal) {
     CXFA_Node* pTraverse = pTraversal->GetChild(0, XFA_ELEMENT_Traverse);
-    if (pTraverse != NULL) {
+    if (pTraverse) {
       CFX_WideString wsTraverseWidgetName;
       if (pTraverse->GetAttribute(XFA_ATTRIBUTE_Ref, wsTraverseWidgetName)) {
         return FindWidgetByName(wsTraverseWidgetName, pWidget);

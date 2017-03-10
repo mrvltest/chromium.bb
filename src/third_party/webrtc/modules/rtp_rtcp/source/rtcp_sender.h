@@ -25,6 +25,7 @@
 #include "webrtc/modules/rtp_rtcp/include/receive_statistics.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/report_block.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_utility.h"
 #include "webrtc/modules/rtp_rtcp/source/tmmbr_help.h"
@@ -35,6 +36,7 @@ namespace webrtc {
 
 class ModuleRtpRtcpImpl;
 class RTCPReceiver;
+class RtcEventLog;
 
 class NACKStringBuilder {
  public:
@@ -77,6 +79,7 @@ class RTCPSender {
              Clock* clock,
              ReceiveStatistics* receive_statistics,
              RtcpPacketTypeCounterObserver* packet_type_counter_observer,
+             RtcEventLog* event_log,
              Transport* outgoing_transport);
   virtual ~RTCPSender();
 
@@ -102,10 +105,6 @@ class RTCPSender {
   int32_t AddMixedCNAME(uint32_t SSRC, const char* c_name);
 
   int32_t RemoveMixedCNAME(uint32_t SSRC);
-
-  int64_t SendTimeOfSendReport(uint32_t sendReport);
-
-  bool SendTimeOfXrRrReport(uint32_t mid_ntp, int64_t* time_ms) const;
 
   bool TimeToSendRTCPReport(bool sendKeyframeBeforeRTP = false) const;
 
@@ -133,7 +132,7 @@ class RTCPSender {
 
   void SetTMMBRStatus(bool enable);
 
-  int32_t SetTMMBN(const TMMBRSet* boundingSet, uint32_t maxBitrateKbit);
+  int32_t SetTMMBN(const TMMBRSet* boundingSet);
 
   int32_t SetApplicationSpecificData(uint8_t subType,
                                      uint32_t name,
@@ -203,6 +202,7 @@ class RTCPSender {
   Random random_ GUARDED_BY(critical_section_rtcp_sender_);
   RtcpMode method_ GUARDED_BY(critical_section_rtcp_sender_);
 
+  RtcEventLog* const event_log_;
   Transport* const transport_;
 
   rtc::scoped_ptr<CriticalSectionWrapper> critical_section_rtcp_sender_;
@@ -225,17 +225,6 @@ class RTCPSender {
   std::map<uint32_t, rtcp::ReportBlock> report_blocks_
       GUARDED_BY(critical_section_rtcp_sender_);
   std::map<uint32_t, std::string> csrc_cnames_
-      GUARDED_BY(critical_section_rtcp_sender_);
-
-  // Sent
-  uint32_t last_send_report_[RTCP_NUMBER_OF_SR] GUARDED_BY(
-      critical_section_rtcp_sender_);  // allow packet loss and RTT above 1 sec
-  int64_t last_rtcp_time_[RTCP_NUMBER_OF_SR] GUARDED_BY(
-      critical_section_rtcp_sender_);
-
-  // Sent XR receiver reference time report.
-  // <mid ntp (mid 32 bits of the 64 bits NTP timestamp), send time in ms>.
-  std::map<uint32_t, int64_t> last_xr_rr_
       GUARDED_BY(critical_section_rtcp_sender_);
 
   // send CSRCs
@@ -296,6 +285,8 @@ class RTCPSender {
   typedef rtc::scoped_ptr<rtcp::RtcpPacket> (RTCPSender::*BuilderFunc)(
       const RtcpContext&);
   std::map<RTCPPacketType, BuilderFunc> builders_;
+
+  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RTCPSender);
 };
 }  // namespace webrtc
 

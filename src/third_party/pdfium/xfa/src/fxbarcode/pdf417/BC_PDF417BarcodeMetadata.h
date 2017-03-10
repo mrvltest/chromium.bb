@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_BARCODEMETADATA_H_
-#define _BC_BARCODEMETADATA_H_
-class CBC_BarcodeMetadata;
+#ifndef XFA_SRC_FXBARCODE_PDF417_BC_PDF417BARCODEMETADATA_H_
+#define XFA_SRC_FXBARCODE_PDF417_BC_PDF417BARCODEMETADATA_H_
+
+#include <stdint.h>
+
 class CBC_BarcodeMetadata {
  public:
   CBC_BarcodeMetadata(int32_t columnCount,
@@ -27,4 +29,5 @@ class CBC_BarcodeMetadata {
   int32_t m_rowCountLowerPart;
   int32_t m_rowCount;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_PDF417_BC_PDF417BARCODEMETADATA_H_

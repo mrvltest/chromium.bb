@@ -5,21 +5,21 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_basic_imp.h"
-#include "xfa_document_layout_imp.h"
-#include "xfa_document_datamerger_imp.h"
-#include "xfa_layout_itemlayout.h"
-#include "xfa_layout_pagemgr_new.h"
-#include "xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_basic_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_datamerger_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_itemlayout.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_pagemgr_new.h"
 CXFA_LayoutProcessor* CXFA_Document::GetLayoutProcessor() {
   if (!m_pLayoutProcessor) {
     m_pLayoutProcessor = new CXFA_LayoutProcessor(this);
@@ -52,7 +52,7 @@ int32_t CXFA_LayoutProcessor::StartLayout(FX_BOOL bForceRestart) {
   }
   m_nProgressCounter = 0;
   CXFA_Node* pFormPacketNode =
-      (CXFA_Node*)m_pDocument->GetXFANode(XFA_HASHCODE_Form);
+      ToNode(m_pDocument->GetXFAObject(XFA_HASHCODE_Form));
   if (!pFormPacketNode) {
     return -1;
   }
@@ -96,7 +96,7 @@ int32_t CXFA_LayoutProcessor::DoLayout(IFX_Pause* pPause) {
     CXFA_ContentLayoutItem* pLayoutItem =
         m_pRootItemLayoutProcessor->ExtractLayoutItem();
     if (pLayoutItem) {
-      pLayoutItem->m_sPos.Set(fPosX, fPosY);
+      pLayoutItem->m_sPos = CFX_PointF(fPosX, fPosY);
     }
     m_pLayoutPageMgr->SubmitContentItem(pLayoutItem, eStatus);
   } while (eStatus != XFA_ItemLayoutProcessorResult_Done &&
@@ -186,15 +186,16 @@ int32_t CXFA_ContainerLayoutItem::GetPageIndex() const {
       ->GetPageIndex(this);
 }
 void CXFA_ContainerLayoutItem::GetPageSize(CFX_SizeF& size) {
-  size.Set(0, 0);
+  size.clear();
   CXFA_Node* pMedium = m_pFormNode->GetFirstChildByClass(XFA_ELEMENT_Medium);
-  if (pMedium) {
-    size.x = pMedium->GetMeasure(XFA_ATTRIBUTE_Short).ToUnit(XFA_UNIT_Pt);
-    size.y = pMedium->GetMeasure(XFA_ATTRIBUTE_Long).ToUnit(XFA_UNIT_Pt);
-    if (pMedium->GetEnum(XFA_ATTRIBUTE_Orientation) ==
-        XFA_ATTRIBUTEENUM_Landscape) {
-      size.Set(size.y, size.x);
-    }
+  if (!pMedium)
+    return;
+
+  size = CFX_SizeF(pMedium->GetMeasure(XFA_ATTRIBUTE_Short).ToUnit(XFA_UNIT_Pt),
+                   pMedium->GetMeasure(XFA_ATTRIBUTE_Long).ToUnit(XFA_UNIT_Pt));
+  if (pMedium->GetEnum(XFA_ATTRIBUTE_Orientation) ==
+      XFA_ATTRIBUTEENUM_Landscape) {
+    size = CFX_SizeF(size.y, size.x);
   }
 }
 CXFA_Node* CXFA_ContainerLayoutItem::GetMasterPage() const {

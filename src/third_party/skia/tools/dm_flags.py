@@ -80,69 +80,14 @@ def get_args(bot):
   args.append('--config')
   args.extend(configs)
 
-  # Run tests and gms everywhere,
-  # and image decoding tests everywhere except GPU bots.
+  # Run tests, gms, and image decoding tests everywhere.
   # TODO: remove skp from default --src list?
-  if 'GPU' in bot:
-    args.extend('--src tests gm'.split(' '))
-  else:
-    args.extend('--src tests gm image'.split(' '))
+  args.extend('--src tests gm image'.split(' '))
 
   if 'GalaxyS' in bot:
     args.extend(('--threads', '0'))
 
   blacklist = []
-
-  # Several of the newest version bmps fail on SkImageDecoder
-  blacklist.extend('_ image decode pal8os2v2.bmp'.split(' '))
-  blacklist.extend('_ image decode pal8v4.bmp'.split(' '))
-  blacklist.extend('_ image decode pal8v5.bmp'.split(' '))
-  blacklist.extend('_ image decode rgb16-565.bmp'.split(' '))
-  blacklist.extend('_ image decode rgb16-565pal.bmp'.split(' '))
-  blacklist.extend('_ image decode rgb32-111110.bmp'.split(' '))
-  blacklist.extend('_ image decode rgb32bf.bmp'.split(' '))
-  blacklist.extend('_ image decode rgba32.bmp'.split(' '))
-  blacklist.extend('_ image decode rgba32abf.bmp'.split(' '))
-  blacklist.extend('_ image decode rgb24largepal.bmp'.split(' '))
-  blacklist.extend('_ image decode pal8os2v2-16.bmp'.split(' '))
-  blacklist.extend('_ image decode pal8oversizepal.bmp'.split(' '))
-  blacklist.extend('_ image decode pal4rletrns.bmp'.split(' '))
-  blacklist.extend('_ image decode pal8rletrns.bmp'.split(' '))
-  blacklist.extend('_ image decode 4bpp-pixeldata-cropped.bmp'.split(' '))
-  blacklist.extend('_ image decode 8bpp-pixeldata-cropped.bmp'.split(' '))
-  blacklist.extend('_ image decode 24bpp-pixeldata-cropped.bmp'.split(' '))
-  blacklist.extend('_ image decode 32bpp-pixeldata-cropped.bmp'.split(' '))
-  blacklist.extend('_ image decode testcase7.bmp'.split(' '))
-
-  # New ico files that fail on SkImageDecoder
-  blacklist.extend('_ image decode Hopstarter-Mac-Folders-Apple.ico'.split(' '))
-
-  # Gif test image uses uninitialized memory on Mac bots
-  if 'Mac' in bot:
-    blacklist.extend('_ image decode frame_larger_than_image.gif'.split(' '))
-
-  # Incomplete image tests that fail on SkImageDecoder
-  blacklist.extend('_ image decode inc0.gif'.split(' '))
-  blacklist.extend('_ image decode inc1.gif'.split(' '))
-  blacklist.extend('_ image decode incInterlaced.gif'.split(' '))
-  blacklist.extend('_ image decode inc0.jpg'.split(' '))
-  blacklist.extend('_ image decode incGray.jpg'.split(' '))
-  blacklist.extend('_ image decode inc0.wbmp'.split(' '))
-  blacklist.extend('_ image decode inc1.wbmp'.split(' '))
-  blacklist.extend('_ image decode inc0.webp'.split(' '))
-  blacklist.extend('_ image decode inc1.webp'.split(' '))
-  blacklist.extend('_ image decode inc0.ico'.split(' '))
-  blacklist.extend('_ image decode inc1.ico'.split(' '))
-  blacklist.extend('_ image decode inc0.png'.split(' '))
-  blacklist.extend('_ image decode inc1.png'.split(' '))
-  blacklist.extend('_ image decode inc2.png'.split(' '))
-  blacklist.extend('_ image decode inc12.png'.split(' '))
-  blacklist.extend('_ image decode inc13.png'.split(' '))
-  blacklist.extend('_ image decode inc14.png'.split(' '))
-
-  # Leon doesn't care about this, so why run it?
-  if 'Win' in bot:
-    blacklist.extend('_ image decode _'.split(' '))
 
   # Certain gm's on win7 gpu and pdf are never finishing and keeping the test
   # running forever
@@ -160,7 +105,6 @@ def get_args(bot):
 
   if 'iOS' in bot:
     blacklist.extend('gpu skp _ _ msaa skp _ _'.split(' '))
-    blacklist.extend('gpu image decode _ msaa image decode _'.split(' '))
     blacklist.extend('msaa16 gm _ tilemodesProcess'.split(' '))
 
   # the 32-bit GCE bots run out of memory in DM when running these large images
@@ -211,9 +155,20 @@ def get_args(bot):
     blacklist.extend([   '2ndpic-8888', 'gm', '_', test])
     blacklist.extend(['serialize-8888', 'gm', '_', test])
 
-  if blacklist:
-    args.append('--blacklist')
-    args.extend(blacklist)
+  # Extensions for RAW images
+  r = ["arw", "cr2", "dng", "nef", "nrw", "orf", "raf", "rw2", "pef", "srw",
+       "ARW", "CR2", "DNG", "NEF", "NRW", "ORF", "RAF", "RW2", "PEF", "SRW"]
+
+  # skbug.com/4888
+  # Blacklist RAW images on GPU tests until we can resolve failures
+  if 'GPU' in bot:
+    for raw_ext in r:
+      blacklist.extend(('_ image _ .%s' % raw_ext).split(' '))
+
+  # Blacklist RAW images on Win32 tests due to out-of-memory issue
+  if 'Win' in bot and not '64' in bot:
+    for raw_ext in r:
+      blacklist.extend(('_ image _ .%s' % raw_ext).split(' '))
 
   match = []
   if 'Valgrind' in bot: # skia:3021
@@ -238,9 +193,21 @@ def get_args(bot):
   if 'ANGLE' in bot and 'Debug' in bot:
     match.append('~GLPrograms') # skia:4717
 
+  if 'MSAN' in bot:
+    match.extend(['~Once', '~Shared'])  # Not sure what's up with these tests.
+
+  if blacklist:
+    args.append('--blacklist')
+    args.extend(blacklist)
+
   if match:
     args.append('--match')
     args.extend(match)
+
+  # These bots run out of memory running RAW codec tests. Do not run them in
+  # parallel
+  if 'NexusPlayer' in bot or 'Nexus5' in bot or 'Nexus9' in bot:
+    args.append('--noRAW_threading')
 
   return args
 cov_end = lineno()   # Don't care about code coverage past here.
@@ -258,6 +225,7 @@ def self_test():
     'Test-Android-GCC-Nexus7-GPU-Tegra3-Arm7-Release',
     'Test-Android-GCC-NexusPlayer-CPU-SSSE3-x86-Release',
     'Test-Ubuntu-GCC-ShuttleA-GPU-GTX550Ti-x86_64-Release-Valgrind',
+    'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Debug-MSAN',
     'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-TSAN',
     'Test-Ubuntu-GCC-GCE-CPU-AVX2-x86_64-Release-Valgrind',
     'Test-Win7-MSVC-ShuttleA-GPU-HD2000-x86-Debug-ANGLE',

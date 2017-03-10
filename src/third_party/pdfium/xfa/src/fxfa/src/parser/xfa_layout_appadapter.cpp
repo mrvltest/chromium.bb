@@ -5,19 +5,19 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_document_layout_imp.h"
-#include "xfa_layout_itemlayout.h"
-#include "xfa_layout_pagemgr_new.h"
-#include "xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_itemlayout.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_pagemgr_new.h"
 FX_DWORD XFA_GetRelevant(CXFA_Node* pFormItem, FX_DWORD dwParentRelvant) {
   FX_DWORD dwRelevant = XFA_LAYOUTSTATUS_Viewable | XFA_LAYOUTSTATUS_Printable;
   CFX_WideStringC wsRelevant;
@@ -40,14 +40,19 @@ FX_DWORD XFA_GetRelevant(CXFA_Node* pFormItem, FX_DWORD dwParentRelvant) {
 }
 void XFA_ReleaseLayoutItem(CXFA_LayoutItem* pLayoutItem) {
   CXFA_LayoutItem* pNode = pLayoutItem->m_pFirstChild;
+  IXFA_Notify* pNotify =
+      pLayoutItem->m_pFormNode->GetDocument()->GetParser()->GetNotify();
+  IXFA_DocLayout* pDocLayout =
+      pLayoutItem->m_pFormNode->GetDocument()->GetDocLayout();
   while (pNode) {
     CXFA_LayoutItem* pNext = pNode->m_pNextSibling;
     pNode->m_pParent = nullptr;
+    pNotify->OnLayoutEvent(pDocLayout, static_cast<CXFA_LayoutItem*>(pNode),
+                           XFA_LAYOUTEVENT_ItemRemoving);
     XFA_ReleaseLayoutItem(pNode);
     pNode = pNext;
   }
-  IXFA_Notify* pNotify =
-      pLayoutItem->m_pFormNode->GetDocument()->GetParser()->GetNotify();
+  pNotify->OnLayoutEvent(pDocLayout, pLayoutItem, XFA_LAYOUTEVENT_ItemRemoving);
   if (pLayoutItem->m_pFormNode->GetClassID() == XFA_ELEMENT_PageArea) {
     pNotify->OnPageEvent(static_cast<CXFA_ContainerLayoutItem*>(pLayoutItem),
                          XFA_PAGEEVENT_PageRemoved);

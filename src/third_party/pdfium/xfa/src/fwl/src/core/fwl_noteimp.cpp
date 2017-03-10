@@ -4,16 +4,22 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+
+#include "xfa/include/fwl/adapter/fwl_adapterwidgetmgr.h"
+#include "xfa/include/fwl/basewidget/fwl_tooltipctrl.h"
+#include "xfa/include/fwl/core/fwl_app.h"
+#include "xfa/include/fwl/core/fwl_grid.h"
 #include "xfa/src/foxitlib.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_tooltipctrlimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_tooltipctrlimp.h"
+
 CFWL_NoteLoop::CFWL_NoteLoop(CFWL_WidgetImp* pForm)
     : m_pForm(pForm), m_bContinueModal(TRUE) {}
 FX_BOOL CFWL_NoteLoop::PreProcessMessage(CFWL_Message* pMessage) {
@@ -833,9 +839,7 @@ CFX_DIBitmap* CFWL_CoreToopTipDP::GetToolTipIcon(IFWL_Widget* pWidget) {
   return NULL;
 }
 CFX_SizeF CFWL_CoreToopTipDP::GetToolTipIconSize(IFWL_Widget* pWidget) {
-  CFX_SizeF sz;
-  sz.Set(0, 0);
-  return sz;
+  return CFX_SizeF();
 }
 CFX_RectF CFWL_CoreToopTipDP::GetAnchor() {
   return m_fAnchor;
@@ -1001,9 +1005,7 @@ FX_BOOL CFWL_ToolTipContainer::ProcessEnter(CFWL_EvtMouse* pEvt,
         m_ToolTipDp->m_wsCaption = wsCaption;
       }
       CFX_RectF rt;
-      rt.Reset();
       CFX_SizeF sz;
-      sz.Reset();
       pCurTarget->GetToolTipSize(sz);
       if (sz.x > 0 && sz.y > 0) {
         rt.width = sz.x;
@@ -1014,8 +1016,7 @@ FX_BOOL CFWL_ToolTipContainer::ProcessEnter(CFWL_EvtMouse* pEvt,
         rt.width = r.width;
         rt.height = r.height;
       }
-      CFX_PointF pt;
-      pt.Set(pEvt->m_fx, pEvt->m_fy);
+      CFX_PointF pt(pEvt->m_fx, pEvt->m_fy);
       if (pCurTarget->GetToolTipPos(pt) == FWL_ERR_Succeeded) {
         rt.left = pt.x;
         rt.top = pt.y;

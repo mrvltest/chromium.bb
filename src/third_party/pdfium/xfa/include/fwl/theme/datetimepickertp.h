@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_DATETIMEPICKERTP_H
-#define _FWL_DATETIMEPICKERTP_H
-class CFWL_WidgetTP;
-class CFWL_DateTimePickerTP;
+#ifndef XFA_INCLUDE_FWL_THEME_DATETIMEPICKERTP_H_
+#define XFA_INCLUDE_FWL_THEME_DATETIMEPICKERTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_DateTimePickerTP : public CFWL_WidgetTP {
  public:
   CFWL_DateTimePickerTP();
@@ -22,4 +23,5 @@ class CFWL_DateTimePickerTP : public CFWL_WidgetTP {
     FX_ARGB BoxBkColor[13][2];
   } * m_pThemeData;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_DATETIMEPICKERTP_H_

@@ -20,9 +20,11 @@
  * limitations under the License.
  */
 
-#include "barcode.h"
-#include "BC_LuminanceSource.h"
-#include "BC_BufferedImageLuminanceSource.h"
+#include "core/include/fxcodec/fx_codec.h"
+#include "xfa/src/fxbarcode/BC_BufferedImageLuminanceSource.h"
+#include "xfa/src/fxbarcode/BC_LuminanceSource.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 class CBC_Pause : public IFX_Pause {
  public:
   virtual FX_BOOL NeedToPauseNow() { return TRUE; }

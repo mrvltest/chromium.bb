@@ -4,12 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_BINARYBITMAP_H_
-#define _BC_BINARYBITMAP_H_
+#ifndef XFA_SRC_FXBARCODE_BC_BINARYBITMAP_H_
+#define XFA_SRC_FXBARCODE_BC_BINARYBITMAP_H_
+
+#include <cstdint>
+
 class CBC_Binarizer;
 class CBC_CommonBitMatrix;
 class CBC_CommonBitArray;
-class CBC_BinaryBitmap;
+
 class CBC_BinaryBitmap {
  public:
   CBC_BinaryBitmap(CBC_Binarizer* binarizer);
@@ -26,4 +29,5 @@ class CBC_BinaryBitmap {
   CBC_Binarizer* m_binarizer;
   CBC_CommonBitMatrix* m_matrix;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_BINARYBITMAP_H_

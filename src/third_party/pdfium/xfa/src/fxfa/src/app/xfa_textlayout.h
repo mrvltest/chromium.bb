@@ -4,10 +4,22 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_TEXTLAYOUT_H
-#define _FXFA_TEXTLAYOUT_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_TEXTLAYOUT_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_TEXTLAYOUT_H_
+
+#include "xfa/src/fdp/include/fde_brs.h"
+#include "xfa/src/fdp/include/fde_css.h"
+#include "xfa/src/fdp/include/fde_rdv.h"
+#include "xfa/src/fgas/include/fx_rbk.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+
 #define XFA_LOADERCNTXTFLG_FILTERSPACE 0x001
+
+class CXFA_Para;
+class CXFA_Font;
 class CXFA_TextTabstopsContext;
+
 class IXFA_TextProvider {
  public:
   virtual ~IXFA_TextProvider() {}
@@ -21,6 +33,7 @@ class IXFA_TextProvider {
                                const CFX_WideString& wsAttr,
                                CFX_WideString& wsValue) = 0;
 };
+
 class CXFA_CSSTagProvider : public IFDE_CSSTagProvider {
  public:
   CXFA_CSSTagProvider() : m_bTagAviliable(FALSE), m_bContent(FALSE) {}
@@ -42,6 +55,7 @@ class CXFA_CSSTagProvider : public IFDE_CSSTagProvider {
   CFX_WideString m_wsTagName;
   CFX_MapPtrToPtr m_Attributes;
 };
+
 class CXFA_TextParseContext : public CFX_Target {
  public:
   CXFA_TextParseContext()
@@ -68,6 +82,7 @@ class CXFA_TextParseContext : public CFX_Target {
   FX_DWORD m_dwMatchedDecls : 28;
   FDE_CSSDISPLAY m_eDisplay : 4;
 };
+
 class CXFA_TextParser {
  public:
   CXFA_TextParser() : m_pAllocator(NULL), m_pSelector(NULL), m_pUASheet(NULL) {}
@@ -127,6 +142,7 @@ class CXFA_TextParser {
   CFX_MapPtrTemplate<IFDE_XMLNode*, CXFA_TextParseContext*>
       m_mapXMLNodeToParseContext;
 };
+
 class CXFA_LoaderContext {
  public:
   CXFA_LoaderContext()
@@ -156,6 +172,7 @@ class CXFA_LoaderContext {
   FX_DWORD m_dwFlags;
   CFX_FloatArray m_BlocksHeight;
 };
+
 class CXFA_LinkUserData : public IFX_Unknown, public CFX_Target {
  public:
   CXFA_LinkUserData(IFX_MEMAllocator* pAllocator, FX_WCHAR* pszText)
@@ -166,7 +183,7 @@ class CXFA_LinkUserData : public IFX_Unknown, public CFX_Target {
   virtual FX_DWORD Release() {
     FX_DWORD dwRefCount = --m_dwRefCount;
     if (dwRefCount <= 0) {
-      FDE_DeleteWith(CXFA_LinkUserData, m_pAllocator, this);
+      FXTARGET_DeleteWith(CXFA_LinkUserData, m_pAllocator, this);
     }
     return dwRefCount;
   }
@@ -180,6 +197,7 @@ class CXFA_LinkUserData : public IFX_Unknown, public CFX_Target {
   FX_DWORD m_dwRefCount;
   CFX_WideString m_pszURLContent;
 };
+
 class CXFA_TextUserData : public IFX_Unknown, public CFX_Target {
  public:
   CXFA_TextUserData(IFX_MEMAllocator* pAllocator, IFDE_CSSComputedStyle* pStyle)
@@ -211,7 +229,7 @@ class CXFA_TextUserData : public IFX_Unknown, public CFX_Target {
   virtual FX_DWORD Release() {
     FX_DWORD dwRefCount = --m_dwRefCount;
     if (dwRefCount == 0) {
-      FDE_DeleteWith(CXFA_TextUserData, m_pAllocator, this);
+      FXTARGET_DeleteWith(CXFA_TextUserData, m_pAllocator, this);
     }
     return dwRefCount;
   }
@@ -224,7 +242,14 @@ class CXFA_TextUserData : public IFX_Unknown, public CFX_Target {
   IFX_MEMAllocator* m_pAllocator;
   FX_DWORD m_dwRefCount;
 };
-typedef struct _XFA_TEXTPIECE : public CFX_Target {
+
+struct XFA_TEXTPIECE : public CFX_Target {
+  XFA_TEXTPIECE() : pszText(nullptr), pFont(nullptr), pLinkData(nullptr) {}
+  ~XFA_TEXTPIECE() {
+    if (pLinkData)
+      pLinkData->Release();
+  }
+
   FX_WCHAR* pszText;
   int32_t iChars;
   int32_t* pWidths;
@@ -239,20 +264,9 @@ typedef struct _XFA_TEXTPIECE : public CFX_Target {
   FX_FLOAT fFontSize;
   CFX_RectF rtPiece;
   CXFA_LinkUserData* pLinkData;
+};
+typedef CFX_ArrayTemplate<XFA_TEXTPIECE*> CXFA_PieceArray;
 
-  _XFA_TEXTPIECE() : pszText(NULL), pFont(NULL), pLinkData(NULL) {
-    pszText = NULL;
-  }
-  ~_XFA_TEXTPIECE() {
-    pszText = NULL;
-    if (NULL != pLinkData) {
-      pLinkData->Release();
-      pLinkData = NULL;
-    }
-  }
-} XFA_TEXTPIECE, *XFA_LPTEXTPIECE;
-typedef XFA_TEXTPIECE const* XFA_LPCTEXTPIECE;
-typedef CFX_ArrayTemplate<XFA_LPTEXTPIECE> CXFA_PieceArray;
 class CXFA_PieceLine : public CFX_Target {
  public:
   CXFA_PieceLine() {}
@@ -260,10 +274,12 @@ class CXFA_PieceLine : public CFX_Target {
   CFX_Int32Array m_charCounts;
 };
 typedef CFX_ArrayTemplate<CXFA_PieceLine*> CXFA_PieceLineArray;
+
 struct XFA_TABSTOPS {
   FX_DWORD dwAlign;
   FX_FLOAT fTabstops;
 };
+
 class CXFA_TextTabstopsContext {
  public:
   CXFA_TextTabstopsContext()
@@ -304,6 +320,7 @@ class CXFA_TextTabstopsContext {
   FX_FLOAT m_fTabWidth;
   FX_FLOAT m_fLeft;
 };
+
 class CXFA_TextLayout {
  public:
   CXFA_TextLayout(IXFA_TextProvider* pTextProvider);
@@ -382,10 +399,10 @@ class CXFA_TextLayout {
                   int32_t iPiece,
                   FXTEXT_CHARPOS* pCharPos,
                   const CFX_Matrix& tmDoc2Device);
-  int32_t GetDisplayPos(XFA_LPCTEXTPIECE pPiece,
+  int32_t GetDisplayPos(const XFA_TEXTPIECE* pPiece,
                         FXTEXT_CHARPOS* pCharPos,
                         FX_BOOL bCharCode = FALSE);
-  FX_BOOL ToRun(XFA_LPCTEXTPIECE pPiece, FX_RTFTEXTOBJ& tr);
+  FX_BOOL ToRun(const XFA_TEXTPIECE* pPiece, FX_RTFTEXTOBJ& tr);
   void DoTabstops(IFDE_CSSComputedStyle* pStyle, CXFA_PieceLine* pPieceLine);
   FX_BOOL Layout(int32_t iBlock);
   int32_t CountBlocks() const;
@@ -403,4 +420,5 @@ class CXFA_TextLayout {
   CXFA_TextTabstopsContext* m_pTabstopContext;
   FX_BOOL m_bBlockContinue;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_TEXTLAYOUT_H_

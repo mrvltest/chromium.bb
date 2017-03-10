@@ -4,17 +4,18 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+
 #include <algorithm>
 
+#include "xfa/include/fwl/core/fwl_widgetmgr.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffdochandler.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffapp.h"
-#include "xfa_fwltheme.h"
-#include "xfa_fontmgr.h"
-#include "xfa_ffwidgethandler.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdochandler.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidgethandler.h"
+#include "xfa/src/fxfa/src/app/xfa_fontmgr.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+#include "xfa/src/fxfa/src/app/xfa_fwltheme.h"
 
 CXFA_FileRead::CXFA_FileRead(const CFX_ArrayTemplate<CPDF_Stream*>& streams) {
   int32_t iCount = streams.GetSize();
@@ -86,41 +87,25 @@ CXFA_FFApp::CXFA_FFApp(IXFA_AppProvider* pProvider)
   IXFA_TimeZoneProvider::Create();
 }
 CXFA_FFApp::~CXFA_FFApp() {
-  if (m_pDocHandler) {
-    delete m_pDocHandler;
-  }
+  delete m_pDocHandler;
   if (m_pFWLApp) {
     m_pFWLApp->Finalize();
     m_pFWLApp->Release();
     delete m_pFWLApp;
   }
-  if (m_pFWLTheme) {
+  if (m_pFWLTheme)
     m_pFWLTheme->Release();
-  }
-  if (m_pAdapterWidgetMgr) {
-    delete m_pAdapterWidgetMgr;
-  }
-  if (m_pAdapterThreadMgr) {
-    delete m_pAdapterThreadMgr;
-    m_pAdapterThreadMgr = NULL;
-  }
-  if (m_pMenuHandler) {
-    delete m_pMenuHandler;
-    m_pMenuHandler = NULL;
-  }
+  delete m_pAdapterWidgetMgr;
+  delete m_pAdapterThreadMgr;
+  delete m_pMenuHandler;
   IXFA_TimeZoneProvider::Destroy();
-  if (m_pFontMgr != NULL) {
-    delete m_pFontMgr;
-    m_pFontMgr = NULL;
-  }
+  delete m_pFontMgr;
 #if _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
-  if (m_pFontSource != NULL) {
+  if (m_pFontSource)
     m_pFontSource->Release();
-  }
 #endif
-  if (m_pFDEFontMgr) {
+  if (m_pFDEFontMgr)
     m_pFDEFontMgr->Release();
-  }
 }
 IXFA_MenuHandler* CXFA_FFApp::GetMenuHandler() {
   if (!m_pMenuHandler) {
@@ -203,13 +188,4 @@ IFWL_AdapterThreadMgr* CXFA_FFApp::GetThreadMgr() {
 }
 IFWL_AdapterTimerMgr* CXFA_FFApp::GetTimerMgr() {
   return m_pProvider->GetTimerMgr();
-}
-IFWL_AdapterCursorMgr* CXFA_FFApp::GetCursorMgr() {
-  return NULL;
-}
-IFWL_AdapterMonitorMgr* CXFA_FFApp::GetMonitorMgr() {
-  return NULL;
-}
-IFWL_AdapterClipboardMgr* CXFA_FFApp::GetClipboardMgr() {
-  return NULL;
 }

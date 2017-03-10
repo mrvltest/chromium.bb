@@ -4,9 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_APP_H
-#define _FWL_APP_H
-class IFWL_NoteThread;
+#ifndef XFA_INCLUDE_FWL_CORE_FWL_APP_H_
+#define XFA_INCLUDE_FWL_CORE_FWL_APP_H_
+
+#include "core/include/fxcrt/fx_string.h"
+#include "xfa/include/fwl/core/fwl_thread.h"
+
 class IFWL_AdapterNative;
 class IFWL_Widget;
 class IFWL_WidgetMgr;
@@ -37,4 +40,5 @@ extern FWL_ERR FWL_Execute(const CFX_WideStringC& wsExecutable,
                            const CFX_WideStringC& wsParameters);
 FWL_ERR FWL_SetFullScreen(IFWL_Widget* pWidget, FX_BOOL bFullScreen);
 FX_BOOL FWL_AppIsActived();
-#endif
+
+#endif  // XFA_INCLUDE_FWL_CORE_FWL_APP_H_

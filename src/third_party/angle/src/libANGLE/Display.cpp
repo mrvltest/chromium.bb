@@ -176,12 +176,24 @@ rx::DisplayImpl *CreateDisplayFromAttribs(const AttributeMap &attribMap)
 #endif
         break;
 
+#if defined(ANGLE_ENABLE_OPENGL)
+      case EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE:
+#if defined(ANGLE_PLATFORM_WINDOWS)
+          impl = new rx::DisplayWGL();
+#elif defined(ANGLE_USE_X11)
+          impl = new rx::DisplayGLX();
+#else
+          // No GLES support on this platform, fail display creation.
+          impl = nullptr;
+#endif
+          break;
+#endif
+
       default:
         UNREACHABLE();
         break;
     }
 
-    ASSERT(impl != nullptr);
     return impl;
 }
 
@@ -219,6 +231,12 @@ Display *Display::GetDisplayFromAttribs(void *native_display, const AttributeMap
     if (!display->isInitialized())
     {
         rx::DisplayImpl *impl = CreateDisplayFromAttribs(attribMap);
+        if (impl == nullptr)
+        {
+            // No valid display implementation for these attributes
+            return nullptr;
+        }
+
         display->setAttributes(impl, attribMap);
     }
 
@@ -695,12 +713,8 @@ Error Display::createContext(const Config *configuration, gl::Context *shareCont
         }
     }
 
-    gl::Context *context = nullptr;
-    Error error = mImplementation->createContext(configuration, shareContext, attribs, &context);
-    if (error.isError())
-    {
-        return error;
-    }
+    gl::Context *context = *outContext =
+        mImplementation->createContext(configuration, shareContext, attribs);
 
     ASSERT(context != nullptr);
     mContextSet.insert(context);
@@ -800,6 +814,16 @@ void Display::notifyDeviceLost()
     }
 }
 
+Error Display::waitClient() const
+{
+    return mImplementation->waitClient();
+}
+
+Error Display::waitNative(EGLint engine, egl::Surface *drawSurface, egl::Surface *readSurface) const
+{
+    return mImplementation->waitNative(engine, drawSurface, readSurface);
+}
+
 const Caps &Display::getCaps() const
 {
     return mCaps;
@@ -858,6 +882,7 @@ static ClientExtensions GenerateClientExtensions()
 #if defined(ANGLE_ENABLE_D3D11)
     extensions.deviceCreation      = true;
     extensions.deviceCreationD3D11 = true;
+    extensions.experimentalPresentPath = true;
 #endif
 
 #if defined(ANGLE_USE_X11)

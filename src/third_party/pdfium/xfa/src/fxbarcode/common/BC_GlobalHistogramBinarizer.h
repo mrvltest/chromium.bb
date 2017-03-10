@@ -4,13 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_GLOBALHISTOGRAMBINARIZER_H_
-#define _BC_GLOBALHISTOGRAMBINARIZER_H_
+#ifndef XFA_SRC_FXBARCODE_COMMON_BC_GLOBALHISTOGRAMBINARIZER_H_
+#define XFA_SRC_FXBARCODE_COMMON_BC_GLOBALHISTOGRAMBINARIZER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "xfa/src/fxbarcode/BC_Binarizer.h"
+
 class CBC_CommonBinarizer;
 class CBC_CommonBitArray;
 class CBC_CommonBitMatrix;
 class CBC_LuminanceSource;
-class CBC_GlobalHistogramBinarizer;
+
 class CBC_GlobalHistogramBinarizer : public CBC_Binarizer {
  public:
   CBC_GlobalHistogramBinarizer(CBC_LuminanceSource* source);
@@ -27,4 +31,5 @@ class CBC_GlobalHistogramBinarizer : public CBC_Binarizer {
   CFX_ByteArray m_luminance;
   CFX_Int32Array m_buckets;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_BC_GLOBALHISTOGRAMBINARIZER_H_

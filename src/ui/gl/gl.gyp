@@ -26,7 +26,6 @@
         'GL_IMPLEMENTATION',
       ],
       'include_dirs': [
-        '<(DEPTH)/third_party/swiftshader/include',
         '<(DEPTH)/third_party/khronos',
       ],
       'export_dependent_settings': [
@@ -47,8 +46,6 @@
         'gl_bindings_autogen_gl.h',
         'gl_bindings_autogen_osmesa.cc',
         'gl_bindings_autogen_osmesa.h',
-        'gl_bindings_skia_in_process.cc',
-        'gl_bindings_skia_in_process.h',
         'gl_context.cc',
         'gl_context.h',
         'gl_context_android.cc',
@@ -186,10 +183,16 @@
             '<(DEPTH)/build/linux/system.gyp:xcomposite',
             '<(DEPTH)/build/linux/system.gyp:xext',
             '<(DEPTH)/ui/events/platform/events_platform.gyp:events_platform',
-            '<(DEPTH)/third_party/angle/src/angle.gyp:libEGL_ANGLE',
-            '<(DEPTH)/third_party/angle/src/angle.gyp:libGLESv2_ANGLE',
             '<(DEPTH)/ui/gfx/x/gfx_x11.gyp:gfx_x11',
           ],
+          'copies': [{
+            'destination': '<(PRODUCT_DIR)',
+            'files':
+            [
+              "<(PRODUCT_DIR)/lib/libEGL.so",
+              "<(PRODUCT_DIR)/lib/libGLESv2.so",
+            ],
+          }],
         }],
         ['OS=="win"', {
           'sources': [
@@ -226,6 +229,9 @@
           'dependencies': [
             '<(DEPTH)/third_party/angle/src/angle.gyp:libEGL',
             '<(DEPTH)/third_party/angle/src/angle.gyp:libGLESv2',
+          ],
+          'include_dirs': [
+            '<(DEPTH)/third_party/swiftshader/include',
           ],
         }],
         ['OS=="mac"', {

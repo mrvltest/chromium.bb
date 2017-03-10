@@ -20,13 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_PDF417Compaction.h"
-#include "BC_PDF417BarcodeRow.h"
-#include "BC_PDF417BarcodeMatrix.h"
-#include "BC_PDF417ErrorCorrection.h"
-#include "BC_PDF417HighLevelEncoder.h"
-#include "BC_PDF417.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeMatrix.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeRow.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Compaction.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ErrorCorrection.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417HighLevelEncoder.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 int32_t CBC_PDF417::START_PATTERN = 0x1fea8;
 int32_t CBC_PDF417::STOP_PATTERN = 0x3fa29;
 int32_t CBC_PDF417::CODEWORD_TABLE[][1000] = {
@@ -552,7 +553,7 @@ CFX_Int32Array* CBC_PDF417::determineDimensions(
     }
     FX_FLOAT newRatio =
         ((17 * cols + 69) * DEFAULT_MODULE_WIDTH) / (rows * HEIGHT);
-    if (dimension != NULL &&
+    if (dimension &&
         fabsf(newRatio - PREFERRED_RATIO) > fabsf(ratio - PREFERRED_RATIO)) {
       continue;
     }

@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_GRAPHOBJS_IMP
-#define _FDE_GRAPHOBJS_IMP
-#ifndef _FDEPLUS
+#ifndef XFA_SRC_FDP_SRC_FDE_FDE_GEOBJECT_H_
+#define XFA_SRC_FDP_SRC_FDE_FDE_GEOBJECT_H_
+
 #include "xfa/src/foxitlib.h"
+
 class CFDE_GEFontMgr;
 class CFDE_Path : public IFDE_Path, public CFX_Target {
  public:
@@ -51,5 +52,5 @@ class CFDE_Path : public IFDE_Path, public CFX_Target {
                         FX_FLOAT fTension) const;
   CFX_PathData m_Path;
 };
-#endif
-#endif
+
+#endif  // XFA_SRC_FDP_SRC_FDE_FDE_GEOBJECT_H_

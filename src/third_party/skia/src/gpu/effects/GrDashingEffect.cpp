@@ -275,7 +275,6 @@ public:
         // When this is called on a batch, there is only one geometry bundle
         color->setKnownFourComponents(fGeoData[0].fColor);
         coverage->setUnknownSingleComponent();
-        overrides->fUsePLSDstRead = false;
     }
 
     SkSTArray<1, Geometry, true>* geoData() { return &fGeoData; }
@@ -880,7 +879,7 @@ void GLDashingCircleEffect::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     varyingHandler->addVarying("CircleParams", &circleParams);
     vertBuilder->codeAppendf("%s = %s;", circleParams.vsOut(), dce.inCircleParams()->fName);
 
-    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+    GrGLSLPPFragmentBuilder* fragBuilder = args.fFragBuilder;
     // Setup pass through color
     if (!dce.colorIgnored()) {
         this->setupUniformColor(fragBuilder, uniformHandler, args.fOutputColor, &fColorUniform);
@@ -1094,7 +1093,7 @@ void GLDashingLineEffect::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     varyingHandler->addVarying("RectParams", &inRectParams, GrSLPrecision::kHigh_GrSLPrecision);
     vertBuilder->codeAppendf("%s = %s;", inRectParams.vsOut(), de.inRectParams()->fName);
 
-    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+    GrGLSLPPFragmentBuilder* fragBuilder = args.fFragBuilder;
     // Setup pass through color
     if (!de.colorIgnored()) {
         this->setupUniformColor(fragBuilder, uniformHandler, args.fOutputColor, &fColorUniform);

@@ -5,15 +5,17 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/fxfa_localevalue.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+
 CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
   XFA_ELEMENT eType = pNode->GetClassID();
   eWidgetType = eType;
@@ -22,7 +24,7 @@ CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
   }
   eWidgetType = XFA_ELEMENT_UNKNOWN;
   XFA_ELEMENT eUIType = XFA_ELEMENT_UNKNOWN;
-  CXFA_Value defValue = pNode->GetProperty(0, XFA_ELEMENT_Value, TRUE);
+  CXFA_Value defValue(pNode->GetProperty(0, XFA_ELEMENT_Value, TRUE));
   XFA_ELEMENT eValueType = (XFA_ELEMENT)defValue.GetChildValueClassID();
   switch (eValueType) {
     case XFA_ELEMENT_Boolean:
@@ -47,7 +49,6 @@ CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
       eUIType = XFA_ELEMENT_ImageEdit;
       eWidgetType = XFA_ELEMENT_Image;
       break;
-      ;
     case XFA_ELEMENT_Arc:
     case XFA_ELEMENT_Line:
     case XFA_ELEMENT_Rectangle:
@@ -65,9 +66,9 @@ CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
     if (eChild == XFA_ELEMENT_Extras || eChild == XFA_ELEMENT_Picture) {
       continue;
     }
-    XFA_LPCPROPERTY pProterty =
+    const XFA_PROPERTY* pProperty =
         XFA_GetPropertyOfElement(XFA_ELEMENT_Ui, eChild, XFA_XDPPACKET_Form);
-    if (pProterty && (pProterty->uFlags & XFA_PROPERTYFLAG_OneOf)) {
+    if (pProperty && (pProperty->uFlags & XFA_PROPERTYFLAG_OneOf)) {
       pUIChild = pChild;
       break;
     }
@@ -99,7 +100,7 @@ CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
   if (!pUIChild) {
     if (eUIType == XFA_ELEMENT_UNKNOWN) {
       eUIType = XFA_ELEMENT_TextEdit;
-      ((CXFA_Node*)defValue)->GetProperty(0, XFA_ELEMENT_Text, TRUE);
+      defValue.GetNode()->GetProperty(0, XFA_ELEMENT_Text, TRUE);
     }
     pUIChild = pUI->GetProperty(0, eUIType, TRUE);
   } else if (eUIType == XFA_ELEMENT_UNKNOWN) {
@@ -136,7 +137,7 @@ CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType) {
         eValueType = XFA_ELEMENT_Text;
         break;
     }
-    ((CXFA_Node*)defValue)->GetProperty(0, eValueType, TRUE);
+    defValue.GetNode()->GetProperty(0, eValueType, TRUE);
   }
   return pUIChild;
 }

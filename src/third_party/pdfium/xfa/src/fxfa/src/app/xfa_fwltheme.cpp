@@ -4,11 +4,25 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_fwltheme.h"
+
+#include "xfa/include/fwl/basewidget/fwl_barcode.h"
+#include "xfa/include/fwl/basewidget/fwl_caret.h"
+#include "xfa/include/fwl/basewidget/fwl_checkbox.h"
+#include "xfa/include/fwl/basewidget/fwl_combobox.h"
+#include "xfa/include/fwl/basewidget/fwl_datetimepicker.h"
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fwl/basewidget/fwl_listbox.h"
+#include "xfa/include/fwl/basewidget/fwl_monthcalendar.h"
+#include "xfa/include/fwl/basewidget/fwl_picturebox.h"
+#include "xfa/include/fwl/basewidget/fwl_pushbutton.h"
+#include "xfa/include/fwl/basewidget/fwl_scrollbar.h"
+#include "xfa/src/fdp/include/fde_tto.h"
+#include "xfa/src/fgas/include/fx_cpg.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwltheme.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+
 CXFA_FFWidget* XFA_ThemeGetOuterWidget(IFWL_Widget* pWidget) {
   IFWL_Widget* pOuter = pWidget;
   while (pOuter->GetOuter()) {
@@ -25,7 +39,6 @@ CXFA_FWLTheme::CXFA_FWLTheme(CXFA_FFApp* pApp) : m_pApp(pApp) {
   m_fCapacity = 0;
   m_pCalendarFont = NULL;
   m_Rect.Set(0, 0, 0, 0);
-  m_SizeAboveBelow.Set(0, 0);
   m_pCheckBoxTP = new CXFA_FWLCheckBoxTP;
   m_pListBoxTP = new CFWL_ListBoxTP;
   m_pPictureBoxTP = new CFWL_PictureBoxTP;
@@ -216,7 +229,7 @@ void* CXFA_FWLTheme::GetCapacity(CFWL_ThemePart* pThemePart,
           }
         }
         if (pItem->GetPrev() == NULL) {
-          if (pItem->GetNext() != NULL) {
+          if (pItem->GetNext()) {
             m_Rect.height = 0;
           }
         } else if (pItem->GetNext() == NULL) {

@@ -21,7 +21,6 @@
 
 #include "webrtc/base/checks.h"
 #include "webrtc/base/trace_event.h"
-#include "webrtc/common.h"
 #include "webrtc/common_types.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/include/module_common_types.h"
@@ -140,6 +139,14 @@ int NumStreamsDisabled(const std::vector<bool>& streams) {
   return num_disabled;
 }
 }  // namespace
+
+VP8Encoder* VP8Encoder::Create() {
+  return new VP8EncoderImpl();
+}
+
+VP8Decoder* VP8Decoder::Create() {
+  return new VP8DecoderImpl();
+}
 
 const float kTl1MaxTimeToDropFrames = 20.0f;
 
@@ -314,10 +321,10 @@ void VP8EncoderImpl::SetStreamState(bool send_stream,
 void VP8EncoderImpl::SetupTemporalLayers(int num_streams,
                                          int num_temporal_layers,
                                          const VideoCodec& codec) {
-  const Config default_options;
-  const TemporalLayers::Factory& tl_factory =
-      (codec.extra_options ? codec.extra_options : &default_options)
-          ->Get<TemporalLayers::Factory>();
+  TemporalLayersFactory default_factory;
+  const TemporalLayersFactory* tl_factory = codec.codecSpecific.VP8.tl_factory;
+  if (!tl_factory)
+    tl_factory = &default_factory;
   if (num_streams == 1) {
     if (codec.mode == kScreensharing) {
       // Special mode when screensharing on a single stream.
@@ -325,7 +332,7 @@ void VP8EncoderImpl::SetupTemporalLayers(int num_streams,
           new ScreenshareLayers(num_temporal_layers, rand()));
     } else {
       temporal_layers_.push_back(
-          tl_factory.Create(num_temporal_layers, rand()));
+          tl_factory->Create(num_temporal_layers, rand()));
     }
   } else {
     for (int i = 0; i < num_streams; ++i) {
@@ -333,7 +340,7 @@ void VP8EncoderImpl::SetupTemporalLayers(int num_streams,
       int layers = codec.simulcastStream[i].numberOfTemporalLayers;
       if (layers < 1)
         layers = 1;
-      temporal_layers_.push_back(tl_factory.Create(layers, rand()));
+      temporal_layers_.push_back(tl_factory->Create(layers, rand()));
     }
   }
 }
@@ -593,8 +600,10 @@ int VP8EncoderImpl::InitEncode(const VideoCodec* inst,
   // Disable both high-QP limits and framedropping. Both are handled by libvpx
   // internally.
   const int kDisabledBadQpThreshold = 64;
+  // TODO(glaznev/sprang): consider passing codec initial bitrate to quality
+  // scaler to avoid starting with HD for low initial bitrates.
   quality_scaler_.Init(codec_.qpMax / QualityScaler::kDefaultLowQpDenominator,
-                       kDisabledBadQpThreshold, false);
+                       kDisabledBadQpThreshold, false, 0, 0, 0);
   quality_scaler_.ReportFramerate(codec_.maxFramerate);
 
   // Only apply scaling to improve for single-layer streams. The scaling metrics
@@ -1076,15 +1085,6 @@ VP8DecoderImpl::VP8DecoderImpl()
 VP8DecoderImpl::~VP8DecoderImpl() {
   inited_ = true;  // in order to do the actual release
   Release();
-}
-
-int VP8DecoderImpl::Reset() {
-  if (!inited_) {
-    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
-  }
-  InitDecode(&codec_, 1);
-  propagation_cnt_ = -1;
-  return WEBRTC_VIDEO_CODEC_OK;
 }
 
 int VP8DecoderImpl::InitDecode(const VideoCodec* inst, int number_of_cores) {

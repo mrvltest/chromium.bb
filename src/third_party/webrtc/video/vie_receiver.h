@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/engine_configurations.h"
 #include "webrtc/modules/rtp_rtcp/include/receive_statistics.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -22,7 +23,6 @@
 
 namespace webrtc {
 
-class CriticalSectionWrapper;
 class FecReceiver;
 class RemoteNtpTimeEstimator;
 class ReceiveStatistics;
@@ -32,7 +32,6 @@ class RTPPayloadRegistry;
 class RtpReceiver;
 class RtpRtcp;
 class VideoCodingModule;
-struct ReceiveBandwidthEstimatorStats;
 
 class ViEReceiver : public RtpData {
  public:
@@ -73,10 +72,10 @@ class ViEReceiver : public RtpData {
   void StartReceive();
   void StopReceive();
 
-  // Receives packets from external transport.
-  int ReceivedRTPPacket(const void* rtp_packet, size_t rtp_packet_length,
-                        const PacketTime& packet_time);
-  int ReceivedRTCPPacket(const void* rtcp_packet, size_t rtcp_packet_length);
+  bool DeliverRtp(const uint8_t* rtp_packet,
+                  size_t rtp_packet_length,
+                  const PacketTime& packet_time);
+  bool DeliverRtcp(const uint8_t* rtcp_packet, size_t rtcp_packet_length);
 
   // Implements RtpData.
   int32_t OnReceivedPayloadData(const uint8_t* payload_data,
@@ -87,8 +86,6 @@ class ViEReceiver : public RtpData {
   ReceiveStatistics* GetReceiveStatistics() const;
 
  private:
-  int InsertRTPPacket(const uint8_t* rtp_packet, size_t rtp_packet_length,
-                      const PacketTime& packet_time);
   bool ReceivePacket(const uint8_t* packet,
                      size_t packet_length,
                      const RTPHeader& header,
@@ -99,12 +96,11 @@ class ViEReceiver : public RtpData {
                                          size_t packet_length,
                                          const RTPHeader& header);
   void NotifyReceiverOfFecPacket(const RTPHeader& header);
-  int InsertRTCPPacket(const uint8_t* rtcp_packet, size_t rtcp_packet_length);
   bool IsPacketInOrder(const RTPHeader& header) const;
   bool IsPacketRetransmitted(const RTPHeader& header, bool in_order) const;
   void UpdateHistograms();
 
-  rtc::scoped_ptr<CriticalSectionWrapper> receive_cs_;
+  rtc::CriticalSection receive_cs_;
   Clock* clock_;
   rtc::scoped_ptr<RtpHeaderParser> rtp_header_parser_;
   rtc::scoped_ptr<RTPPayloadRegistry> rtp_payload_registry_;

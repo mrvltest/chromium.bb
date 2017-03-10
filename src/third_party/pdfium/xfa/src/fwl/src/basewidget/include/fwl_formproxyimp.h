@@ -4,14 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_FORMPROXY_IMP_H
-#define _FWL_FORMPROXY_IMP_H
-class CFWL_WidgetImp;
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_FORMPROXYIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_FORMPROXYIMP_H_
+
+#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
-class CFWL_FormImp;
-class CFWL_FormProxyImp;
 class CFWL_FormProxyImpDelegate;
+
 class CFWL_FormProxyImp : public CFWL_FormImp {
  public:
   CFWL_FormProxyImp(const CFWL_WidgetImpProperties& properties,
@@ -37,4 +38,5 @@ class CFWL_FormProxyImpDelegate : public CFWL_WidgetImpDelegate {
  protected:
   CFWL_FormProxyImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_FORMPROXYIMP_H_

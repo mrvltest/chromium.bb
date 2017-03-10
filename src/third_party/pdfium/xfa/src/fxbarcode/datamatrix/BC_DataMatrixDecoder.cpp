@@ -20,15 +20,18 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixDecoder.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonDecoder.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonGF256.h"
-#include "BC_DataMatrixDecoder.h"
-#include "BC_DataMatrixBitMatrixParser.h"
-#include "BC_DataMatrixVersion.h"
-#include "BC_DataMatrixDataBlock.h"
-#include "BC_DataMatrixDecodedBitStreamParser.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixBitMatrixParser.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixDataBlock.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixDecodedBitStreamParser.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixVersion.h"
+
 CBC_DataMatrixDecoder::CBC_DataMatrixDecoder() {
   m_rsDecoder = NULL;
 }
@@ -37,10 +40,7 @@ void CBC_DataMatrixDecoder::Init() {
       new CBC_ReedSolomonDecoder(CBC_ReedSolomonGF256::DataMatrixField);
 }
 CBC_DataMatrixDecoder::~CBC_DataMatrixDecoder() {
-  if (m_rsDecoder != NULL) {
-    delete m_rsDecoder;
-  }
-  m_rsDecoder = NULL;
+  delete m_rsDecoder;
 }
 CBC_CommonDecoderResult* CBC_DataMatrixDecoder::Decode(
     CBC_CommonBitMatrix* bits,
@@ -49,9 +49,8 @@ CBC_CommonDecoderResult* CBC_DataMatrixDecoder::Decode(
   parser.Init(bits, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
   CBC_DataMatrixVersion* version = parser.GetVersion();
-  CFX_ByteArray* byteTemp = parser.ReadCodewords(e);
+  std::unique_ptr<CFX_ByteArray> codewords(parser.ReadCodewords(e));
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  CBC_AutoPtr<CFX_ByteArray> codewords(byteTemp);
   CFX_PtrArray* dataBlocks =
       CBC_DataMatrixDataBlock::GetDataBlocks(codewords.get(), version, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);

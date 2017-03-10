@@ -14,7 +14,6 @@
 #include "core/include/fxcodec/fx_codec_def.h"
 #include "core/include/fxcrt/fx_basic.h"
 #include "core/include/fxcrt/fx_coordinates.h"  // For FX_RECT.
-#include "fx_codec_def.h"
 
 class CFX_DIBSource;
 class CJPX_Decoder;
@@ -462,7 +461,7 @@ class ICodec_Jbig2Encoder {
 };
 class ICodec_IccModule {
  public:
-  typedef enum {
+  enum IccCS {
     IccCS_Unknown = 0,
     IccCS_XYZ,
     IccCS_Lab,
@@ -475,8 +474,9 @@ class ICodec_IccModule {
     IccCS_Rgb,
     IccCS_Cmyk,
     IccCS_Cmy
-  } IccCS;
-  typedef struct _IccParam {
+  };
+
+  struct IccParam {
     FX_DWORD Version;
     IccCS ColorSpace;
     FX_DWORD dwProfileType;
@@ -484,7 +484,7 @@ class ICodec_IccModule {
     uint8_t* pProfileData;
     FX_DWORD dwProfileSize;
     double Gamma;
-  } IccParam;
+  };
 
   virtual ~ICodec_IccModule() {}
 

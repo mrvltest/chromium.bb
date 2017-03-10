@@ -7,13 +7,13 @@
 #include <algorithm>
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffapp.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffpageview.h"
-#include "xfa_textlayout.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+
 CXFA_FFWidget::CXFA_FFWidget(CXFA_FFPageView* pPageView,
                              CXFA_WidgetAcc* pDataAcc)
     : CXFA_ContentLayoutItem(pDataAcc->GetNode()),
@@ -106,7 +106,7 @@ void CXFA_FFWidget::RenderWidget(CFX_Graphics* pGS,
     CFX_RectF rtBorder;
     GetRectWithoutRotate(rtBorder);
     CXFA_Margin margin = border.GetMargin();
-    if (margin.IsExistInXML()) {
+    if (margin) {
       XFA_RectWidthoutMargin(rtBorder, margin);
     }
     rtBorder.Normalize();
@@ -213,7 +213,7 @@ FX_BOOL CXFA_FFWidget::OnRButtonDblClk(FX_DWORD dwFlags,
 
 FX_BOOL CXFA_FFWidget::OnSetFocus(CXFA_FFWidget* pOldWidget) {
   CXFA_FFWidget* pParent = GetParent();
-  if (pParent != NULL && !pParent->IsAncestorOf(pOldWidget)) {
+  if (pParent && !pParent->IsAncestorOf(pOldWidget)) {
     pParent->OnSetFocus(pOldWidget);
   }
   m_dwStatus |= XFA_WIDGETSTATUS_Focused;
@@ -226,9 +226,9 @@ FX_BOOL CXFA_FFWidget::OnSetFocus(CXFA_FFWidget* pOldWidget) {
 FX_BOOL CXFA_FFWidget::OnKillFocus(CXFA_FFWidget* pNewWidget) {
   m_dwStatus &= ~XFA_WIDGETSTATUS_Focused;
   EventKillFocus();
-  if (pNewWidget != NULL) {
+  if (pNewWidget) {
     CXFA_FFWidget* pParent = GetParent();
-    if (pParent != NULL && !pParent->IsAncestorOf(pNewWidget)) {
+    if (pParent && !pParent->IsAncestorOf(pNewWidget)) {
       pParent->OnKillFocus(pNewWidget);
     }
   }
@@ -331,10 +331,10 @@ FX_BOOL CXFA_FFWidget::IsLayoutRectEmpty() {
 CXFA_FFWidget* CXFA_FFWidget::GetParent() {
   CXFA_Node* pParentNode =
       m_pDataAcc->GetNode()->GetNodeItem(XFA_NODEITEM_Parent);
-  if (pParentNode != NULL) {
+  if (pParentNode) {
     CXFA_WidgetAcc* pParentWidgetAcc =
         (CXFA_WidgetAcc*)pParentNode->GetWidgetData();
-    if (pParentWidgetAcc != NULL) {
+    if (pParentWidgetAcc) {
       return pParentWidgetAcc->GetNextWidget(NULL);
     }
   }
@@ -551,7 +551,7 @@ FX_BOOL CXFA_ImageRenderer::StartDIBSource() {
   if (m_pDevice->StartDIBits(m_pDIBSource, m_BitmapAlpha, m_FillArgb,
                              &m_ImageMatrix, m_Flags, m_DeviceHandle, 0, NULL,
                              m_BlendType)) {
-    if (m_DeviceHandle != NULL) {
+    if (m_DeviceHandle) {
       m_Status = 3;
       return TRUE;
     }
@@ -996,7 +996,7 @@ CFX_DIBitmap* XFA_LoadImageData(CXFA_FFDoc* pDoc,
         wsURL.Left(6) != FX_WSTRC(L"ftp://")) {
       CFX_DIBitmap* pBitmap =
           pDoc->GetPDFNamedImage(wsURL, iImageXDpi, iImageYDpi);
-      if (pBitmap != NULL) {
+      if (pBitmap) {
         bNameImage = TRUE;
         return pBitmap;
       }
@@ -1060,7 +1060,6 @@ CFX_DIBitmap* XFA_LoadImageFromBuffer(IFX_FileRead* pImageFileRead,
       dibAttr.m_nXDPI = (int32_t)(dibAttr.m_nXDPI / (FX_FLOAT)100 * 2.54f);
       dibAttr.m_nYDPI = (int32_t)(dibAttr.m_nYDPI / (FX_FLOAT)100 * 2.54f);
       break;
-      ;
     default:
       break;
   }
@@ -1151,8 +1150,8 @@ static void XFA_BOX_GetPath(CXFA_Box box,
   CFX_PointF cpStart, cp, cp1, cp2;
   CFX_RectF rtRadius;
   int32_t n = (nIndex & 1) ? nIndex - 1 : nIndex;
-  CXFA_Corner corner1 = (CXFA_Node*)strokes[n];
-  CXFA_Corner corner2 = (CXFA_Node*)strokes[(n + 2) % 8];
+  CXFA_Corner corner1(strokes[n].GetNode());
+  CXFA_Corner corner2(strokes[(n + 2) % 8].GetNode());
   fRadius1 = bCorner ? corner1.GetRadius() : 0;
   fRadius2 = bCorner ? corner2.GetRadius() : 0;
   bInverted = corner1.IsInverted();
@@ -1362,8 +1361,8 @@ static void XFA_BOX_GetFillPath(CXFA_Box box,
   CFX_PointF cp, cp1, cp2;
   CFX_RectF rtRadius;
   for (int32_t i = 0; i < 8; i += 2) {
-    CXFA_Corner corner1 = (CXFA_Node*)strokes[i];
-    CXFA_Corner corner2 = (CXFA_Node*)strokes[(i + 2) % 8];
+    CXFA_Corner corner1(strokes[i].GetNode());
+    CXFA_Corner corner2(strokes[(i + 2) % 8].GetNode());
     fRadius1 = corner1.GetRadius();
     fRadius2 = corner2.GetRadius();
     bInverted = corner1.IsInverted();
@@ -1511,26 +1510,27 @@ static void XFA_BOX_Fill_Linear(CXFA_Box box,
                                 CFX_RectF rtFill,
                                 CFX_Matrix* pMatrix) {
   CXFA_Fill fill = box.GetFill();
-  FX_ARGB crStart, crEnd;
-  crStart = fill.GetColor();
+  FX_ARGB crStart = fill.GetColor();
+  FX_ARGB crEnd;
   int32_t iType = fill.GetLinear(crEnd);
-  CFX_PointF ptStart, ptEnd;
+  CFX_PointF ptStart;
+  CFX_PointF ptEnd;
   switch (iType) {
     case XFA_ATTRIBUTEENUM_ToRight:
-      ptStart.Set(rtFill.left, rtFill.top);
-      ptEnd.Set(rtFill.right(), rtFill.top);
+      ptStart = CFX_PointF(rtFill.left, rtFill.top);
+      ptEnd = CFX_PointF(rtFill.right(), rtFill.top);
       break;
     case XFA_ATTRIBUTEENUM_ToBottom:
-      ptStart.Set(rtFill.left, rtFill.top);
-      ptEnd.Set(rtFill.left, rtFill.bottom());
+      ptStart = CFX_PointF(rtFill.left, rtFill.top);
+      ptEnd = CFX_PointF(rtFill.left, rtFill.bottom());
       break;
     case XFA_ATTRIBUTEENUM_ToLeft:
-      ptStart.Set(rtFill.right(), rtFill.top);
-      ptEnd.Set(rtFill.left, rtFill.top);
+      ptStart = CFX_PointF(rtFill.right(), rtFill.top);
+      ptEnd = CFX_PointF(rtFill.left, rtFill.top);
       break;
     case XFA_ATTRIBUTEENUM_ToTop:
-      ptStart.Set(rtFill.left, rtFill.bottom());
-      ptEnd.Set(rtFill.left, rtFill.top);
+      ptStart = CFX_PointF(rtFill.left, rtFill.bottom());
+      ptEnd = CFX_PointF(rtFill.left, rtFill.top);
       break;
     default:
       break;
@@ -1548,7 +1548,7 @@ static void XFA_BOX_Fill(CXFA_Box box,
                          CFX_Matrix* pMatrix,
                          FX_DWORD dwFlags) {
   CXFA_Fill fill = box.GetFill();
-  if (!fill.IsExistInXML() || fill.GetPresence() != XFA_ATTRIBUTEENUM_Visible) {
+  if (!fill || fill.GetPresence() != XFA_ATTRIBUTEENUM_Visible) {
     return;
   }
   pGS->SaveGraphState();
@@ -1593,7 +1593,7 @@ static void XFA_BOX_StrokePath(CXFA_Stroke stroke,
                                CFX_Path* pPath,
                                CFX_Graphics* pGS,
                                CFX_Matrix* pMatrix) {
-  if (!stroke.IsExistInXML() || !stroke.IsVisible()) {
+  if (!stroke || !stroke.IsVisible()) {
     return;
   }
   FX_FLOAT fThickness = stroke.GetThickness();
@@ -1619,7 +1619,7 @@ static void XFA_BOX_StrokeArc(CXFA_Box box,
                               CFX_Matrix* pMatrix,
                               FX_DWORD dwFlags) {
   CXFA_Edge edge = box.GetEdge(0);
-  if (!edge.IsExistInXML() || !edge.IsVisible()) {
+  if (!edge || !edge.IsVisible()) {
     return;
   }
   FX_BOOL bVisible = FALSE;
@@ -1893,7 +1893,7 @@ static void XFA_BOX_Stroke(CXFA_Box box,
     return;
   }
   for (int32_t i = 1; i < 8; i += 2) {
-    CXFA_Edge edge = (CXFA_Node*)strokes[i];
+    CXFA_Edge edge(strokes[i].GetNode());
     FX_FLOAT fThickness = edge.GetThickness();
     if (fThickness < 0) {
       fThickness = 0;

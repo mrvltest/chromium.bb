@@ -133,6 +133,13 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
     fInvMatrix = inv;
     fFilterLevel = paint.getFilterQuality();
 
+    const int origW = fProvider.info().width();
+    const int origH = fProvider.info().height();
+    bool allow_ignore_fractional_translate = true;  // historical default
+    if (kMedium_SkFilterQuality == fFilterLevel) {
+        allow_ignore_fractional_translate = false;
+    }
+
     SkDefaultBitmapController controller;
     fBMState = controller.requestBitmap(fProvider, inv, paint.getFilterQuality(),
                                         fBMStateStorage.get(), fBMStateStorage.size());
@@ -171,11 +178,10 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
     if (matrix_only_scale_translate(fInvMatrix)) {
         SkMatrix forward;
         if (fInvMatrix.invert(&forward)) {
-            if (clampClamp ? just_trans_clamp(forward, fPixmap)
+            if ((clampClamp && allow_ignore_fractional_translate)
+                           ? just_trans_clamp(forward, fPixmap)
                            : just_trans_general(forward)) {
-                SkScalar tx = -SkScalarRoundToScalar(forward.getTranslateX());
-                SkScalar ty = -SkScalarRoundToScalar(forward.getTranslateY());
-                fInvMatrix.setTranslate(tx, ty);
+                fInvMatrix.setTranslate(-forward.getTranslateX(), -forward.getTranslateY());
             }
         }
     }
@@ -198,7 +204,17 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
 
     trivialMatrix = (fInvMatrix.getType() & ~SkMatrix::kTranslate_Mask) == 0;
 
-    if (kLow_SkFilterQuality == fFilterLevel) {
+    // If our target pixmap is the same as the original, then we revert back to legacy behavior
+    // and allow the code to ignore fractional translate.
+    //
+    // The width/height check allows allow_ignore_fractional_translate to stay false if we
+    // previously set it that way (e.g. we started in kMedium).
+    //
+    if (fPixmap.width() == origW && fPixmap.height() == origH) {
+        allow_ignore_fractional_translate = true;
+    }
+
+    if (kLow_SkFilterQuality == fFilterLevel && allow_ignore_fractional_translate) {
         // Only try bilerp if the matrix is "interesting" and
         // the image has a suitable size.
 
@@ -371,18 +387,6 @@ static void Clamp_S32_D32_nofilter_trans_shaderproc(const void* sIn,
     const int maxY = s.fPixmap.height() - 1;
     int ix = s.fFilterOneX + x;
     int iy = SkClampMax(s.fFilterOneY + y, maxY);
-#ifdef SK_DEBUG
-    {
-        SkPoint pt;
-        s.fInvProc(s.fInvMatrix, SkIntToScalar(x) + SK_ScalarHalf,
-                   SkIntToScalar(y) + SK_ScalarHalf, &pt);
-        int iy2 = SkClampMax(SkScalarFloorToInt(pt.fY), maxY);
-        int ix2 = SkScalarFloorToInt(pt.fX);
-
-        SkASSERT(iy == iy2);
-        SkASSERT(ix == ix2);
-    }
-#endif
     const SkPMColor* row = s.fPixmap.addr32(0, iy);
 
     // clamp to the left
@@ -446,18 +450,6 @@ static void Repeat_S32_D32_nofilter_trans_shaderproc(const void* sIn,
     const int stopY = s.fPixmap.height();
     int ix = s.fFilterOneX + x;
     int iy = sk_int_mod(s.fFilterOneY + y, stopY);
-#ifdef SK_DEBUG
-    {
-        SkPoint pt;
-        s.fInvProc(s.fInvMatrix, SkIntToScalar(x) + SK_ScalarHalf,
-                   SkIntToScalar(y) + SK_ScalarHalf, &pt);
-        int iy2 = sk_int_mod(SkScalarFloorToInt(pt.fY), stopY);
-        int ix2 = SkScalarFloorToInt(pt.fX);
-
-        SkASSERT(iy == iy2);
-        SkASSERT(ix == ix2);
-    }
-#endif
     const SkPMColor* row = s.fPixmap.addr32(0, iy);
 
     ix = sk_int_mod(ix, stopX);
@@ -500,20 +492,17 @@ static void S32_D32_constX_shaderproc(const void* sIn,
         int yTemp;
 
         if (s.fInvType > SkMatrix::kTranslate_Mask) {
-            SkPoint pt;
-            s.fInvProc(s.fInvMatrix,
-                       SkIntToScalar(x) + SK_ScalarHalf,
-                       SkIntToScalar(y) + SK_ScalarHalf,
-                       &pt);
+            const SkBitmapProcStateAutoMapper mapper(s, x, y);
+
             // When the matrix has a scale component the setup code in
             // chooseProcs multiples the inverse matrix by the inverse of the
             // bitmap's width and height. Since this method is going to do
             // its own tiling and sampling we need to undo that here.
             if (SkShader::kClamp_TileMode != s.fTileModeX ||
                 SkShader::kClamp_TileMode != s.fTileModeY) {
-                yTemp = SkScalarFloorToInt(pt.fY * s.fPixmap.height());
+                yTemp = SkFractionalIntToInt(mapper.fractionalIntY() * s.fPixmap.height());
             } else {
-                yTemp = SkScalarFloorToInt(pt.fY);
+                yTemp = mapper.intY();
             }
         } else {
             yTemp = s.fFilterOneY + y;
@@ -535,28 +524,27 @@ static void S32_D32_constX_shaderproc(const void* sIn,
 
 #ifdef SK_DEBUG
         {
-            SkPoint pt;
-            s.fInvProc(s.fInvMatrix,
-                       SkIntToScalar(x) + SK_ScalarHalf,
-                       SkIntToScalar(y) + SK_ScalarHalf,
-                       &pt);
+            const SkBitmapProcStateAutoMapper mapper(s, x, y);
+            int iY2;
+
             if (s.fInvType > SkMatrix::kTranslate_Mask &&
                 (SkShader::kClamp_TileMode != s.fTileModeX ||
                  SkShader::kClamp_TileMode != s.fTileModeY)) {
-                pt.fY *= s.fPixmap.height();
+                iY2 = SkFractionalIntToInt(mapper.fractionalIntY() * s.fPixmap.height());
+            } else {
+                iY2 = mapper.intY();
             }
-            int iY2;
 
             switch (s.fTileModeY) {
             case SkShader::kClamp_TileMode:
-                iY2 = SkClampMax(SkScalarFloorToInt(pt.fY), stopY-1);
+                iY2 = SkClampMax(iY2, stopY-1);
                 break;
             case SkShader::kRepeat_TileMode:
-                iY2 = sk_int_mod(SkScalarFloorToInt(pt.fY), stopY);
+                iY2 = sk_int_mod(iY2, stopY);
                 break;
             case SkShader::kMirror_TileMode:
             default:
-                iY2 = sk_int_mirror(SkScalarFloorToInt(pt.fY), stopY);
+                iY2 = sk_int_mirror(iY2, stopY);
                 break;
             }
 
@@ -595,7 +583,7 @@ static void DoNothing_shaderproc(const void*, int x, int y,
 
 bool SkBitmapProcState::setupForTranslate() {
     SkPoint pt;
-    fInvProc(fInvMatrix, SK_ScalarHalf, SK_ScalarHalf, &pt);
+    const SkBitmapProcStateAutoMapper mapper(*this, 0, 0, &pt);
 
     /*
      *  if the translate is larger than our ints, we can get random results, or
@@ -610,8 +598,9 @@ bool SkBitmapProcState::setupForTranslate() {
     // Since we know we're not filtered, we re-purpose these fields allow
     // us to go from device -> src coordinates w/ just an integer add,
     // rather than running through the inverse-matrix
-    fFilterOneX = SkScalarFloorToInt(pt.fX);
-    fFilterOneY = SkScalarFloorToInt(pt.fY);
+    fFilterOneX = mapper.intX();
+    fFilterOneY = mapper.intY();
+
     return true;
 }
 
@@ -792,8 +781,8 @@ void  Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const void* sIn, int x, int y,
     {
         const SkBitmapProcStateAutoMapper mapper(s, x, y);
         const unsigned maxY = s.fPixmap.height() - 1;
-        dstY = SkClampMax(SkFractionalIntToInt(mapper.y()), maxY);
-        fx = mapper.x();
+        dstY = SkClampMax(mapper.intY(), maxY);
+        fx = mapper.fractionalIntX();
     }
 
     const SkPMColor* SK_RESTRICT src = s.fPixmap.addr32(0, dstY);

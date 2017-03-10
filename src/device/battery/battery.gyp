@@ -12,7 +12,7 @@
       'target_name': 'device_battery_mojo_bindings',
       'type': 'static_library',
       'includes': [
-        '../../third_party/mojo/mojom_bindings_generator.gypi',
+        '../../mojo/mojom_bindings_generator.gypi',
       ],
       'sources': [
         'battery_monitor.mojom',
@@ -50,7 +50,36 @@
     },
   ],
   'conditions': [
-    ['OS != "android"', {
+    ['OS == "android"', {
+      'targets': [
+        {
+          'target_name': 'device_battery_java',
+          'type': 'none',
+          'dependencies': [
+            '../../base/base.gyp:base',
+            '../../mojo/mojo_public.gyp:mojo_bindings_java',
+            'device_battery_mojo_bindings',
+          ],
+          'variables': {
+            'java_in_dir': '../../device/battery/android/java',
+          },
+          'includes': [ '../../build/java.gypi' ],
+        },
+        {
+          'target_name': 'device_battery_javatests',
+          'type': 'none',
+          'variables': {
+            'java_in_dir': '../../device/battery/android/javatests',
+          },
+          'dependencies': [
+            '../../base/base.gyp:base',
+            '../../base/base.gyp:base_java_test_support',
+            'device_battery_java',
+          ],
+          'includes': [ '../../build/java.gypi' ],
+        },
+      ],
+    }, {  # OS != "android"
       # On android, BatteryManager mojo service is implemented directly in Java.
       'targets': [
         {
@@ -61,8 +90,8 @@
             '../../base/base.gyp:base',
             '../../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
             '../../mojo/mojo_base.gyp:mojo_environment_chromium',
-            '../../third_party/mojo/mojo_edk.gyp:mojo_system_impl',
-            '../../third_party/mojo/mojo_public.gyp:mojo_cpp_bindings',
+            '../../mojo/mojo_edk.gyp:mojo_system_impl',
+            '../../mojo/mojo_public.gyp:mojo_cpp_bindings',
             'device_battery_mojo_bindings',
           ],
           'defines': [

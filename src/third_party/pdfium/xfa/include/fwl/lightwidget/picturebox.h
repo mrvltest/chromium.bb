@@ -4,13 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_PICTUREBOX_LIGHT_H
-#define _FWL_PICTUREBOX_LIGHT_H
-class CFWL_Widget;
-class CFWL_WidgetProperties;
-class IFWL_PictureBoxDP;
-class CFWL_PictureBox;
-class CFWL_PictureBoxDP;
+#ifndef XFA_INCLUDE_FWL_LIGHTWIDGET_PICTUREBOX_H_
+#define XFA_INCLUDE_FWL_LIGHTWIDGET_PICTUREBOX_H_
+
+#include "xfa/include/fwl/basewidget/fwl_picturebox.h"
+#include "xfa/include/fwl/core/fwl_error.h"
+#include "xfa/include/fwl/lightwidget/widget.h"
+
 class CFWL_PictureBox : public CFWL_Widget {
  public:
   static CFWL_PictureBox* Create();
@@ -60,4 +60,5 @@ class CFWL_PictureBox : public CFWL_Widget {
   };
   CFWL_PictureBoxDP m_PictureBoxDP;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_LIGHTWIDGET_PICTUREBOX_H_

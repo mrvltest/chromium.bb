@@ -4,17 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_CARET_IMP_H
-#define _FWL_CARET_IMP_H
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_CARETIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_CARETIMP_H_
 
 #include "xfa/include/fwl/core/fwl_timer.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 
-class CFWL_WidgetImp;
 class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
 class IFWL_Widget;
-class CFWL_CaretImp;
 class CFWL_CaretImpDelegate;
+
 class CFWL_CaretImp : public CFWL_WidgetImp {
  public:
   CFWL_CaretImp(const CFWL_WidgetImpProperties& properties,
@@ -41,10 +40,10 @@ class CFWL_CaretImp : public CFWL_WidgetImp {
                       const CFX_Matrix* pMatrix);
   class CFWL_CaretTimer : public IFWL_Timer {
    public:
-    CFWL_CaretTimer(CFWL_CaretImp* m_pCaret);
+    explicit CFWL_CaretTimer(CFWL_CaretImp* pCaret);
     ~CFWL_CaretTimer() override {}
     int32_t Run(FWL_HTIMER hTimer) override;
-    CFWL_CaretImp* m_pCaret;
+    CFWL_CaretImp* const m_pCaret;
   };
   CFWL_CaretTimer* m_pTimer;
   FWL_HTIMER m_hTimer;
@@ -64,4 +63,5 @@ class CFWL_CaretImpDelegate : public CFWL_WidgetImpDelegate {
  protected:
   CFWL_CaretImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_CARETIMP_H_

@@ -747,8 +747,6 @@ void CFFL_IFormFiller::OnClick(CPDFSDK_Widget* pWidget,
                                FX_BOOL& bReset,
                                FX_BOOL& bExit,
                                FX_UINT nFlag) {
-  ASSERT(pWidget != NULL);
-
   if (!m_bNotifying) {
     if (pWidget->HasXFAAAction(PDFSDK_XFA_Click)) {
       m_bNotifying = TRUE;
@@ -784,8 +782,6 @@ void CFFL_IFormFiller::OnFull(CPDFSDK_Widget* pWidget,
                               FX_BOOL& bReset,
                               FX_BOOL& bExit,
                               FX_UINT nFlag) {
-  ASSERT(pWidget != NULL);
-
   if (!m_bNotifying) {
     if (pWidget->HasXFAAAction(PDFSDK_XFA_Full)) {
       m_bNotifying = TRUE;
@@ -819,14 +815,13 @@ void CFFL_IFormFiller::OnFull(CPDFSDK_Widget* pWidget,
 void CFFL_IFormFiller::OnPopupPreOpen(void* pPrivateData,
                                       FX_BOOL& bExit,
                                       FX_DWORD nFlag) {
-  ASSERT(pPrivateData != NULL);
   CFFL_PrivateData* pData = (CFFL_PrivateData*)pPrivateData;
-  ASSERT(pData->pWidget != NULL);
+  ASSERT(pData);
+  ASSERT(pData->pWidget);
 
   FX_BOOL bTempReset = FALSE;
   FX_BOOL bTempExit = FALSE;
-  this->OnPreOpen(pData->pWidget, pData->pPageView, bTempReset, bTempExit,
-                  nFlag);
+  OnPreOpen(pData->pWidget, pData->pPageView, bTempReset, bTempExit, nFlag);
 
   if (bTempReset || bTempExit) {
     bExit = TRUE;
@@ -836,14 +831,13 @@ void CFFL_IFormFiller::OnPopupPreOpen(void* pPrivateData,
 void CFFL_IFormFiller::OnPopupPostOpen(void* pPrivateData,
                                        FX_BOOL& bExit,
                                        FX_DWORD nFlag) {
-  ASSERT(pPrivateData != NULL);
   CFFL_PrivateData* pData = (CFFL_PrivateData*)pPrivateData;
-  ASSERT(pData->pWidget != NULL);
+  ASSERT(pData);
+  ASSERT(pData->pWidget);
 
   FX_BOOL bTempReset = FALSE;
   FX_BOOL bTempExit = FALSE;
-  this->OnPostOpen(pData->pWidget, pData->pPageView, bTempReset, bTempExit,
-                   nFlag);
+  OnPostOpen(pData->pWidget, pData->pPageView, bTempReset, bTempExit, nFlag);
 
   if (bTempReset || bTempExit) {
     bExit = TRUE;
@@ -855,8 +849,6 @@ void CFFL_IFormFiller::OnPreOpen(CPDFSDK_Widget* pWidget,
                                  FX_BOOL& bReset,
                                  FX_BOOL& bExit,
                                  FX_UINT nFlag) {
-  ASSERT(pWidget != NULL);
-
   if (!m_bNotifying) {
     if (pWidget->HasXFAAAction(PDFSDK_XFA_PreOpen)) {
       m_bNotifying = TRUE;
@@ -892,8 +884,6 @@ void CFFL_IFormFiller::OnPostOpen(CPDFSDK_Widget* pWidget,
                                   FX_BOOL& bReset,
                                   FX_BOOL& bExit,
                                   FX_UINT nFlag) {
-  ASSERT(pWidget != NULL);
-
   if (!m_bNotifying) {
     if (pWidget->HasXFAAAction(PDFSDK_XFA_PostOpen)) {
       m_bNotifying = TRUE;

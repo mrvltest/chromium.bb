@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRDETECTOR_H_
-#define _BC_QRDETECTOR_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTOR_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTOR_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_ResultPoint;
 class CBC_CommonBitMatrix;
 class CBC_QRDetectorResult;
@@ -16,7 +19,7 @@ class CBC_QRCoderVersion;
 class CBC_QRGridSampler;
 class CBC_QRAlignmentPatternFinder;
 class CBC_QRAlignmentPattern;
-class CBC_QRDetector;
+
 class CBC_QRDetector {
  private:
   CBC_CommonBitMatrix* m_image;
@@ -61,4 +64,5 @@ class CBC_QRDetector {
                                          int32_t dimension,
                                          int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTOR_H_

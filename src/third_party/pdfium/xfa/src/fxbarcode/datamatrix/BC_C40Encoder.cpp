@@ -20,15 +20,15 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_Dimension.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_Encoder.h"
-#include "BC_SymbolShapeHint.h"
-#include "BC_SymbolInfo.h"
-#include "BC_EncoderContext.h"
-#include "BC_HighLevelEncoder.h"
-#include "BC_C40Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_C40Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_EncoderContext.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_HighLevelEncoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolInfo.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolShapeHint.h"
+
 CBC_C40Encoder::CBC_C40Encoder() {}
 CBC_C40Encoder::~CBC_C40Encoder() {}
 int32_t CBC_C40Encoder::getEncodingMode() {
@@ -138,7 +138,7 @@ int32_t CBC_C40Encoder::encodeChar(FX_WCHAR c, CFX_WideString& sb, int32_t& e) {
   } else if ((c >= 'A') && (c <= 'Z')) {
     sb += (FX_WCHAR)(c - 65 + 14);
     return 1;
-  } else if ((c >= '\0') && (c <= 0x1f)) {
+  } else if (c <= 0x1f) {
     sb += (FX_WCHAR)'\0';
     sb += c;
     return 2;

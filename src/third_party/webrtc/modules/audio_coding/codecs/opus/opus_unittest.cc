@@ -7,6 +7,8 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+
+#include <memory>
 #include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -198,12 +200,12 @@ void OpusTest::TestDtxEffect(bool dtx, int block_length_ms) {
   const int max_dtx_frames = 400 / block_length_ms + 1;
 
   // We run |kRunTimeMs| milliseconds of pure silence.
-  const int kRunTimeMs = 2000;
+  const int kRunTimeMs = 4500;
 
   // We check that, after a |kCheckTimeMs| milliseconds (given that the CNG in
   // Opus needs time to adapt), the absolute values of DTX decoded signal are
   // bounded by |kOutputValueBound|.
-  const int kCheckTimeMs = 1500;
+  const int kCheckTimeMs = 4000;
 
 #if defined(OPUS_FIXED_POINT)
   const uint16_t kOutputValueBound = 20;
@@ -636,7 +638,7 @@ TEST_P(OpusTest, OpusDecodeRepacketized) {
 
   // Encode & decode.
   int16_t audio_type;
-  rtc::scoped_ptr<int16_t[]> output_data_decode(
+  std::unique_ptr<int16_t[]> output_data_decode(
       new int16_t[kPackets * kOpus20msFrameSamples * channels_]);
   OpusRepacketizer* rp = opus_repacketizer_create();
 

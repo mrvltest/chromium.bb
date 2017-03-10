@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_EDITTP_H
-#define _FWL_EDITTP_H
-class CFWL_WidgetTP;
-class CFWL_EditTP;
+#ifndef XFA_INCLUDE_FWL_THEME_EDITTP_H_
+#define XFA_INCLUDE_FWL_THEME_EDITTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_EditTP : public CFWL_WidgetTP {
  public:
   CFWL_EditTP();
@@ -17,4 +18,5 @@ class CFWL_EditTP : public CFWL_WidgetTP {
   virtual FWL_ERR Initialize();
   virtual FWL_ERR Finalize();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_EDITTP_H_

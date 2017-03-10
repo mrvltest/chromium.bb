@@ -4,11 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_DATAMATRIXDECODER_H_
-#define _BC_DATAMATRIXDECODER_H_
+#ifndef XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXDECODER_H_
+#define XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXDECODER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_ReedSolomonDecoder;
 class CBC_CommonDecoderResult;
 class CBC_CommonBitMatrix;
+
 class CBC_DataMatrixDecoder {
  public:
   CBC_DataMatrixDecoder();
@@ -22,4 +26,5 @@ class CBC_DataMatrixDecoder {
                      int32_t& e);
   CBC_ReedSolomonDecoder* m_rsDecoder;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXDECODER_H_

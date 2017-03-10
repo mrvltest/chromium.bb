@@ -11,8 +11,9 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_ECHO_CANCELLATION_IMPL_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_ECHO_CANCELLATION_IMPL_H_
 
+#include <memory>
+
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/common_audio/swap_queue.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include "webrtc/modules/audio_processing/processing_component.h"
@@ -43,6 +44,8 @@ class EchoCancellationImpl : public EchoCancellation,
   void SetExtraOptions(const Config& config) override;
   bool is_delay_agnostic_enabled() const;
   bool is_extended_filter_enabled() const;
+  bool is_next_generation_aec_enabled() const;
+  bool is_refined_adaptive_filter_enabled() const;
 
   // Reads render side data that has been queued on the render call.
   // Called holding the capture lock.
@@ -92,6 +95,8 @@ class EchoCancellationImpl : public EchoCancellation,
   bool delay_logging_enabled_ GUARDED_BY(crit_capture_);
   bool extended_filter_enabled_ GUARDED_BY(crit_capture_);
   bool delay_agnostic_enabled_ GUARDED_BY(crit_capture_);
+  bool next_generation_aec_enabled_ GUARDED_BY(crit_capture_);
+  bool refined_adaptive_filter_enabled_ GUARDED_BY(crit_capture_) = false;
 
   size_t render_queue_element_max_size_ GUARDED_BY(crit_render_)
       GUARDED_BY(crit_capture_);
@@ -99,7 +104,7 @@ class EchoCancellationImpl : public EchoCancellation,
   std::vector<float> capture_queue_buffer_ GUARDED_BY(crit_capture_);
 
   // Lock protection not needed.
-  rtc::scoped_ptr<SwapQueue<std::vector<float>, RenderQueueItemVerifier<float>>>
+  std::unique_ptr<SwapQueue<std::vector<float>, RenderQueueItemVerifier<float>>>
       render_signal_queue_;
 };
 

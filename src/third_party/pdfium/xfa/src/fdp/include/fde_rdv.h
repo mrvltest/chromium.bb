@@ -4,15 +4,22 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_RENDERDEVICE
-#define _FDE_RENDERDEVICE
+#ifndef XFA_SRC_FDP_INCLUDE_FDE_RDV_H_
+#define XFA_SRC_FDP_INCLUDE_FDE_RDV_H_
+
+#include "core/include/fxcrt/fx_coordinates.h"
+#include "core/include/fxge/fx_font.h"
+#include "core/include/fxge/fx_ge.h"
+#include "xfa/src/fdp/include/fde_pth.h"
+#include "xfa/src/fgas/include/fx_fnt.h"
+
 class IFDE_Pen;
 class IFDE_Brush;
 class IFDE_Image;
 class CFX_DIBitmap;
 class CFX_DIBSource;
 
-typedef struct _FDE_HDEVICESTATE { void* pData; } * FDE_HDEVICESTATE;
+typedef struct FDE_HDEVICESTATE_ { void* pData; } * FDE_HDEVICESTATE;
 
 class IFDE_RenderDevice {
  public:
@@ -100,4 +107,5 @@ class IFDE_RenderDevice {
                                 const CFX_RectF& rect,
                                 const CFX_Matrix* pMatrix = NULL) = 0;
 };
-#endif
+
+#endif  // XFA_SRC_FDP_INCLUDE_FDE_RDV_H_

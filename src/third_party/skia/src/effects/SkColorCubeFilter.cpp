@@ -177,10 +177,7 @@ public:
 
     class GLSLProcessor : public GrGLSLFragmentProcessor {
     public:
-        GLSLProcessor(const GrProcessor&);
-        virtual ~GLSLProcessor();
-
-        virtual void emitCode(EmitArgs&) override;
+        void emitCode(EmitArgs&) override;
 
         static inline void GenKey(const GrProcessor&, const GrGLSLCaps&, GrProcessorKeyBuilder*);
 
@@ -226,7 +223,7 @@ void GrColorCubeEffect::onGetGLSLProcessorKey(const GrGLSLCaps& caps,
 }
 
 GrGLSLFragmentProcessor* GrColorCubeEffect::onCreateGLSLInstance() const {
-    return new GLSLProcessor(*this);
+    return new GLSLProcessor;
 }
 
 void GrColorCubeEffect::onComputeInvariantOutput(GrInvariantOutput* inout) const {
@@ -235,23 +232,17 @@ void GrColorCubeEffect::onComputeInvariantOutput(GrInvariantOutput* inout) const
 
 ///////////////////////////////////////////////////////////////////////////////
 
-GrColorCubeEffect::GLSLProcessor::GLSLProcessor(const GrProcessor&) {
-}
-
-GrColorCubeEffect::GLSLProcessor::~GLSLProcessor() {
-}
-
 void GrColorCubeEffect::GLSLProcessor::emitCode(EmitArgs& args) {
     if (nullptr == args.fInputColor) {
         args.fInputColor = "vec4(1)";
     }
 
     GrGLSLUniformHandler* uniformHandler = args.fUniformHandler;
-    fColorCubeSizeUni = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fColorCubeSizeUni = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                    kFloat_GrSLType, kDefault_GrSLPrecision,
                                                    "Size");
     const char* colorCubeSizeUni = uniformHandler->getUniformCStr(fColorCubeSizeUni);
-    fColorCubeInvSizeUni = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fColorCubeInvSizeUni = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                       kFloat_GrSLType, kDefault_GrSLPrecision,
                                                       "InvSize");
     const char* colorCubeInvSizeUni = uniformHandler->getUniformCStr(fColorCubeInvSizeUni);
@@ -265,7 +256,7 @@ void GrColorCubeEffect::GLSLProcessor::emitCode(EmitArgs& args) {
     // Note: if implemented using texture3D in OpenGL ES older than OpenGL ES 3.0,
     //       the shader might need "#extension GL_OES_texture_3D : enable".
 
-    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
 
     // Unpremultiply color
     fragBuilder->codeAppendf("\tfloat %s = max(%s.a, 0.00001);\n", nonZeroAlpha, args.fInputColor);
@@ -324,7 +315,7 @@ const GrFragmentProcessor* SkColorCubeFilter::asFragmentProcessor(GrContext* con
         context->textureProvider()->findAndRefTextureByUniqueKey(key));
     if (!textureCube) {
         textureCube.reset(context->textureProvider()->createTexture(
-            desc, true, fCubeData->data(), 0));
+            desc, SkBudgeted::kYes, fCubeData->data(), 0));
         if (textureCube) {
             context->textureProvider()->assignUniqueKeyToTexture(key, textureCube);
         } else {

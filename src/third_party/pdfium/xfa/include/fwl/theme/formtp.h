@@ -4,10 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_FORM_THEMEPROVIDER_H
-#define _FWL_FORM_THEMEPROVIDER_H
-class CFWL_WidgetTP;
-class CFWL_FormTP;
+#ifndef XFA_INCLUDE_FWL_THEME_FORMTP_H_
+#define XFA_INCLUDE_FWL_THEME_FORMTP_H_
+
+#include "xfa/include/fwl/theme/utils.h"
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_FormTP : public CFWL_WidgetTP {
  public:
   CFWL_FormTP();
@@ -105,4 +107,5 @@ class CFWL_FormTP : public CFWL_WidgetTP {
     FX_ARGB clrTransWhite;
   } * m_pThemeData;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_FORMTP_H_

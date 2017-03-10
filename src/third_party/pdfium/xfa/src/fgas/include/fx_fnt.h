@@ -4,10 +4,20 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_FONT
-#define _FX_FONT
+#ifndef XFA_SRC_FGAS_INCLUDE_FX_FNT_H_
+#define XFA_SRC_FGAS_INCLUDE_FX_FNT_H_
+
+#include "core/include/fxge/fx_font.h"
+#include "xfa/src/fgas/include/fx_stm.h"
+
+#if _FXM_PLATFORM_ == _FXM_PLATFORM_WINDOWS_
+#include "xfa/src/fgas/include/fx_mem.h"
+#include "xfa/src/fgas/include/fx_utl.h"
+#endif  // _FXM_PLATFORM_ == _FXM_PLATFORM_WINDOWS_
+
 class IFX_Font;
 class IFX_FontMgr;
+
 #define FX_FONTSTYLE_Normal 0x00
 #define FX_FONTSTYLE_FixedPitch 0x01
 #define FX_FONTSTYLE_Serif 0x02
@@ -261,4 +271,5 @@ class IFX_FontMgr {
   virtual void RemoveFont(IFX_Font* pFont) = 0;
 };
 #endif
-#endif
+
+#endif  // XFA_SRC_FGAS_INCLUDE_FX_FNT_H_

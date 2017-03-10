@@ -24,6 +24,8 @@ class ReceiveStatistics;
 class RemoteBitrateEstimator;
 class RtpReceiver;
 class Transport;
+class RtcEventLog;
+
 namespace rtcp {
 class TransportFeedback;
 }
@@ -73,6 +75,9 @@ class RtpRtcp : public Module {
     BitrateStatisticsObserver* send_bitrate_observer;
     FrameCountObserver* send_frame_count_observer;
     SendSideDelayObserver* send_side_delay_observer;
+    RtcEventLog* event_log;
+
+    RTC_DISALLOW_COPY_AND_ASSIGN(Configuration);
   };
 
   /*
@@ -243,10 +248,6 @@ class RtpRtcp : public Module {
     // doesn't enable RTX, only the payload type is set.
     virtual void SetRtxSendPayloadType(int payload_type,
                                        int associated_payload_type) = 0;
-
-    // Gets the payload type pair of (RTX, associated) to use when sending RTX
-    // packets.
-    virtual std::pair<int, int> RtxSendPayloadType() const = 0;
 
     /*
     *   sends kRtcpByeCode when going from true to false

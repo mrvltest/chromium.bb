@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <memory>
+
 #include "webrtc/modules/audio_device/test/audio_device_test_defines.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -140,7 +142,8 @@ class AudioDeviceAPITest: public testing::Test {
   virtual ~AudioDeviceAPITest() {}
 
   static void SetUpTestCase() {
-    process_thread_ = ProcessThread::Create("ProcessThread");
+    process_thread_ =
+        rtc::ScopedToUnique(ProcessThread::Create("ProcessThread"));
     process_thread_->Start();
 
     // Windows:
@@ -300,7 +303,7 @@ class AudioDeviceAPITest: public testing::Test {
 
   // TODO(henrika): Get rid of globals.
   static bool linux_alsa_;
-  static rtc::scoped_ptr<ProcessThread> process_thread_;
+  static std::unique_ptr<ProcessThread> process_thread_;
   static AudioDeviceModule* audio_device_;
   static AudioTransportAPI* audio_transport_;
   static AudioEventObserverAPI* event_observer_;
@@ -308,7 +311,7 @@ class AudioDeviceAPITest: public testing::Test {
 
 // Must be initialized like this to handle static SetUpTestCase() above.
 bool AudioDeviceAPITest::linux_alsa_ = false;
-rtc::scoped_ptr<ProcessThread> AudioDeviceAPITest::process_thread_;
+std::unique_ptr<ProcessThread> AudioDeviceAPITest::process_thread_;
 AudioDeviceModule* AudioDeviceAPITest::audio_device_ = NULL;
 AudioTransportAPI* AudioDeviceAPITest::audio_transport_ = NULL;
 AudioEventObserverAPI* AudioDeviceAPITest::event_observer_ = NULL;
@@ -915,7 +918,7 @@ TEST_F(AudioDeviceAPITest, SpeakerVolumeTests) {
     EXPECT_EQ(0, audio_device_->MaxSpeakerVolume(&maxVolume));
     EXPECT_EQ(0, audio_device_->MinSpeakerVolume(&minVolume));
     EXPECT_EQ(0, audio_device_->SpeakerVolumeStepSize(&stepSize));
-    for (vol = minVolume; vol < (int)maxVolume; vol += 20*stepSize) {
+    for (vol = minVolume; vol < (unsigned int)maxVolume; vol += 20*stepSize) {
       EXPECT_EQ(0, audio_device_->SetSpeakerVolume(vol));
       EXPECT_EQ(0, audio_device_->SpeakerVolume(&volume));
       CheckVolume(volume, vol);
@@ -1067,7 +1070,7 @@ TEST_F(AudioDeviceAPITest, MAYBE_MicrophoneVolumeTests) {
     EXPECT_EQ(0, audio_device_->MaxMicrophoneVolume(&maxVolume));
     EXPECT_EQ(0, audio_device_->MinMicrophoneVolume(&minVolume));
     EXPECT_EQ(0, audio_device_->MicrophoneVolumeStepSize(&stepSize));
-    for (vol = minVolume; vol < (int)maxVolume; vol += 10*stepSize)
+    for (vol = minVolume; vol < (unsigned int)maxVolume; vol += 10*stepSize)
     {
       EXPECT_EQ(0, audio_device_->SetMicrophoneVolume(vol));
       EXPECT_EQ(0, audio_device_->MicrophoneVolume(&volume));

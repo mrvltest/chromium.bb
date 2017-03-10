@@ -112,6 +112,15 @@
 #include <openssl/ex_data.h>
 #include <openssl/thread.h>
 
+#if defined(_MSC_VER)
+#if !defined(__cplusplus) || _MSC_VER < 1900
+#define alignas(x) __declspec(align(x))
+#define alignof __alignof
+#endif
+#else
+#include <stdalign.h>
+#endif
+
 #if defined(OPENSSL_NO_THREADS)
 #elif defined(OPENSSL_WINDOWS)
 #pragma warning(push, 3)
@@ -176,6 +185,12 @@ void OPENSSL_cpuid_setup(void);
 
 #if !defined(inline)
 #define inline __inline
+#endif
+
+
+#if !defined(_MSC_VER) && defined(OPENSSL_64_BIT)
+typedef __int128_t int128_t;
+typedef __uint128_t uint128_t;
 #endif
 
 
@@ -325,7 +340,7 @@ static inline int constant_time_select_int(unsigned int mask, int a, int b) {
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #elif defined(OPENSSL_WINDOWS)
-typedef LONG CRYPTO_once_t;
+typedef volatile LONG CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #else
 typedef pthread_once_t CRYPTO_once_t;

@@ -4,12 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_LOCALE_H_
-#define _FX_LOCALE_H_
+#ifndef XFA_SRC_FGAS_INCLUDE_FX_LOCALE_H_
+#define XFA_SRC_FGAS_INCLUDE_FX_LOCALE_H_
+
+#include "core/include/fxcrt/fx_xml.h"
+#include "xfa/src/fgas/include/fx_datetime.h"
+
 class CFX_Unitime;
-class IFX_Locale;
-class IFX_FormatString;
-class IFX_LocaleMgr;
+
 enum FX_LOCALENUMSYMBOL {
   FX_LOCALENUMSYMBOL_Decimal,
   FX_LOCALENUMSYMBOL_Grouping,
@@ -200,4 +202,5 @@ class CFX_Decimal {
   uint32_t m_uLo;
   uint32_t m_uMid;
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_INCLUDE_FX_LOCALE_H_

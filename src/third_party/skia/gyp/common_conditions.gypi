@@ -12,6 +12,11 @@
     'SK_FORCE_DISTANCE_FIELD_TEXT=<(skia_force_distance_field_text)',
   ],
   'conditions' : [
+    [ 'skia_codec_decodes_raw', {
+      'defines': [
+        'SK_CODEC_DECODES_RAW',
+      ],
+    }],
     ['skia_pic', {
      'cflags': [
        '-fPIC',
@@ -173,6 +178,8 @@
                 'WarnAsError': 'true',
                 'AdditionalOptions': [
                   '/we4189', # initialized but unused var warning
+                  '/we4238', # taking address of rvalue
+                  '/we4239', # assigning rvalues to non-const lvalues
                 ],
               },
             },
@@ -445,6 +452,12 @@
             'conditions' : [
               [ 'skia_sanitizer == "thread"', {
                 'defines': [ 'THREAD_SANITIZER' ],
+              }],
+              [ 'skia_sanitizer == "memory"', {
+                'cflags': [
+                    '-O1',
+                    '-fsanitize-memory-track-origins',
+                ],
               }],
             ],
           }],

@@ -7,20 +7,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/utils/path_service.h"
 
-// Functions to help test an array's content against expected results.
-template <class TYPE>
-bool CompareArray(const CFX_ArrayTemplate<TYPE>& array1,
-                  const TYPE* array2,
-                  size_t size) {
-  if (array1.GetSize() != size)
-    return false;
-
-  for (int i = 0; i < size; ++i)
-    if (array1.GetAt(i) != array2[i])
-      return false;
-  return true;
-}
-
 // Provide a way to read test data from a buffer instead of a file.
 class CFX_TestBufferRead : public IFX_FileRead {
  public:
@@ -81,11 +67,6 @@ class CPDF_TestParser : public CPDF_Parser {
   // Need to access LoadCrossRefV4.
   FRIEND_TEST(fpdf_parser_parser, LoadCrossRefV4);
 };
-
-// TODO(thestig) Using unique_ptr with ReleaseDeleter is still not ideal.
-// Come up or wait for something better.
-using ScopedFileStream =
-    std::unique_ptr<IFX_FileStream, ReleaseDeleter<IFX_FileStream>>;
 
 TEST(fpdf_parser_parser, ReadHexString) {
   {
@@ -257,8 +238,8 @@ TEST(fpdf_parser_parser, RebuildCrossRefCorrectly) {
   const FX_WORD versions[] = {0, 0, 2, 4, 6, 8, 0};
   for (size_t i = 0; i < FX_ArraySize(offsets); ++i)
     EXPECT_EQ(offsets[i], parser.m_ObjectInfo[i].pos);
-  ASSERT_TRUE(
-      CompareArray(parser.m_ObjVersion, versions, FX_ArraySize(versions)));
+  for (size_t i = 0; i < FX_ArraySize(versions); ++i)
+    EXPECT_EQ(versions[i], parser.m_ObjectInfo[i].gennum);
 }
 
 TEST(fpdf_parser_parser, RebuildCrossRefFailed) {
@@ -290,9 +271,10 @@ TEST(fpdf_parser_parser, LoadCrossRefV4) {
     ASSERT_TRUE(parser.LoadCrossRefV4(0, 0, FALSE));
     const FX_FILESIZE offsets[] = {0, 17, 81, 0, 331, 409};
     const uint8_t types[] = {0, 1, 1, 0, 1, 1};
-    for (size_t i = 0; i < FX_ArraySize(offsets); ++i)
+    for (size_t i = 0; i < FX_ArraySize(offsets); ++i) {
       EXPECT_EQ(offsets[i], parser.m_ObjectInfo[i].pos);
-    ASSERT_TRUE(CompareArray(parser.m_V5Type, types, FX_ArraySize(types)));
+      EXPECT_EQ(types[i], parser.m_ObjectInfo[i].type);
+    }
   }
   {
     const unsigned char xref_table[] =
@@ -315,9 +297,10 @@ TEST(fpdf_parser_parser, LoadCrossRefV4) {
     const FX_FILESIZE offsets[] = {0, 0,     0,     25325, 0, 0,    0,
                                    0, 25518, 25635, 0,     0, 25777};
     const uint8_t types[] = {0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1};
-    for (size_t i = 0; i < FX_ArraySize(offsets); ++i)
+    for (size_t i = 0; i < FX_ArraySize(offsets); ++i) {
       EXPECT_EQ(offsets[i], parser.m_ObjectInfo[i].pos);
-    ASSERT_TRUE(CompareArray(parser.m_V5Type, types, FX_ArraySize(types)));
+      EXPECT_EQ(types[i], parser.m_ObjectInfo[i].type);
+    }
   }
   {
     const unsigned char xref_table[] =
@@ -340,9 +323,10 @@ TEST(fpdf_parser_parser, LoadCrossRefV4) {
     const FX_FILESIZE offsets[] = {0, 0, 0,     25325, 0, 0,    0,
                                    0, 0, 25635, 0,     0, 25777};
     const uint8_t types[] = {0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-    for (size_t i = 0; i < FX_ArraySize(offsets); ++i)
+    for (size_t i = 0; i < FX_ArraySize(offsets); ++i) {
       EXPECT_EQ(offsets[i], parser.m_ObjectInfo[i].pos);
-    ASSERT_TRUE(CompareArray(parser.m_V5Type, types, FX_ArraySize(types)));
+      EXPECT_EQ(types[i], parser.m_ObjectInfo[i].type);
+    }
   }
   {
     const unsigned char xref_table[] =
@@ -363,8 +347,9 @@ TEST(fpdf_parser_parser, LoadCrossRefV4) {
     ASSERT_TRUE(parser.LoadCrossRefV4(0, 0, FALSE));
     const FX_FILESIZE offsets[] = {0, 23, 0, 0, 0, 45, 179};
     const uint8_t types[] = {0, 1, 0, 0, 0, 1, 1};
-    for (size_t i = 0; i < FX_ArraySize(offsets); ++i)
+    for (size_t i = 0; i < FX_ArraySize(offsets); ++i) {
       EXPECT_EQ(offsets[i], parser.m_ObjectInfo[i].pos);
-    ASSERT_TRUE(CompareArray(parser.m_V5Type, types, FX_ArraySize(types)));
+      EXPECT_EQ(types[i], parser.m_ObjectInfo[i].type);
+    }
   }
 }

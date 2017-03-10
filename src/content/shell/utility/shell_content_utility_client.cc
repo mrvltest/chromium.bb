@@ -6,11 +6,10 @@
 
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
+#include "content/common/mojo/static_application_loader.h"
 
-// SHEZ: Remove test-only code.
+// blpwtk2: Remove test-only code
 // #include "content/public/test/test_mojo_app.h"
-
-#include "mojo/shell/static_application_loader.h"
 
 #include <chrome/common/chrome_paths.h>
 #include <chrome/common/chrome_utility_messages.h>
@@ -23,14 +22,16 @@ namespace content {
 
 namespace {
 
-// SHEZ: Remove test-only code
-//scoped_ptr<mojo::ApplicationDelegate> CreateTestApp() {
-//  return scoped_ptr<mojo::ApplicationDelegate>(new TestMojoApp);
-//}
-
 bool Send(IPC::Message* message) {
   return content::UtilityThread::Get()->Send(message);
 }
+
+// blpwtk2: Remove test-only code
+#if 0
+scoped_ptr<mojo::ShellClient> CreateTestApp() {
+  return scoped_ptr<mojo::ShellClient>(new TestMojoApp);
+}
+#endif
 
 }  // namespace
 

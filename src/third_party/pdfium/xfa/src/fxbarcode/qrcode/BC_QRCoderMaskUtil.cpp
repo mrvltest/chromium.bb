@@ -20,11 +20,12 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/common/BC_CommonByteMatrix.h"
-#include "BC_QRCoderErrorCorrectionLevel.h"
-#include "BC_QRCoder.h"
-#include "BC_QRCoderMaskUtil.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderMaskUtil.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_QRCoderMaskUtil::CBC_QRCoderMaskUtil() {}
 CBC_QRCoderMaskUtil::~CBC_QRCoderMaskUtil() {}
 int32_t CBC_QRCoderMaskUtil::ApplyMaskPenaltyRule1(
@@ -32,6 +33,7 @@ int32_t CBC_QRCoderMaskUtil::ApplyMaskPenaltyRule1(
   return ApplyMaskPenaltyRule1Internal(matrix, TRUE) +
          ApplyMaskPenaltyRule1Internal(matrix, FALSE);
 }
+
 int32_t CBC_QRCoderMaskUtil::ApplyMaskPenaltyRule2(
     CBC_CommonByteMatrix* matrix) {
   int32_t penalty = 0;
@@ -50,6 +52,7 @@ int32_t CBC_QRCoderMaskUtil::ApplyMaskPenaltyRule2(
   }
   return 3 * penalty;
 }
+
 int32_t CBC_QRCoderMaskUtil::ApplyMaskPenaltyRule3(
     CBC_CommonByteMatrix* matrix) {
   int32_t penalty = 0;

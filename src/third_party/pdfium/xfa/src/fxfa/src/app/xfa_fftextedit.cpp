@@ -4,17 +4,23 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_fftextedit.h"
+
+#include "xfa/include/fwl/basewidget/fwl_datetimepicker.h"
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fwl/lightwidget/datetimepicker.h"
+#include "xfa/include/fwl/lightwidget/edit.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_fftextedit.h"
-#include "xfa_textlayout.h"
-#include "xfa_ffapp.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+#include "xfa/src/fxfa/src/common/fxfa_localevalue.h"
+
 CXFA_FFTextEdit::CXFA_FFTextEdit(CXFA_FFPageView* pPageView,
                                  CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFField(pPageView, pDataAcc), m_pOldDelegate(NULL) {}
@@ -134,12 +140,10 @@ FX_BOOL CXFA_FFTextEdit::OnRButtonDown(FX_DWORD dwFlags,
 FX_BOOL CXFA_FFTextEdit::OnRButtonUp(FX_DWORD dwFlags,
                                      FX_FLOAT fx,
                                      FX_FLOAT fy) {
-  if (!CXFA_FFField::OnRButtonUp(dwFlags, fx, fy)) {
+  if (!CXFA_FFField::OnRButtonUp(dwFlags, fx, fy))
     return FALSE;
-  }
-  CFX_PointF pt;
-  pt.Set(fx, fy);
-  GetDoc()->GetDocProvider()->PopupMenu(this, pt, NULL);
+
+  GetDoc()->GetDocProvider()->PopupMenu(this, CFX_PointF(fx, fy), nullptr);
   return TRUE;
 }
 FX_BOOL CXFA_FFTextEdit::OnSetFocus(CXFA_FFWidget* pOldWidget) {
@@ -181,7 +185,7 @@ FX_BOOL CXFA_FFTextEdit::CommitData() {
   return FALSE;
 }
 void CXFA_FFTextEdit::ValidateNumberField(const CFX_WideString& wsText) {
-  CXFA_WidgetAcc* pAcc = this->GetDataAcc();
+  CXFA_WidgetAcc* pAcc = GetDataAcc();
   if (pAcc && pAcc->GetUIType() == XFA_ELEMENT_NumericEdit) {
     IXFA_AppProvider* pAppProvider = GetApp()->GetAppProvider();
     if (pAppProvider) {
@@ -259,6 +263,13 @@ FX_BOOL CXFA_FFTextEdit::UpdateFWLData() {
       bUpdate = TRUE;
     }
   }
+  if (m_pDataAcc->GetUIType() == XFA_ELEMENT_Barcode) {
+    int32_t nDataLen = 0;
+    if (eType == XFA_VALUEPICTURE_Edit)
+      m_pDataAcc->GetBarcodeAttribute_DataLength(nDataLen);
+    static_cast<CFWL_Edit*>(m_pNormalWidget)->SetLimit(nDataLen);
+    bUpdate = TRUE;
+  }
   CFX_WideString wsText;
   m_pDataAcc->GetValue(wsText, eType);
   CFX_WideString wsOldText;
@@ -320,8 +331,9 @@ FX_BOOL CXFA_FFTextEdit::Delete() {
 FX_BOOL CXFA_FFTextEdit::DeSelect() {
   return ((CFWL_Edit*)m_pNormalWidget)->ClearSelections();
 }
-FX_BOOL CXFA_FFTextEdit::GetSuggestWords(CFX_PointF pointf,
-                                         CFX_ByteStringArray& sSuggest) {
+FX_BOOL CXFA_FFTextEdit::GetSuggestWords(
+    CFX_PointF pointf,
+    std::vector<CFX_ByteString>& sSuggest) {
   if (m_pDataAcc->GetUIType() != XFA_ELEMENT_TextEdit) {
     return FALSE;
   }
@@ -370,17 +382,16 @@ void CXFA_FFTextEdit::OnTextFull(IFWL_Widget* pWidget) {
   eParam.m_pTarget = m_pDataAcc;
   m_pDataAcc->ProcessEvent(XFA_ATTRIBUTEENUM_Full, &eParam);
 }
-void CXFA_FFTextEdit::OnAddDoRecord(IFWL_Widget* pWidget) {
-  GetDoc()->GetDocProvider()->AddDoRecord(this);
-}
+
 FX_BOOL CXFA_FFTextEdit::CheckWord(const CFX_ByteStringC& sWord) {
   if (sWord.IsEmpty() || m_pDataAcc->GetUIType() != XFA_ELEMENT_TextEdit) {
     return TRUE;
   }
   return GetDoc()->GetDocProvider()->CheckWord(GetDoc(), sWord);
 }
-FX_BOOL CXFA_FFTextEdit::GetSuggestWords(const CFX_ByteStringC& sWord,
-                                         CFX_ByteStringArray& sSuggest) {
+FX_BOOL CXFA_FFTextEdit::GetSuggestWords(
+    const CFX_ByteStringC& sWord,
+    std::vector<CFX_ByteString>& sSuggest) {
   if (m_pDataAcc->GetUIType() != XFA_ELEMENT_TextEdit) {
     return FALSE;
   }
@@ -397,10 +408,6 @@ FWL_ERR CXFA_FFTextEdit::OnProcessEvent(CFWL_Event* pEvent) {
       CFWL_EvtEdtTextChanged* event = (CFWL_EvtEdtTextChanged*)pEvent;
       CFX_WideString wsChange;
       OnTextChanged(m_pNormalWidget->GetWidget(), wsChange, event->wsPrevText);
-      break;
-    }
-    case FWL_EVTHASH_EDT_AddDoRecord: {
-      OnAddDoRecord(m_pNormalWidget->GetWidget());
       break;
     }
     case FWL_EVTHASH_EDT_TextFull: {
@@ -594,11 +601,9 @@ FX_BOOL CXFA_FFDateTimeEdit::LoadWidget() {
   CFX_WideString wsText;
   m_pDataAcc->GetValue(wsText, XFA_VALUEPICTURE_Display);
   pWidget->SetEditText(wsText);
-  XFA_DATETIMETYPE eType = XFA_DATETIMETYPE_DateAndTime;
   if (CXFA_Value value = m_pDataAcc->GetFormValue()) {
     switch (value.GetChildValueClassID()) {
       case XFA_ELEMENT_Date: {
-        eType = XFA_DATETIMETYPE_Date;
         if (!wsText.IsEmpty()) {
           CXFA_LocaleValue lcValue = XFA_GetLocaleValue(m_pDataAcc);
           CFX_Unitime date = lcValue.GetDate();
@@ -607,11 +612,7 @@ FX_BOOL CXFA_FFDateTimeEdit::LoadWidget() {
           }
         }
       } break;
-      case XFA_ELEMENT_Time:
-        eType = XFA_DATETIMETYPE_Time;
-        break;
       default:
-        eType = XFA_DATETIMETYPE_DateAndTime;
         break;
     }
   }
@@ -774,8 +775,7 @@ void CXFA_FFDateTimeEdit::OnSelectChanged(IFWL_Widget* pWidget,
                                           int32_t iDay) {
   CFX_WideString wsPicture;
   m_pDataAcc->GetPictureContent(wsPicture, XFA_VALUEPICTURE_Edit);
-  CXFA_LocaleValue date(XFA_VT_DATE,
-                        this->GetDoc()->GetXFADoc()->GetLocalMgr());
+  CXFA_LocaleValue date(XFA_VT_DATE, GetDoc()->GetXFADoc()->GetLocalMgr());
   CFX_Unitime dt;
   dt.Set(iYear, iMonth, iDay);
   date.SetDate(dt);

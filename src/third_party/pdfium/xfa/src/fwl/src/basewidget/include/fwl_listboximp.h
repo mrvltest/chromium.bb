@@ -4,18 +4,19 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_LISTBOX_IMP_H
-#define _FWL_LISTBOX_IMP_H
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_LISTBOXIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_LISTBOXIMP_H_
 
 #include <memory>
 
-class CFWL_WidgetImp;
-class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
-class CFWL_ScrollBarImp;
-class IFWL_Widget;
-class CFWL_ListBoxImp;
+#include "xfa/include/fwl/basewidget/fwl_combobox.h"
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fwl/basewidget/fwl_listbox.h"
+#include "xfa/include/fwl/basewidget/fwl_scrollbar.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_ListBoxImpDelegate;
+
 class CFWL_ListBoxImp : public CFWL_WidgetImp {
  public:
   CFWL_ListBoxImp(const CFWL_WidgetImpProperties& properties,
@@ -116,4 +117,5 @@ class CFWL_ListBoxImpDelegate : public CFWL_WidgetImpDelegate {
   void DispatchSelChangedEv();
   CFWL_ListBoxImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_LISTBOXIMP_H_

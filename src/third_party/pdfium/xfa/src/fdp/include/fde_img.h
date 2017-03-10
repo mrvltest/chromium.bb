@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_IMAGE
-#define _FDE_IMAGE
-class IFDE_Image;
+#ifndef XFA_SRC_FDP_INCLUDE_FDE_IMG_H_
+#define XFA_SRC_FDP_INCLUDE_FDE_IMG_H_
+
+#include "xfa/src/fgas/include/fx_mem.h"
+#include "xfa/src/fgas/include/fx_stm.h"
+#include "xfa/src/fgas/include/fx_utl.h"
+
 #define FDE_IMAGEFORMAT_Unknown -1
 #define FDE_IMAGEFORMAT_BMP 0
 #define FDE_IMAGEFORMAT_GIF 1
@@ -15,6 +19,7 @@ class IFDE_Image;
 #define FDE_IMAGEFORMAT_TIFF 4
 #define FDE_IMAGEFORMAT_JPEG2000 5
 #define FDE_IMAGEFORMAT_JBig2 6
+
 class IFDE_Image {
  public:
   static IFDE_Image* Create(IFX_Stream* pStream,
@@ -44,6 +49,7 @@ class IFDE_Image {
   virtual int32_t DoLoadImage(IFX_Pause* pPause = NULL) = 0;
   virtual void StopLoadImage() = 0;
 };
+
 #define FDE_IMAGEFILTER_Unknown -1
 #define FDE_IMAGEFILTER_Opacity 0
 #define FDE_IMAGEFILTER_GrayScale 1
@@ -53,33 +59,34 @@ class IFDE_Image {
 #define FDE_IMAGEFILTER_MaskColor 5
 #define FDE_IMAGEFILTER_Brightness 6
 #define FDE_IMAGEFILTER_Contrast 7
-typedef struct _FDE_IMAGEFILTERPARAMS : public CFX_Target {
+
+struct FDE_IMAGEFILTERPARAMS : public CFX_Target {
   int32_t iFilterType;
-} FDE_IMAGEFILTERPARAMS, *FDE_LPIMAGEFILTERPARAMS;
-typedef FDE_IMAGEFILTERPARAMS const* FDE_LPCIMAGEFILTERPARAMS;
-typedef struct _FDE_OPACITYPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_OPACITYPARAMS : public FDE_IMAGEFILTERPARAMS {
   int32_t iOpacity;
-} FDE_OPACITYPARAMS, *FDE_LPOPACITYPARAMS;
-typedef FDE_OPACITYPARAMS const* FDE_LPCOPACITYPARAMS;
-typedef struct _FDE_BLACKWHITEPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_BLACKWHITEPARAMS : public FDE_IMAGEFILTERPARAMS {
   FX_ARGB dwBlackColor;
   FX_ARGB dwWhiteColor;
-} FDE_BLACKWHITEPARAMS, *FDE_LPBLACKWHITEPARAMS;
-typedef FDE_BLACKWHITEPARAMS const* FDE_LPCBLACKWHITEPARAMS;
-typedef struct _FDE_TRANSPARENTPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_TRANSPARENTPARAMS : public FDE_IMAGEFILTERPARAMS {
   FX_ARGB color;
-} FDE_TRANSPARENTPARAMS, *FDE_LPTRANSPARENTPARAMS;
-typedef FDE_TRANSPARENTPARAMS const* FDE_LPCTRANSPARENTPARAMS;
-typedef struct _FDE_MASKCOLORPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_MASKCOLORPARAMS : public FDE_IMAGEFILTERPARAMS {
   FX_ARGB color;
-} FDE_MASKCOLORPARAMS, *FDE_LPMASKCOLORPARAMS;
-typedef FDE_MASKCOLORPARAMS const* FDE_LPCMASKCOLORPARAMS;
-typedef struct _FDE_BRIGHTNESSPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_BRIGHTNESSPARAMS : public FDE_IMAGEFILTERPARAMS {
   int32_t iBrightness;
-} FDE_BRIGHTNESSPARAMS, *FDE_LPBRIGHTNESSPARAMS;
-typedef FDE_BRIGHTNESSPARAMS const* FDE_LPCBRIGHTNESSPARAMS;
-typedef struct _FDE_CONTRASTPARAMS : public FDE_IMAGEFILTERPARAMS {
+};
+
+struct FDE_CONTRASTPARAMS : public FDE_IMAGEFILTERPARAMS {
   int32_t iContrast;
-} FDE_CONTRASTPARAMS, *FDE_LPCONTRASTPARAMS;
-typedef FDE_CONTRASTPARAMS const* FDE_LPCCONTRASTPARAMS;
-#endif
+};
+
+#endif  // XFA_SRC_FDP_INCLUDE_FDE_IMG_H_

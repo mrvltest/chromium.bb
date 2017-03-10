@@ -17,7 +17,7 @@ using std::max;
 
 #include <gdiplus.h>
 #include "core/include/fxge/fx_ge_win32.h"
-#include "win32_int.h"
+#include "core/src/fxge/win32/win32_int.h"
 
 using namespace Gdiplus;
 using namespace Gdiplus::DllExports;
@@ -973,9 +973,8 @@ static GpPen* _GdipCreatePen(const CFX_GraphStateData* pGraphState,
   FX_FLOAT width = pGraphState ? pGraphState->m_LineWidth : 1.0f;
   if (!bTextMode) {
     FX_FLOAT unit =
-        pMatrix
-            ? FXSYS_Div(1.0f, (pMatrix->GetXUnit() + pMatrix->GetYUnit()) / 2)
-            : 1.0f;
+        pMatrix ? 1.0f / ((pMatrix->GetXUnit() + pMatrix->GetYUnit()) / 2)
+                : 1.0f;
     if (width < unit) {
       width = unit;
     }
@@ -1087,7 +1086,7 @@ static FX_BOOL IsSmallTriangle(PointF* points,
     }
     FX_FLOAT dx = x1 - x2;
     FX_FLOAT dy = y1 - y2;
-    FX_FLOAT distance_square = FXSYS_Mul(dx, dx) + FXSYS_Mul(dy, dy);
+    FX_FLOAT distance_square = (dx * dx) + (dy * dy);
     if (distance_square < (1.0f * 2 + 1.0f / 4)) {
       v1 = i;
       v2 = pair1;
@@ -1302,7 +1301,7 @@ class GpStream final : public IStream {
       return HRESULT_FROM_WIN32(ERROR_END_OF_MEDIA);
     }
     bytes_left = m_InterStream.GetLength() - m_ReadPos;
-    bytes_out = FX_MIN(cb, bytes_left);
+    bytes_out = std::min(pdfium::base::checked_cast<size_t>(cb), bytes_left);
     FXSYS_memcpy(Output, m_InterStream.GetBuffer() + m_ReadPos, bytes_out);
     m_ReadPos += (int32_t)bytes_out;
     if (pcbRead) {

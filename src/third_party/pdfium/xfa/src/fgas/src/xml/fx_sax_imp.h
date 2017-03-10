@@ -4,8 +4,10 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_SAX_IMP_
-#define _FX_SAX_IMP_
+#ifndef XFA_SRC_FGAS_SRC_XML_FX_SAX_IMP_H_
+#define XFA_SRC_FGAS_SRC_XML_FX_SAX_IMP_H_
+
+#include "xfa/src/fgas/include/fx_sax.h"
 
 class CFX_SAXFile {
  public:
@@ -21,6 +23,7 @@ class CFX_SAXFile {
   FX_DWORD m_dwBufSize;
   FX_DWORD m_dwBufIndex;
 };
+
 enum FX_SAXMODE {
   FX_SAXMODE_Text = 0,
   FX_SAXMODE_NodeStart,
@@ -38,6 +41,7 @@ enum FX_SAXMODE {
   FX_SAXMODE_TargetData,
   FX_SAXMODE_MAX,
 };
+
 class CFX_SAXItem {
  public:
   CFX_SAXItem()
@@ -54,12 +58,14 @@ class CFX_SAXItem {
   CFX_SAXItem* m_pPrev;
   CFX_SAXItem* m_pNext;
 };
+
 class CFX_SAXCommentContext {
  public:
   CFX_SAXCommentContext() : m_iHeaderCount(0), m_iTailCount(0) {}
   int32_t m_iHeaderCount;
   int32_t m_iTailCount;
 };
+
 class CFX_SAXReader : public IFX_SAXReader {
  public:
   CFX_SAXReader();
@@ -131,4 +137,5 @@ class CFX_SAXReader : public IFX_SAXReader {
   void ReallocNameBuffer();
   void ParseChar(uint8_t ch);
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_XML_FX_SAX_IMP_H_

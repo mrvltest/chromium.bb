@@ -58,7 +58,8 @@ static void test_copy_surface_src(skiatest::Reporter* reporter, GrContext* conte
     copyDstDesc.fWidth = rectangleTexture->width();
     copyDstDesc.fHeight = rectangleTexture->height();
     copyDstDesc.fFlags = kRenderTarget_GrSurfaceFlag;
-    SkAutoTUnref<GrTexture> dst(context->textureProvider()->createTexture(copyDstDesc, true));
+    SkAutoTUnref<GrTexture> dst(context->textureProvider()->createTexture(
+            copyDstDesc, SkBudgeted::kYes));
     context->copySurface(dst, rectangleTexture);
     test_read_pixels(reporter, context, dst, expectedPixelValues);
 }
@@ -78,8 +79,8 @@ static void test_copy_surface_dst(skiatest::Reporter* reporter, GrContext* conte
     copySrcDesc.fWidth = rectangleTexture->width();
     copySrcDesc.fHeight = rectangleTexture->height();
     copySrcDesc.fFlags = kRenderTarget_GrSurfaceFlag;
-    SkAutoTUnref<GrTexture> src(context->textureProvider()->createTexture(copySrcDesc, true,
-                                                                          pixels.get(), 0));
+    SkAutoTUnref<GrTexture> src(context->textureProvider()->createTexture(
+            copySrcDesc, SkBudgeted::kYes, pixels.get(), 0));
 
     context->copySurface(rectangleTexture, src);
     test_read_pixels(reporter, context, rectangleTexture, pixels.get());
@@ -104,7 +105,7 @@ static void test_clear(skiatest::Reporter* reporter, GrContext* context,
         SkAutoTMalloc<uint32_t> expectedPixels(pixelCnt);
 
         // The clear color is a GrColor, our readback is to kRGBA_8888, which may be different.
-        uint32_t expectedColor0;
+        uint32_t expectedColor0 = 0;
         uint8_t* expectedBytes0 = SkTCast<uint8_t*>(&expectedColor0);
         expectedBytes0[0] = GrColorUnpackR(color0);
         expectedBytes0[1] = GrColorUnpackG(color0);
@@ -119,7 +120,7 @@ static void test_clear(skiatest::Reporter* reporter, GrContext* context,
         SkIRect rect = SkIRect::MakeWH(w, h/2);
         dc->clear(&rect, color1, false);
 
-        uint32_t expectedColor1;
+        uint32_t expectedColor1 = 0;
         uint8_t* expectedBytes1 = SkTCast<uint8_t*>(&expectedColor1);
         expectedBytes1[0] = GrColorUnpackR(color1);
         expectedBytes1[1] = GrColorUnpackG(color1);

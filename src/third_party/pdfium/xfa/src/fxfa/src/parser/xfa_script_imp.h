@@ -4,11 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_SCRIPT_IMP_H
-#define _FXFA_SCRIPT_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_PARSER_XFA_SCRIPT_IMP_H_
+#define XFA_SRC_FXFA_SRC_PARSER_XFA_SCRIPT_IMP_H_
+
+#include <map>
+
 #define XFA_RESOLVENODE_TagName 0x0002
-#define XFA_JSBUILTIN_Initialized 0x0001
-#define XFA_JSBUILTIN_HasCount 0x0002
+
 class CXFA_ResolveProcessor;
 class CXFA_ScriptContext : public IXFA_ScriptContext {
  public:
@@ -16,10 +18,8 @@ class CXFA_ScriptContext : public IXFA_ScriptContext {
   ~CXFA_ScriptContext();
   virtual void Release();
   virtual void Initialize(FXJSE_HRUNTIME hRuntime);
-  virtual void SetEventParam(CXFA_EventParam* pEventParam) {
-    m_pEventParam = pEventParam;
-  }
-  virtual CXFA_EventParam* GetEventParam() { return m_pEventParam; }
+  virtual void SetEventParam(CXFA_EventParam param) { m_eventParam = param; }
+  virtual CXFA_EventParam* GetEventParam() { return &m_eventParam; }
   virtual FX_BOOL RunScript(XFA_SCRIPTLANGTYPE eScriptType,
                             const CFX_WideStringC& wsScript,
                             FXJSE_HVALUE hRetValue,
@@ -45,7 +45,6 @@ class CXFA_ScriptContext : public IXFA_ScriptContext {
   virtual void AddNodesOfRunScript(CXFA_Node* pNode);
   virtual FXJSE_HCLASS GetJseNormalClass();
 
-  virtual void AddJSBuiltinObject(XFA_LPCJSBUILTININFO pBuitinObject);
   virtual void SetRunAtType(XFA_ATTRIBUTEENUM eRunAt) { m_eRunAtType = eRunAt; }
   virtual FX_BOOL IsRunAtClient() {
     return m_eRunAtType != XFA_ATTRIBUTEENUM_Server;
@@ -96,6 +95,7 @@ class CXFA_ScriptContext : public IXFA_ScriptContext {
   FXJSE_HCONTEXT CreateVariablesContext(CXFA_Node* pScriptNode,
                                         CXFA_Node* pSubform);
   void DefineJsClass();
+  void RemoveBuiltInObjs(FXJSE_HCONTEXT jsContext) const;
 
   CXFA_Document* m_pDocument;
   FXJSE_HCONTEXT m_hJsContext;
@@ -107,15 +107,15 @@ class CXFA_ScriptContext : public IXFA_ScriptContext {
   CFX_MapPtrTemplate<CXFA_Object*, FXJSE_HVALUE> m_mapXFAToHValue;
   FXJSE_CLASS m_JsGlobalVariablesClass;
   CFX_MapPtrTemplate<CXFA_Object*, FXJSE_HCONTEXT> m_mapVariableToHValue;
-  CXFA_EventParam* m_pEventParam;
+  CXFA_EventParam m_eventParam;
   CXFA_NodeArray m_upObjectArray;
   CFX_PtrArray m_CacheListArray;
   CXFA_NodeArray* m_pScriptNodeArray;
   CXFA_ResolveProcessor* m_pResolveProcessor;
   XFA_HFM2JSCONTEXT m_hFM2JSContext;
   CXFA_Object* m_pThisObject;
-  CFX_CMapByteStringToPtr m_JSBuiltInObjects;
   FX_DWORD m_dwBuiltInInFlags;
   XFA_ATTRIBUTEENUM m_eRunAtType;
 };
-#endif
+
+#endif  //  XFA_SRC_FXFA_SRC_PARSER_XFA_SCRIPT_IMP_H_

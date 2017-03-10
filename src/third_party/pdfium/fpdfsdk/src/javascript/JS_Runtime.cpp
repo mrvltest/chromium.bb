@@ -4,28 +4,28 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "JS_Runtime.h"
+#include "fpdfsdk/src/javascript/JS_Runtime.h"
 
-#include "Consts.h"
-#include "Document.h"
-#include "Field.h"
-#include "Icon.h"
-#include "JS_Context.h"
-#include "JS_Define.h"
-#include "JS_EventHandler.h"
-#include "JS_GlobalData.h"
-#include "JS_Object.h"
-#include "JS_Value.h"
-#include "PublicMethods.h"
-#include "app.h"
-#include "color.h"
-#include "console.h"
-#include "event.h"
 #include "fpdfsdk/include/fsdk_mgr.h"  // For CPDFDoc_Environment.
 #include "fpdfsdk/include/javascript/IJavaScript.h"
-#include "global.h"
-#include "report.h"
-#include "util.h"
+#include "fpdfsdk/src/javascript/Consts.h"
+#include "fpdfsdk/src/javascript/Document.h"
+#include "fpdfsdk/src/javascript/Field.h"
+#include "fpdfsdk/src/javascript/Icon.h"
+#include "fpdfsdk/src/javascript/JS_Context.h"
+#include "fpdfsdk/src/javascript/JS_Define.h"
+#include "fpdfsdk/src/javascript/JS_EventHandler.h"
+#include "fpdfsdk/src/javascript/JS_GlobalData.h"
+#include "fpdfsdk/src/javascript/JS_Object.h"
+#include "fpdfsdk/src/javascript/JS_Value.h"
+#include "fpdfsdk/src/javascript/PublicMethods.h"
+#include "fpdfsdk/src/javascript/app.h"
+#include "fpdfsdk/src/javascript/color.h"
+#include "fpdfsdk/src/javascript/console.h"
+#include "fpdfsdk/src/javascript/event.h"
+#include "fpdfsdk/src/javascript/global.h"
+#include "fpdfsdk/src/javascript/report.h"
+#include "fpdfsdk/src/javascript/util.h"
 #include "third_party/base/stl_util.h"
 
 #ifdef PDF_ENABLE_XFA
@@ -121,9 +121,8 @@ CJS_Runtime::~CJS_Runtime() {
     delete m_ContextArray.GetAt(i);
 
   m_ContextArray.RemoveAll();
-#ifndef PDF_ENABLE_XFA
+  m_ConstArrays.clear();
   FXJS_ReleaseRuntime(GetIsolate(), &m_context, &m_StaticObjects);
-#endif
 
   m_pApp = NULL;
   m_pDocument = NULL;
@@ -256,6 +255,15 @@ void CJS_Runtime::RemoveEventFromSet(const FieldEvent& event) {
 
 v8::Local<v8::Context> CJS_Runtime::NewJSContext() {
   return v8::Local<v8::Context>::New(m_isolate, m_context);
+}
+
+void CJS_Runtime::SetConstArray(const CFX_WideString& name,
+                                v8::Local<v8::Array> array) {
+  m_ConstArrays[name] = v8::Global<v8::Array>(m_isolate, array);
+}
+
+v8::Local<v8::Array> CJS_Runtime::GetConstArray(const CFX_WideString& name) {
+  return v8::Local<v8::Array>::New(m_isolate, m_ConstArrays[name]);
 }
 
 #ifdef PDF_ENABLE_XFA

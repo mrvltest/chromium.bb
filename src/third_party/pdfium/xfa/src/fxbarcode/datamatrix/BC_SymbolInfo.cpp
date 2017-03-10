@@ -20,14 +20,15 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_Dimension.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_Encoder.h"
-#include "BC_SymbolShapeHint.h"
-#include "BC_SymbolInfo.h"
-#include "BC_DataMatrixSymbolInfo144.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixSymbolInfo144.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_Encoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolInfo.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolShapeHint.h"
+
 #define SYMBOLS_COUNT 30
+
 CBC_SymbolInfo* CBC_SymbolInfo::m_PROD_SYMBOLS[30] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -149,15 +150,13 @@ CBC_SymbolInfo* CBC_SymbolInfo::lookup(int32_t dataCodewords,
     if (shape == FORCE_RECTANGLE && !symbol->m_rectangular) {
       continue;
     }
-    if (minSize != NULL &&
-        (symbol->getSymbolWidth(e) < minSize->getWidth() ||
-         symbol->getSymbolHeight(e) < minSize->getHeight())) {
+    if (minSize && (symbol->getSymbolWidth(e) < minSize->getWidth() ||
+                    symbol->getSymbolHeight(e) < minSize->getHeight())) {
       BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
       continue;
     }
-    if (maxSize != NULL &&
-        (symbol->getSymbolWidth(e) > maxSize->getWidth() ||
-         symbol->getSymbolHeight(e) > maxSize->getHeight())) {
+    if (maxSize && (symbol->getSymbolWidth(e) > maxSize->getWidth() ||
+                    symbol->getSymbolHeight(e) > maxSize->getHeight())) {
       BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
       continue;
     }

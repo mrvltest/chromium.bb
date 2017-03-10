@@ -11,7 +11,9 @@
 #ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AEC_AEC_CORE_INTERNAL_H_
 #define WEBRTC_MODULES_AUDIO_PROCESSING_AEC_AEC_CORE_INTERNAL_H_
 
+extern "C" {
 #include "webrtc/common_audio/ring_buffer.h"
+}
 #include "webrtc/common_audio/wav_file.h"
 #include "webrtc/modules/audio_processing/aec/aec_common.h"
 #include "webrtc/modules/audio_processing/aec/aec_core.h"
@@ -19,25 +21,16 @@
 
 // Number of partitions for the extended filter mode. The first one is an enum
 // to be used in array declarations, as it represents the maximum filter length.
-enum {
-  kExtendedNumPartitions = 32
-};
+enum { kExtendedNumPartitions = 32 };
 static const int kNormalNumPartitions = 12;
 
 // Delay estimator constants, used for logging and delay compensation if
 // if reported delays are disabled.
-enum {
-  kLookaheadBlocks = 15
-};
+enum { kLookaheadBlocks = 15 };
 enum {
   // 500 ms for 16 kHz which is equivalent with the limit of reported delays.
   kHistorySizeBlocks = 125
 };
-
-// Extended filter adaptation parameters.
-// TODO(ajm): No narrowband tuning yet.
-static const float kExtendedMu = 0.4f;
-static const float kExtendedErrorThreshold = 1.0e-6f;
 
 typedef struct PowerLevel {
   float sfrsum;
@@ -100,12 +93,12 @@ struct AecCore {
   int system_delay;  // Current system delay buffered in AEC.
 
   int mult;  // sampling frequency multiple
-  int sampFreq;
+  int sampFreq = 16000;
   size_t num_bands;
   uint32_t seed;
 
-  float normal_mu;               // stepsize
-  float normal_error_threshold;  // error threshold
+  float filter_step_size;  // stepsize
+  float error_threshold;   // error threshold
 
   int noiseEstCtr;
 
@@ -149,6 +142,10 @@ struct AecCore {
   int delay_agnostic_enabled;
   // 1 = extended filter mode enabled, 0 = disabled.
   int extended_filter_enabled;
+  // 1 = next generation aec mode enabled, 0 = disabled.
+  int next_generation_aec_enabled;
+  int refined_adaptive_filter_enabled;
+
   // Runtime selection of number of filter partitions.
   int num_partitions;
 
@@ -180,9 +177,8 @@ typedef void (*WebRtcAecFilterFar)(
     float h_fft_buf[2][kExtendedNumPartitions * PART_LEN1],
     float y_fft[2][PART_LEN1]);
 extern WebRtcAecFilterFar WebRtcAec_FilterFar;
-typedef void (*WebRtcAecScaleErrorSignal)(int extended_filter_enabled,
-                                          float normal_mu,
-                                          float normal_error_threshold,
+typedef void (*WebRtcAecScaleErrorSignal)(float mu,
+                                          float error_threshold,
                                           float x_pow[PART_LEN1],
                                           float ef[2][PART_LEN1]);
 extern WebRtcAecScaleErrorSignal WebRtcAec_ScaleErrorSignal;

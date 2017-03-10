@@ -4,10 +4,10 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef FXFA_SRC_APP_XFA_FFDOCVIEW_H_
-#define FXFA_SRC_APP_XFA_FFDOCVIEW_H_
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFDOCVIEW_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFDOCVIEW_H_
 
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
 
 class CXFA_FFPageView;
 class CXFA_FFWidgetHandler;
@@ -28,8 +28,7 @@ enum XFA_DOCVIEW_LAYOUTSTATUS {
   XFA_DOCVIEW_LAYOUTSTATUS_PagesetFormReady,
   XFA_DOCVIEW_LAYOUTSTATUS_LayoutReady,
   XFA_DOCVIEW_LAYOUTSTATUS_DocReady,
-  XFA_DOCVIEW_LAYOUTSTATUS_End,
-  XFA_DOCVIEW_LAYOUTSTATUS_Next,
+  XFA_DOCVIEW_LAYOUTSTATUS_End
 };
 class CXFA_FFDocView : public IXFA_DocView {
  public:
@@ -169,4 +168,4 @@ class CXFA_WidgetAccIterator : public IXFA_WidgetAccIterator {
   CXFA_WidgetAcc* m_pCurWidgetAcc;
 };
 
-#endif  // FXFA_SRC_APP_XFA_FFDOCVIEW_H_
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFDOCVIEW_H_

@@ -4,14 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_THEME_H
-#define _FWL_THEME_H
+#ifndef XFA_INCLUDE_FWL_CORE_FWL_THEME_H_
+#define XFA_INCLUDE_FWL_CORE_FWL_THEME_H_
+
+#include "xfa/include/fwl/core/fwl_error.h"
+#include "xfa/include/fxgraphics/fx_graphics.h"
+
 class IFWL_Widget;
-class CFWL_ThemePart;
-class CFWL_ThemeBackground;
-class CFWL_ThemeText;
-class CFWL_ThemeElement;
-class IFWL_ThemeProvider;
+
 #define FWL_WGTCAPACITY_CXBorder 1
 #define FWL_WGTCAPACITY_CYBorder 2
 #define FWL_WGTCAPACITY_ScrollBarWidth 3
@@ -26,6 +26,7 @@ class IFWL_ThemeProvider;
 #define FWL_WGTCAPACITY_UIMargin 12
 #define FWL_WGTCAPACITY_SpaceAboveBelow 13
 #define FWL_WGTCAPACITY_MAX 65535
+
 class CFWL_ThemePart {
  public:
   CFWL_ThemePart()
@@ -79,4 +80,5 @@ class IFWL_ThemeProvider {
                            FX_FLOAT fy) = 0;
   virtual FX_BOOL CalcTextRect(CFWL_ThemeText* pParams, CFX_RectF& rect) = 0;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_CORE_FWL_THEME_H_

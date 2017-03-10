@@ -6,13 +6,6 @@
   'variables': {
     'content_shell_product_name': 'Content Shell',
     'content_shell_version': '99.77.34.5',
-    'conditions': [
-      ['OS=="linux"', {
-       'use_custom_freetype%': 1,
-      }, {
-       'use_custom_freetype%': 0,
-      }],
-    ],
   },
   'targets': [
     {
@@ -87,6 +80,11 @@
         'shell/android/shell_jni_registrar.h',
         'shell/android/shell_manager.cc',
         'shell/android/shell_manager.h',
+        'shell/app/blink_test_platform_support.h',
+        'shell/app/blink_test_platform_support_android.cc',
+        'shell/app/blink_test_platform_support_linux.cc',
+        'shell/app/blink_test_platform_support_mac.mm',
+        'shell/app/blink_test_platform_support_win.cc',
         'shell/app/paths_mac.h',
         'shell/app/paths_mac.mm',
         'shell/app/shell_crash_reporter_client.cc',
@@ -95,10 +93,9 @@
         'shell/app/shell_main_delegate.h',
         'shell/app/shell_main_delegate_mac.h',
         'shell/app/shell_main_delegate_mac.mm',
-
-        # SHEZ: Remove test-only code.
-        # 'shell/browser/blink_test_controller.cc',
-        # 'shell/browser/blink_test_controller.h',
+		# blpwtk2: Remove test-only code
+        # 'shell/browser/layout_test/blink_test_controller.cc',
+        # 'shell/browser/layout_test/blink_test_controller.h',
         # 'shell/browser/layout_test/layout_test_android.cc',
         # 'shell/browser/layout_test/layout_test_android.h',
         # 'shell/browser/layout_test/layout_test_bluetooth_adapter_provider.cc',
@@ -133,9 +130,10 @@
         # 'shell/browser/layout_test/layout_test_resource_dispatcher_host_delegate.h',
         # 'shell/browser/layout_test/layout_test_url_request_context_getter.cc',
         # 'shell/browser/layout_test/layout_test_url_request_context_getter.h',
-
-        'shell/browser/notify_done_forwarder.cc',
-        'shell/browser/notify_done_forwarder.h',
+        # 'shell/browser/layout_test/notify_done_forwarder.cc',
+        # 'shell/browser/layout_test/notify_done_forwarder.h',
+        # 'shell/browser/layout_test/test_info_extractor.cc',
+        # 'shell/browser/layout_test/test_info_extractor.h',
         'shell/browser/shell.cc',
         'shell/browser/shell.h',
         'shell/browser/shell_access_token_store.cc',
@@ -245,11 +243,6 @@
         },
       },
       'conditions': [
-        ['OS=="win" and win_use_allocator_shim==1', {
-          'dependencies': [
-            '../base/allocator/allocator.gyp:allocator',
-          ],
-        }],
         ['OS=="win"', {
           'resource_include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/content/app/strings',
@@ -272,6 +265,7 @@
         ['OS=="linux"', {
           'dependencies': [
             '../build/linux/system.gyp:fontconfig',
+            '../third_party/freetype2/freetype2.gyp:freetype2',
           ],
         }],
         ['use_x11 == 1', {
@@ -291,10 +285,9 @@
             '../components/components.gyp:breakpad_host',
           ],
         }],
-        ['(OS=="linux" or OS=="android") and use_allocator!="none"', {
-          'dependencies': [
-            # This is needed by content/app/content_main_runner.cc
-            '../base/allocator/allocator.gyp:allocator',
+        ['debug_devtools==1', {
+          'defines': [
+            'DEBUG_DEVTOOLS=1',
           ],
         }],
         ['use_aura==1', {
@@ -332,11 +325,6 @@
             '../ui/wm/wm.gyp:wm_test_support',
            ],
         }], # chromeos==1
-        ['use_custom_freetype==1', {
-          'dependencies': [
-             '../third_party/freetype2/freetype2.gyp:freetype2',
-          ],
-        }],
         ['enable_plugins==0', {
           'sources!': [
             'shell/browser/shell_plugin_service_filter.cc',
@@ -477,11 +465,6 @@
         },
       },
       'conditions': [
-        ['OS=="win" and win_use_allocator_shim==1', {
-          'dependencies': [
-            '../base/allocator/allocator.gyp:allocator',
-          ],
-        }],
         ['OS=="win"', {
           'sources': [
             'shell/app/shell.rc',
@@ -495,19 +478,21 @@
               },
             },
           },
-        }],  # OS=="win"
-        ['OS == "win"', {
           'dependencies': [
             '../sandbox/sandbox.gyp:sandbox',
           ],
+          'conditions': [
+            ['win_console_app==1', {
+              'defines': ['WIN_CONSOLE_APP'],
+            }, { # else win_console_app==0
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'SubSystem': '2',  # Set /SUBSYSTEM:WINDOWS
+                },
+              },
+            }],
+          ],
         }],  # OS=="win"
-        ['OS=="win" and asan==0', {
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '2',  # Set /SUBSYSTEM:WINDOWS
-            },
-          },
-        }],  # OS=="win" and asan==0
         ['OS=="mac"', {
           'product_name': '<(content_shell_product_name)',
           'dependencies!': [
@@ -568,7 +553,6 @@
           'sources': [
             'shell/tools/plugin/PluginObject.cpp',
             'shell/tools/plugin/PluginObject.h',
-            'shell/tools/plugin/PluginObjectMac.mm',
             'shell/tools/plugin/PluginTest.cpp',
             'shell/tools/plugin/PluginTest.h',
             'shell/tools/plugin/TestObject.cpp',
@@ -819,6 +803,126 @@
         },  # target content_shell_helper_app
       ],
     }],  # OS=="mac"
+    ['OS=="android"', {
+      'targets': [
+        {
+          # TODO(jrg): Update this action and other jni generators to only
+          # require specifying the java directory and generate the rest.
+          'target_name': 'content_shell_jni_headers',
+          'type': 'none',
+          'sources': [
+            'shell/android/java/src/org/chromium/content_shell/ShellLayoutTestUtils.java',
+            'shell/android/java/src/org/chromium/content_shell/ShellMojoTestUtils.java',
+            'shell/android/java/src/org/chromium/content_shell/ShellManager.java',
+            'shell/android/java/src/org/chromium/content_shell/Shell.java',
+          ],
+          'variables': {
+            'jni_gen_package': 'content/shell',
+          },
+          'includes': [ '../build/jni_generator.gypi' ],
+        },
+        {
+          'target_name': 'libcontent_shell_content_view',
+          'type': 'shared_library',
+          'dependencies': [
+            'content_shell_jni_headers',
+            'content_shell_lib',
+            'content_shell_pak',
+            # Skia is necessary to ensure the dependencies needed by
+            # WebContents are included.
+            '../skia/skia.gyp:skia',
+            '<(DEPTH)/media/media.gyp:player_android',
+          ],
+          'sources': [
+            'shell/android/shell_library_loader.cc',
+          ],
+        },
+        {
+          'target_name': 'content_shell_java',
+          'type': 'none',
+          'dependencies': [
+            'content.gyp:content_java',
+          ],
+          'variables': {
+            'java_in_dir': '../content/shell/android/java',
+            'has_java_resources': 1,
+            'R_package': 'org.chromium.content_shell',
+            'R_package_relpath': 'org/chromium/content_shell',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+        {
+          # content_shell_apk creates a .jar as a side effect. Any java targets
+          # that need that .jar in their classpath should depend on this target,
+          # content_shell_apk_java. Dependents of content_shell_apk receive its
+          # jar path in the variable 'apk_output_jar_path'. This target should
+          # only be used by targets which instrument content_shell_apk.
+          'target_name': 'content_shell_apk_java',
+          'type': 'none',
+          'dependencies': [
+            'content_shell_apk',
+          ],
+          'includes': [ '../build/apk_fake_jar.gypi' ],
+        },
+        {
+          # GN version: //content/shell/android:content_shell_manifest
+          'target_name': 'content_shell_manifest',
+          'type': 'none',
+          'variables': {
+            'jinja_inputs': ['shell/android/shell_apk/AndroidManifest.xml.jinja2'],
+            'jinja_output': '<(SHARED_INTERMEDIATE_DIR)/content_shell_manifest/AndroidManifest.xml',
+          },
+          'includes': [ '../build/android/jinja_template.gypi' ],
+        },
+        {
+          # GN version: //content/shell/android:content_shell_apk
+          'target_name': 'content_shell_apk',
+          'type': 'none',
+          'dependencies': [
+            'content.gyp:content_shell_assets_copy',
+            'content.gyp:content_java',
+            'content_java_test_support',
+            'content_shell_java',
+            'libcontent_shell_content_view',
+            '../base/base.gyp:base_java',
+            '../media/media.gyp:media_java',
+            '../net/net.gyp:net_java',
+            '../third_party/mesa/mesa.gyp:osmesa_in_lib_dir',
+            '../tools/android/forwarder/forwarder.gyp:forwarder',
+            '../tools/imagediff/image_diff.gyp:image_diff#host',
+            '../ui/android/ui_android.gyp:ui_java',
+          ],
+          'variables': {
+            'apk_name': 'ContentShell',
+            'manifest_package_name': 'org.chromium.content_shell_apk',
+            'android_manifest_path': '<(SHARED_INTERMEDIATE_DIR)/content_shell_manifest/AndroidManifest.xml',
+            'java_in_dir': 'shell/android/shell_apk',
+            'resource_dir': 'shell/android/shell_apk/res',
+            'native_lib_target': 'libcontent_shell_content_view',
+            'additional_input_paths': ['<(asset_location)/content_shell.pak'],
+            'asset_location': '<(PRODUCT_DIR)/content_shell/assets',
+            'extra_native_libs': ['<(SHARED_LIB_DIR)/libosmesa.so'],
+            'conditions': [
+              ['icu_use_data_file_flag==1', {
+                'additional_input_paths': [
+                  '<(asset_location)/icudtl.dat',
+                ],
+              }],
+              ['v8_use_external_startup_data==1', {
+                'additional_input_paths': [
+                  '<(asset_location)/natives_blob_<(arch_suffix).bin',
+                  '<(asset_location)/snapshot_blob_<(arch_suffix).bin',
+                ],
+              }],
+            ],
+          },
+          'includes': [
+            '../build/android/v8_external_startup_data_arch_suffix.gypi',
+            '../build/java_apk.gypi',
+          ],
+        },
+      ],
+    }],  # OS=="android"
     ['OS=="win"', {
       'targets': [
         {

@@ -20,6 +20,7 @@
 #include "webrtc/base/helpers.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/base/messagedigest.h"
+#include "webrtc/base/network.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/stringencode.h"
 #include "webrtc/base/stringutils.h"
@@ -120,12 +121,12 @@ const char TCPTYPE_SIMOPEN_STR[] = "so";
 //   then the foundation will be different.  Two candidate pairs with
 //   the same foundation pairs are likely to have similar network
 //   characteristics.  Foundations are used in the frozen algorithm.
-static std::string ComputeFoundation(
-    const std::string& type,
-    const std::string& protocol,
-    const rtc::SocketAddress& base_address) {
+static std::string ComputeFoundation(const std::string& type,
+                                     const std::string& protocol,
+                                     const std::string& relay_protocol,
+                                     const rtc::SocketAddress& base_address) {
   std::ostringstream ost;
-  ost << type << base_address.ipaddr().ToString() << protocol;
+  ost << type << base_address.ipaddr().ToString() << protocol << relay_protocol;
   return rtc::ToString<uint32_t>(rtc::ComputeCrc32(ost.str()));
 }
 
@@ -195,6 +196,11 @@ void Port::Construct() {
     ice_username_fragment_ = rtc::CreateRandomString(ICE_UFRAG_LENGTH);
     password_ = rtc::CreateRandomString(ICE_PWD_LENGTH);
   }
+  network_->SignalInactive.connect(this, &Port::OnNetworkInactive);
+  // TODO(honghaiz): Make it configurable from user setting.
+  network_cost_ =
+      (network_->type() == rtc::ADAPTER_TYPE_CELLULAR) ? kMaxNetworkCost : 0;
+
   LOG_J(LS_INFO, this) << "Port created";
 }
 
@@ -250,9 +256,11 @@ void Port::AddAddress(const rtc::SocketAddress& address,
   c.set_password(password_);
   c.set_network_name(network_->name());
   c.set_network_type(network_->type());
+  c.set_network_cost(network_cost_);
   c.set_generation(generation_);
   c.set_related_address(related_address);
-  c.set_foundation(ComputeFoundation(type, protocol, base_address));
+  c.set_foundation(
+      ComputeFoundation(type, protocol, relay_protocol, base_address));
   candidates_.push_back(c);
   SignalCandidateReady(this, c);
 
@@ -627,11 +635,16 @@ void Port::OnMessage(rtc::Message *pmsg) {
   }
 }
 
+void Port::OnNetworkInactive(const rtc::Network* network) {
+  ASSERT(network == network_);
+  SignalNetworkInactive(this);
+}
+
 std::string Port::ToString() const {
   std::stringstream ss;
-  ss << "Port[" << content_name_ << ":" << component_
-     << ":" << generation_ << ":" << type_
-     << ":" << network_->ToString() << "]";
+  ss << "Port[" << std::hex << this << std::dec << ":" << content_name_ << ":"
+     << component_ << ":" << generation_ << ":" << type_ << ":"
+     << network_->ToString() << "]";
   return ss.str();
 }
 
@@ -690,6 +703,11 @@ class ConnectionRequest : public StunRequest {
           STUN_ATTR_RETRANSMIT_COUNT,
           static_cast<uint32_t>(connection_->pings_since_last_response_.size() -
                                 1)));
+    }
+    uint32_t network_cost = connection_->port()->network_cost();
+    if (network_cost > 0) {
+      request->AddAttribute(
+          new StunUInt32Attribute(STUN_ATTR_NETWORK_COST, network_cost));
     }
 
     // Adding ICE_CONTROLLED or ICE_CONTROLLING attribute based on the role.
@@ -1150,6 +1168,11 @@ std::string Connection::ToDebugId() const {
   return ss.str();
 }
 
+uint32_t Connection::ComputeNetworkCost() const {
+  // TODO(honghaiz): Will add rtt as part of the network cost.
+  return local_candidate().network_cost() + remote_candidate_.network_cost();
+}
+
 std::string Connection::ToString() const {
   const char CONNECT_STATE_ABBREV[2] = {
     '-',  // not connected (false)
@@ -1388,10 +1411,11 @@ void Connection::MaybeAddPrflxCandidate(ConnectionRequest* request,
   new_local_candidate.set_password(local_candidate().password());
   new_local_candidate.set_network_name(local_candidate().network_name());
   new_local_candidate.set_network_type(local_candidate().network_type());
+  new_local_candidate.set_network_cost(local_candidate().network_cost());
   new_local_candidate.set_related_address(local_candidate().address());
-  new_local_candidate.set_foundation(
-      ComputeFoundation(PRFLX_PORT_TYPE, local_candidate().protocol(),
-                        local_candidate().address()));
+  new_local_candidate.set_foundation(ComputeFoundation(
+      PRFLX_PORT_TYPE, local_candidate().protocol(),
+      local_candidate().relay_protocol(), local_candidate().address()));
 
   // Change the local candidate of this Connection to the new prflx candidate.
   local_candidate_index_ = port_->AddPrflxCandidate(new_local_candidate);

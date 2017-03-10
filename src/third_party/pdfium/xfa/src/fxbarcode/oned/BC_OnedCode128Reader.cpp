@@ -22,11 +22,12 @@
 
 #include <algorithm>
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_OneDReader.h"
-#include "BC_OnedCode128Reader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedCode128Reader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 const int32_t CBC_OnedCode128Reader::CODE_PATTERNS[107][7] = {
     {2, 1, 2, 2, 2, 2, 0}, {2, 2, 2, 1, 2, 2, 0}, {2, 2, 2, 2, 2, 1, 0},
     {1, 2, 1, 2, 2, 3, 0}, {1, 2, 1, 3, 2, 2, 0}, {1, 3, 1, 2, 2, 2, 0},
@@ -189,7 +190,7 @@ CFX_ByteString CBC_OnedCode128Reader::DecodeRow(int32_t rowNumber,
       codeSet = CODE_CODE_C;
       break;
     default:
-      if (startPatternInfo != NULL) {
+      if (startPatternInfo) {
         startPatternInfo->RemoveAll();
         delete startPatternInfo;
         startPatternInfo = NULL;
@@ -202,7 +203,7 @@ CFX_ByteString CBC_OnedCode128Reader::DecodeRow(int32_t rowNumber,
   CFX_ByteString result;
   int32_t lastStart = (*startPatternInfo)[0];
   int32_t nextStart = (*startPatternInfo)[1];
-  if (startPatternInfo != NULL) {
+  if (startPatternInfo) {
     startPatternInfo->RemoveAll();
     delete startPatternInfo;
     startPatternInfo = NULL;

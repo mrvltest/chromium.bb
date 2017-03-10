@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_FINDERPATTERNINFO_H_
-#define _BC_FINDERPATTERNINFO_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_FINDERPATTERNINFO_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_FINDERPATTERNINFO_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_QRFinderPattern;
+
 class CBC_QRFinderPatternInfo {
  private:
   CBC_QRFinderPattern* m_bottomLeft;
@@ -20,4 +24,5 @@ class CBC_QRFinderPatternInfo {
   CBC_QRFinderPattern* GetTopLeft();
   CBC_QRFinderPattern* GetTopRight();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_FINDERPATTERNINFO_H_

@@ -5,7 +5,7 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "core/include/fpdfdoc/fpdf_doc.h"
-#include "doc_utils.h"
+#include "core/src/fpdfdoc/doc_utils.h"
 
 FX_BOOL PDF_FormField_IsUnison(CPDF_FormField* pField) {
   FX_BOOL bUnison = FALSE;
@@ -102,10 +102,6 @@ FX_BOOL CPDF_FormField::ResetField(FX_BOOL bNotify) {
   switch (m_Type) {
     case CPDF_FormField::CheckBox:
     case CPDF_FormField::RadioButton: {
-      CFX_ByteArray statusArray;
-      if (bNotify && m_pForm->m_pFormNotify) {
-        SaveCheckedFieldStatus(this, statusArray);
-      }
       int iCount = CountControls();
       if (iCount) {
         if (PDF_FormField_IsUnison(this)) {
@@ -121,7 +117,7 @@ FX_BOOL CPDF_FormField::ResetField(FX_BOOL bNotify) {
         }
       }
       if (bNotify && m_pForm->m_pFormNotify) {
-        m_pForm->m_pFormNotify->AfterCheckedStatusChange(this, statusArray);
+        m_pForm->m_pFormNotify->AfterCheckedStatusChange(this);
       }
     } break;
     case CPDF_FormField::ComboBox: {
@@ -300,13 +296,15 @@ CFX_WideString CPDF_FormField::GetValue(FX_BOOL bDefault) {
     }
   }
   switch (pValue->GetType()) {
-    case PDFOBJ_STRING:
-    case PDFOBJ_STREAM:
+    case CPDF_Object::STRING:
+    case CPDF_Object::STREAM:
       return pValue->GetUnicodeText();
-    case PDFOBJ_ARRAY:
+    case CPDF_Object::ARRAY:
       pValue = pValue->AsArray()->GetElementValue(0);
       if (pValue)
         return pValue->GetUnicodeText();
+      break;
+    default:
       break;
   }
   return CFX_WideString();
@@ -406,7 +404,7 @@ int CPDF_FormField::GetMaxLen() {
 
     CPDF_Dictionary* pWidgetDict = pControl->m_pWidgetDict;
     if (pWidgetDict->KeyExist("MaxLen"))
-      return pWidgetDict->GetInteger("MaxLen");
+      return pWidgetDict->GetIntegerBy("MaxLen");
   }
   return 0;
 }
@@ -803,8 +801,8 @@ FX_BOOL CPDF_FormField::ClearOptions(FX_BOOL bNotify) {
 }
 #endif  // PDF_ENABLE_XFA
 FX_BOOL CPDF_FormField::CheckControl(int iControlIndex,
-                                     FX_BOOL bChecked,
-                                     FX_BOOL bNotify) {
+                                     bool bChecked,
+                                     bool bNotify) {
   ASSERT(GetType() == CheckBox || GetType() == RadioButton);
   CPDF_FormControl* pControl = GetControl(iControlIndex);
   if (!pControl) {
@@ -812,10 +810,6 @@ FX_BOOL CPDF_FormField::CheckControl(int iControlIndex,
   }
   if (!bChecked && pControl->IsChecked() == bChecked) {
     return FALSE;
-  }
-  CFX_ByteArray statusArray;
-  if (bNotify && m_pForm->m_pFormNotify) {
-    SaveCheckedFieldStatus(this, statusArray);
   }
   CFX_WideString csWExport = pControl->GetExportValue();
   CFX_ByteString csBExport = PDF_EncodeText(csWExport);
@@ -862,7 +856,7 @@ FX_BOOL CPDF_FormField::CheckControl(int iControlIndex,
     m_pDict->SetAtName("V", csIndex);
   }
   if (bNotify && m_pForm->m_pFormNotify) {
-    m_pForm->m_pFormNotify->AfterCheckedStatusChange(this, statusArray);
+    m_pForm->m_pFormNotify->AfterCheckedStatusChange(this);
   }
   m_pForm->m_bUpdated = TRUE;
   return TRUE;
@@ -890,10 +884,6 @@ FX_BOOL CPDF_FormField::SetCheckValue(const CFX_WideString& value,
                                       FX_BOOL bDefault,
                                       FX_BOOL bNotify) {
   ASSERT(GetType() == CheckBox || GetType() == RadioButton);
-  CFX_ByteArray statusArray;
-  if (bNotify && m_pForm->m_pFormNotify) {
-    SaveCheckedFieldStatus(this, statusArray);
-  }
   int iCount = CountControls();
   for (int i = 0; i < iCount; i++) {
     CPDF_FormControl* pControl = GetControl(i);
@@ -912,7 +902,7 @@ FX_BOOL CPDF_FormField::SetCheckValue(const CFX_WideString& value,
     }
   }
   if (bNotify && m_pForm->m_pFormNotify) {
-    m_pForm->m_pFormNotify->AfterCheckedStatusChange(this, statusArray);
+    m_pForm->m_pFormNotify->AfterCheckedStatusChange(this);
   }
   m_pForm->m_bUpdated = TRUE;
   return TRUE;
@@ -946,7 +936,7 @@ int CPDF_FormField::GetSelectedOptionIndex(int index) {
   }
   int iCount = (int)pArray->GetCount();
   if (iCount > 0 && index < iCount) {
-    return pArray->GetInteger(index);
+    return pArray->GetIntegerAt(index);
   }
   return -1;
 }
@@ -961,7 +951,7 @@ FX_BOOL CPDF_FormField::IsOptionSelected(int iOptIndex) {
   }
   int iCount = (int)pArray->GetCount();
   for (int i = 0; i < iCount; i++) {
-    if (pArray->GetInteger(i) == iOptIndex) {
+    if (pArray->GetIntegerAt(i) == iOptIndex) {
       return TRUE;
     }
   }
@@ -970,7 +960,7 @@ FX_BOOL CPDF_FormField::IsOptionSelected(int iOptIndex) {
 FX_BOOL CPDF_FormField::SelectOption(int iOptIndex,
                                      FX_BOOL bSelected,
                                      FX_BOOL bNotify) {
-  CPDF_Array* pArray = m_pDict->GetArray("I");
+  CPDF_Array* pArray = m_pDict->GetArrayBy("I");
   if (!pArray) {
     if (!bSelected) {
       return TRUE;
@@ -980,7 +970,7 @@ FX_BOOL CPDF_FormField::SelectOption(int iOptIndex,
   }
   FX_BOOL bReturn = FALSE;
   for (int i = 0; i < (int)pArray->GetCount(); i++) {
-    int iFind = pArray->GetInteger(i);
+    int iFind = pArray->GetIntegerAt(i);
     if (iFind == iOptIndex) {
       if (bSelected) {
         return TRUE;
@@ -1079,19 +1069,20 @@ void CPDF_FormField::LoadDA() {
     DA = pObj_t->GetString();
   }
   if (DA.IsEmpty() && m_pForm->m_pFormDict) {
-    DA = m_pForm->m_pFormDict->GetString("DA");
+    DA = m_pForm->m_pFormDict->GetStringBy("DA");
   }
   if (DA.IsEmpty()) {
     return;
   }
   CPDF_SimpleParser syntax(DA);
-  syntax.FindTagParam("Tf", 2);
+  syntax.FindTagParamFromStart("Tf", 2);
   CFX_ByteString font_name = syntax.GetWord();
   CPDF_Dictionary* pFontDict = NULL;
-  if (m_pForm->m_pFormDict && m_pForm->m_pFormDict->GetDict("DR") &&
-      m_pForm->m_pFormDict->GetDict("DR")->GetDict("Font"))
-    pFontDict = m_pForm->m_pFormDict->GetDict("DR")->GetDict("Font")->GetDict(
-        font_name);
+  if (m_pForm->m_pFormDict && m_pForm->m_pFormDict->GetDictBy("DR") &&
+      m_pForm->m_pFormDict->GetDictBy("DR")->GetDictBy("Font"))
+    pFontDict = m_pForm->m_pFormDict->GetDictBy("DR")
+                    ->GetDictBy("Font")
+                    ->GetDictBy(font_name);
 
   if (!pFontDict) {
     return;

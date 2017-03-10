@@ -16,7 +16,6 @@
 #include "libANGLE/Framebuffer.h"
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/renderer/d3d/BufferD3D.h"
-#include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/DeviceD3D.h"
 #include "libANGLE/renderer/d3d/DisplayD3D.h"
 #include "libANGLE/renderer/d3d/IndexDataManager.h"
@@ -38,14 +37,14 @@ const int ScratchMemoryBufferLifetime = 1000;
 
 }  // anonymous namespace
 
-const uintptr_t RendererD3D::DirtyPointer = std::numeric_limits<uintptr_t>::max();
-
 RendererD3D::RendererD3D(egl::Display *display)
     : mDisplay(display),
       mDeviceLost(false),
       mAnnotator(nullptr),
+      mPresentPathFastEnabled(false),
       mScratchMemoryBufferResetCounter(0),
-      mWorkaroundsInitialized(false)
+      mWorkaroundsInitialized(false),
+      mDisjoint(false)
 {
 }
 
@@ -68,11 +67,6 @@ void RendererD3D::cleanup()
         gl::UninitializeDebugAnnotations();
         SafeDelete(mAnnotator);
     }
-}
-
-CompilerImpl *RendererD3D::createCompiler()
-{
-    return new CompilerD3D(getRendererClass());
 }
 
 SamplerImpl *RendererD3D::createSampler()
@@ -162,9 +156,7 @@ gl::Error RendererD3D::genericDrawElements(const gl::Data &data,
     TranslatedIndexData indexInfo;
     indexInfo.indexRange = indexRange;
 
-    SourceIndexData sourceIndexInfo;
-
-    error = applyIndexBuffer(data, indices, count, mode, type, &indexInfo, &sourceIndexInfo);
+    error = applyIndexBuffer(data, indices, count, mode, type, &indexInfo);
     if (error.isError())
     {
         return error;
@@ -177,19 +169,19 @@ gl::Error RendererD3D::genericDrawElements(const gl::Data &data,
 
     size_t vertexCount = indexInfo.indexRange.vertexCount();
     error = applyVertexBuffer(*data.state, mode, static_cast<GLsizei>(indexInfo.indexRange.start),
-                              static_cast<GLsizei>(vertexCount), instances, &sourceIndexInfo);
-    if (error.isError())
-    {
-        return error;
-    }
-
-    error = applyShaders(data, mode);
+                              static_cast<GLsizei>(vertexCount), instances, &indexInfo);
     if (error.isError())
     {
         return error;
     }
 
     error = applyTextures(data);
+    if (error.isError())
+    {
+        return error;
+    }
+
+    error = applyShaders(data, mode);
     if (error.isError())
     {
         return error;
@@ -251,13 +243,13 @@ gl::Error RendererD3D::genericDrawArrays(const gl::Data &data,
         return error;
     }
 
-    error = applyShaders(data, mode);
+    error = applyTextures(data);
     if (error.isError())
     {
         return error;
     }
 
-    error = applyTextures(data);
+    error = applyShaders(data, mode);
     if (error.isError())
     {
         return error;
@@ -290,7 +282,7 @@ gl::Error RendererD3D::generateSwizzles(const gl::Data &data, gl::SamplerType ty
 {
     ProgramD3D *programD3D = GetImplAs<ProgramD3D>(data.state->getProgram());
 
-    unsigned int samplerRange = static_cast<unsigned int>(programD3D->getUsedSamplerRange(type));
+    unsigned int samplerRange = programD3D->getUsedSamplerRange(type);
 
     for (unsigned int i = 0; i < samplerRange; i++)
     {
@@ -386,10 +378,13 @@ gl::Error RendererD3D::applyShaders(const gl::Data &data, GLenum drawMode)
 // For each Direct3D sampler of either the pixel or vertex stage,
 // looks up the corresponding OpenGL texture image unit and texture type,
 // and sets the texture and its addressing/filtering state (or NULL when inactive).
+// Sampler mapping needs to be up-to-date on the program object before this is called.
 gl::Error RendererD3D::applyTextures(const gl::Data &data, gl::SamplerType shaderType,
                                      const FramebufferTextureArray &framebufferTextures, size_t framebufferTextureCount)
 {
     ProgramD3D *programD3D = GetImplAs<ProgramD3D>(data.state->getProgram());
+
+    ASSERT(!programD3D->isSamplerMappingDirty());
 
     unsigned int samplerRange = programD3D->getUsedSamplerRange(shaderType);
     for (unsigned int samplerIndex = 0; samplerIndex < samplerRange; samplerIndex++)
@@ -666,6 +661,31 @@ void RendererD3D::pushGroupMarker(GLsizei length, const char *marker)
 void RendererD3D::popGroupMarker()
 {
     getAnnotator()->endEvent();
+}
+
+void RendererD3D::setGPUDisjoint()
+{
+    mDisjoint = true;
+}
+
+GLint RendererD3D::getGPUDisjoint()
+{
+    bool disjoint = mDisjoint;
+
+    // Disjoint flag is cleared when read
+    mDisjoint = false;
+
+    return disjoint;
+}
+
+GLint64 RendererD3D::getTimestamp()
+{
+    // D3D has no way to get an actual timestamp reliably so 0 is returned
+    return 0;
+}
+
+void RendererD3D::onMakeCurrent(const gl::Data &data)
+{
 }
 
 void RendererD3D::initializeDebugAnnotator()

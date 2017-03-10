@@ -5,13 +5,13 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffdraw.h"
-#include "xfa_ffpath.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdraw.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpath.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+
 CXFA_FFLine::CXFA_FFLine(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFDraw(pPageView, pDataAcc) {}
 CXFA_FFLine::~CXFA_FFLine() {}
@@ -65,7 +65,7 @@ void CXFA_FFLine::RenderWidget(CFX_Graphics* pGS,
   FX_BOOL bSlope = lineObj.GetSlop();
   int32_t iCap = 0;
   CXFA_Edge edge = lineObj.GetEdge();
-  if (edge.IsExistInXML()) {
+  if (edge) {
     if (edge.GetPresence() != XFA_ATTRIBUTEENUM_Visible) {
       return;
     }

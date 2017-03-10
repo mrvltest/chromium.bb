@@ -8,7 +8,7 @@
 
 #include "core/include/fxcrt/fx_xml.h"
 #include "xfa/src/fgas/src/fgas_base.h"
-#include "fx_localeimp.h"
+#include "xfa/src/fgas/src/localization/fx_localeimp.h"
 
 #define FX_LOCALECATEGORY_DateHash 0xbde9abde
 #define FX_LOCALECATEGORY_TimeHash 0x2d71b00f
@@ -17,47 +17,50 @@
 #define FX_LOCALECATEGORY_TextHash 0x2d08af85
 #define FX_LOCALECATEGORY_ZeroHash 0x568cb500
 #define FX_LOCALECATEGORY_NullHash 0x052931bb
-typedef struct _FX_LOCALESUBCATEGORYINFO {
+
+struct FX_LOCALESUBCATEGORYINFO {
   uint32_t uHash;
   const FX_WCHAR* pName;
   int32_t eSubCategory;
-} FX_LOCALESUBCATEGORYINFO, *FX_LPLOCALESUBCATEGORYINFO;
-typedef FX_LOCALESUBCATEGORYINFO const* FX_LPCLOCALESUBCATEGORYINFO;
-const static FX_LOCALESUBCATEGORYINFO g_FXLocaleDateTimeSubCatData[] = {
+};
+
+static const FX_LOCALESUBCATEGORYINFO g_FXLocaleDateTimeSubCatData[] = {
     {0x14da2125, L"default", FX_LOCALEDATETIMESUBCATEGORY_Default},
     {0x9041d4b0, L"short", FX_LOCALEDATETIMESUBCATEGORY_Short},
     {0xa084a381, L"medium", FX_LOCALEDATETIMESUBCATEGORY_Medium},
     {0xcdce56b3, L"full", FX_LOCALEDATETIMESUBCATEGORY_Full},
     {0xf6b4afb0, L"long", FX_LOCALEDATETIMESUBCATEGORY_Long},
 };
-const static int32_t g_iFXLocaleDateTimeSubCatCount =
+static const int32_t g_iFXLocaleDateTimeSubCatCount =
     sizeof(g_FXLocaleDateTimeSubCatData) / sizeof(FX_LOCALESUBCATEGORYINFO);
-const static FX_LOCALESUBCATEGORYINFO g_FXLocaleNumSubCatData[] = {
+
+static const FX_LOCALESUBCATEGORYINFO g_FXLocaleNumSubCatData[] = {
     {0x46f95531, L"percent", FX_LOCALENUMPATTERN_Percent},
     {0x4c4e8acb, L"currency", FX_LOCALENUMPATTERN_Currency},
     {0x54034c2f, L"decimal", FX_LOCALENUMPATTERN_Decimal},
     {0x7568e6ae, L"integer", FX_LOCALENUMPATTERN_Integer},
 };
-const static int32_t g_iFXLocaleNumSubCatCount =
+static const int32_t g_iFXLocaleNumSubCatCount =
     sizeof(g_FXLocaleNumSubCatData) / sizeof(FX_LOCALESUBCATEGORYINFO);
-typedef struct _FX_LOCALETIMEZONEINFO {
+
+struct FX_LOCALETIMEZONEINFO {
   FX_DWORD uHash;
   int16_t iHour;
   int16_t iMinute;
-} FX_LOCALETIMEZONEINFO, *FX_LPLOCALETIMEZONEINFO;
-typedef FX_LOCALETIMEZONEINFO const* FX_LPCLOCALETIMEZONEINFO;
-const static FX_LOCALETIMEZONEINFO g_FXLocaleTimeZoneData[] = {
+};
+
+static const FX_LOCALETIMEZONEINFO g_FXLocaleTimeZoneData[] = {
     {FXBSTR_ID(0, 'C', 'D', 'T'), -5, 0}, {FXBSTR_ID(0, 'C', 'S', 'T'), -6, 0},
     {FXBSTR_ID(0, 'E', 'D', 'T'), -4, 0}, {FXBSTR_ID(0, 'E', 'S', 'T'), -5, 0},
     {FXBSTR_ID(0, 'M', 'D', 'T'), -6, 0}, {FXBSTR_ID(0, 'M', 'S', 'T'), -7, 0},
     {FXBSTR_ID(0, 'P', 'D', 'T'), -7, 0}, {FXBSTR_ID(0, 'P', 'S', 'T'), -8, 0},
 };
-const static int32_t g_iFXLocaleTimeZoneCount =
-    sizeof(g_FXLocaleTimeZoneData) / sizeof(FX_LOCALETIMEZONEINFO);
-const static CFX_WideStringC gs_wsTextSymbols = FX_WSTRC(L"AXO09");
-const static CFX_WideStringC gs_wsTimeSymbols = FX_WSTRC(L"hHkKMSFAzZ");
-const static CFX_WideStringC gs_wsDateSymbols = FX_WSTRC(L"DJMEeGgYwW");
-const static CFX_WideStringC gs_wsConstChars = FX_WSTRC(L",-:/. ");
+
+static const CFX_WideStringC gs_wsTextSymbols = FX_WSTRC(L"AXO09");
+static const CFX_WideStringC gs_wsTimeSymbols = FX_WSTRC(L"hHkKMSFAzZ");
+static const CFX_WideStringC gs_wsDateSymbols = FX_WSTRC(L"DJMEeGgYwW");
+static const CFX_WideStringC gs_wsConstChars = FX_WSTRC(L",-:/. ");
+
 static FX_STRSIZE FX_Local_Find(const CFX_WideStringC& wsSymbols,
                                 FX_WCHAR ch,
                                 FX_STRSIZE nStart = 0) {
@@ -2766,21 +2769,13 @@ static FX_BOOL FX_ParseLocaleTime(const CFX_WideString& wsTime,
         }
         FX_ResolveZone(hour, minute, tzDiff, pLocale);
       } else {
-        FX_LPCLOCALETIMEZONEINFO pTimeZoneInfo = NULL;
-        int32_t iStart = 0, iEnd = g_iFXLocaleTimeZoneCount - 1;
-        do {
-          int32_t iMid = (iStart + iEnd) / 2;
-          FX_LPCLOCALETIMEZONEINFO pInfo = g_FXLocaleTimeZoneData + iMid;
-          if (dwHash == pInfo->uHash) {
-            pTimeZoneInfo = pInfo;
-            break;
-          } else if (dwHash < pInfo->uHash) {
-            iEnd = iMid - 1;
-          } else {
-            iStart = iMid + 1;
-          }
-        } while (iStart <= iEnd);
-        if (pTimeZoneInfo) {
+        const FX_LOCALETIMEZONEINFO* pEnd =
+            g_FXLocaleTimeZoneData + FX_ArraySize(g_FXLocaleTimeZoneData);
+        const FX_LOCALETIMEZONEINFO* pTimeZoneInfo =
+            std::lower_bound(g_FXLocaleTimeZoneData, pEnd, dwHash,
+                             [](const FX_LOCALETIMEZONEINFO& info,
+                                FX_DWORD hash) { return info.uHash < hash; });
+        if (pTimeZoneInfo < pEnd && dwHash == pTimeZoneInfo->uHash) {
           hour += pTimeZoneInfo->iHour;
           minute += pTimeZoneInfo->iHour > 0 ? pTimeZoneInfo->iMinute
                                              : -pTimeZoneInfo->iMinute;
@@ -4828,11 +4823,11 @@ CFX_Decimal::CFX_Decimal(const CFX_WideStringC& strObj) {
   }
   m_uFlags = FXMATH_DECIMAL_MAKEFLAGS(negmet && IsNotZero(), scale);
 }
+
 CFX_Decimal::CFX_Decimal(const CFX_ByteStringC& strObj) {
-  CFX_WideString wstrObj;
-  wstrObj.ConvertFrom(strObj);
-  *this = CFX_Decimal(wstrObj);
+  *this = CFX_Decimal(CFX_WideString::FromLocal(strObj));
 }
+
 CFX_Decimal::operator CFX_WideString() const {
   CFX_WideString retString;
   CFX_WideString tmpbuf;

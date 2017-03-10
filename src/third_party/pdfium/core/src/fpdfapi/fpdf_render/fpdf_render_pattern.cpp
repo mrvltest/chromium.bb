@@ -4,7 +4,7 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "render_int.h"
+#include "core/src/fpdfapi/fpdf_render/render_int.h"
 
 #include "core/include/fpdfapi/fpdf_pageobj.h"
 #include "core/include/fpdfapi/fpdf_render.h"
@@ -20,32 +20,31 @@ static void DrawAxialShading(CFX_DIBitmap* pBitmap,
                              CPDF_ColorSpace* pCS,
                              int alpha) {
   ASSERT(pBitmap->GetFormat() == FXDIB_Argb);
-  CPDF_Array* pCoords = pDict->GetArray("Coords");
+  CPDF_Array* pCoords = pDict->GetArrayBy("Coords");
   if (!pCoords) {
     return;
   }
-  FX_FLOAT start_x = pCoords->GetNumber(0);
-  FX_FLOAT start_y = pCoords->GetNumber(1);
-  FX_FLOAT end_x = pCoords->GetNumber(2);
-  FX_FLOAT end_y = pCoords->GetNumber(3);
+  FX_FLOAT start_x = pCoords->GetNumberAt(0);
+  FX_FLOAT start_y = pCoords->GetNumberAt(1);
+  FX_FLOAT end_x = pCoords->GetNumberAt(2);
+  FX_FLOAT end_y = pCoords->GetNumberAt(3);
   FX_FLOAT t_min = 0, t_max = 1.0f;
-  CPDF_Array* pArray = pDict->GetArray("Domain");
+  CPDF_Array* pArray = pDict->GetArrayBy("Domain");
   if (pArray) {
-    t_min = pArray->GetNumber(0);
-    t_max = pArray->GetNumber(1);
+    t_min = pArray->GetNumberAt(0);
+    t_max = pArray->GetNumberAt(1);
   }
   FX_BOOL bStartExtend = FALSE, bEndExtend = FALSE;
-  pArray = pDict->GetArray("Extend");
+  pArray = pDict->GetArrayBy("Extend");
   if (pArray) {
-    bStartExtend = pArray->GetInteger(0);
-    bEndExtend = pArray->GetInteger(1);
+    bStartExtend = pArray->GetIntegerAt(0);
+    bEndExtend = pArray->GetIntegerAt(1);
   }
   int width = pBitmap->GetWidth();
   int height = pBitmap->GetHeight();
   FX_FLOAT x_span = end_x - start_x;
   FX_FLOAT y_span = end_y - start_y;
-  FX_FLOAT axis_len_square =
-      FXSYS_Mul(x_span, x_span) + FXSYS_Mul(y_span, y_span);
+  FX_FLOAT axis_len_square = (x_span * x_span) + (y_span * y_span);
   CFX_Matrix matrix;
   matrix.SetReverse(*pObject2Bitmap);
   int total_results = 0;
@@ -84,9 +83,8 @@ static void DrawAxialShading(CFX_DIBitmap* pBitmap,
     for (int column = 0; column < width; column++) {
       FX_FLOAT x = (FX_FLOAT)column, y = (FX_FLOAT)row;
       matrix.Transform(x, y);
-      FX_FLOAT scale = FXSYS_Div(
-          FXSYS_Mul(x - start_x, x_span) + FXSYS_Mul(y - start_y, y_span),
-          axis_len_square);
+      FX_FLOAT scale = (((x - start_x) * x_span) + ((y - start_y) * y_span)) /
+                       axis_len_square;
       int index = (int32_t)(scale * (SHADING_STEPS - 1));
       if (index < 0) {
         if (!bStartExtend) {
@@ -111,29 +109,29 @@ static void DrawRadialShading(CFX_DIBitmap* pBitmap,
                               CPDF_ColorSpace* pCS,
                               int alpha) {
   ASSERT(pBitmap->GetFormat() == FXDIB_Argb);
-  CPDF_Array* pCoords = pDict->GetArray("Coords");
+  CPDF_Array* pCoords = pDict->GetArrayBy("Coords");
   if (!pCoords) {
     return;
   }
-  FX_FLOAT start_x = pCoords->GetNumber(0);
-  FX_FLOAT start_y = pCoords->GetNumber(1);
-  FX_FLOAT start_r = pCoords->GetNumber(2);
-  FX_FLOAT end_x = pCoords->GetNumber(3);
-  FX_FLOAT end_y = pCoords->GetNumber(4);
-  FX_FLOAT end_r = pCoords->GetNumber(5);
+  FX_FLOAT start_x = pCoords->GetNumberAt(0);
+  FX_FLOAT start_y = pCoords->GetNumberAt(1);
+  FX_FLOAT start_r = pCoords->GetNumberAt(2);
+  FX_FLOAT end_x = pCoords->GetNumberAt(3);
+  FX_FLOAT end_y = pCoords->GetNumberAt(4);
+  FX_FLOAT end_r = pCoords->GetNumberAt(5);
   CFX_Matrix matrix;
   matrix.SetReverse(*pObject2Bitmap);
   FX_FLOAT t_min = 0, t_max = 1.0f;
-  CPDF_Array* pArray = pDict->GetArray("Domain");
+  CPDF_Array* pArray = pDict->GetArrayBy("Domain");
   if (pArray) {
-    t_min = pArray->GetNumber(0);
-    t_max = pArray->GetNumber(1);
+    t_min = pArray->GetNumberAt(0);
+    t_max = pArray->GetNumberAt(1);
   }
   FX_BOOL bStartExtend = FALSE, bEndExtend = FALSE;
-  pArray = pDict->GetArray("Extend");
+  pArray = pDict->GetArrayBy("Extend");
   if (pArray) {
-    bStartExtend = pArray->GetInteger(0);
-    bEndExtend = pArray->GetInteger(1);
+    bStartExtend = pArray->GetIntegerAt(0);
+    bEndExtend = pArray->GetIntegerAt(1);
   }
   int total_results = 0;
   for (int j = 0; j < nFuncs; j++) {
@@ -165,16 +163,16 @@ static void DrawRadialShading(CFX_DIBitmap* pBitmap,
         FXARGB_TODIB(FXARGB_MAKE(alpha, FXSYS_round(R * 255),
                                  FXSYS_round(G * 255), FXSYS_round(B * 255)));
   }
-  FX_FLOAT a = FXSYS_Mul(start_x - end_x, start_x - end_x) +
-               FXSYS_Mul(start_y - end_y, start_y - end_y) -
-               FXSYS_Mul(start_r - end_r, start_r - end_r);
+  FX_FLOAT a = ((start_x - end_x) * (start_x - end_x)) +
+               ((start_y - end_y) * (start_y - end_y)) -
+               ((start_r - end_r) * (start_r - end_r));
   int width = pBitmap->GetWidth();
   int height = pBitmap->GetHeight();
   int pitch = pBitmap->GetPitch();
   FX_BOOL bDecreasing = FALSE;
   if (start_r > end_r) {
-    int length = (int)FXSYS_sqrt((FXSYS_Mul(start_x - end_x, start_x - end_x) +
-                                  FXSYS_Mul(start_y - end_y, start_y - end_y)));
+    int length = (int)FXSYS_sqrt((((start_x - end_x) * (start_x - end_x)) +
+                                  ((start_y - end_y) * (start_y - end_y))));
     if (length < start_r - end_r) {
       bDecreasing = TRUE;
     }
@@ -184,28 +182,27 @@ static void DrawRadialShading(CFX_DIBitmap* pBitmap,
     for (int column = 0; column < width; column++) {
       FX_FLOAT x = (FX_FLOAT)column, y = (FX_FLOAT)row;
       matrix.Transform(x, y);
-      FX_FLOAT b = -2 * (FXSYS_Mul(x - start_x, end_x - start_x) +
-                         FXSYS_Mul(y - start_y, end_y - start_y) +
-                         FXSYS_Mul(start_r, end_r - start_r));
-      FX_FLOAT c = FXSYS_Mul(x - start_x, x - start_x) +
-                   FXSYS_Mul(y - start_y, y - start_y) -
-                   FXSYS_Mul(start_r, start_r);
+      FX_FLOAT b = -2 * (((x - start_x) * (end_x - start_x)) +
+                         ((y - start_y) * (end_y - start_y)) +
+                         (start_r * (end_r - start_r)));
+      FX_FLOAT c = ((x - start_x) * (x - start_x)) +
+                   ((y - start_y) * (y - start_y)) - (start_r * start_r);
       FX_FLOAT s;
       if (a == 0) {
-        s = FXSYS_Div(-c, b);
+        s = -c / b;
       } else {
-        FX_FLOAT b2_4ac = FXSYS_Mul(b, b) - 4 * FXSYS_Mul(a, c);
+        FX_FLOAT b2_4ac = (b * b) - 4 * (a * c);
         if (b2_4ac < 0) {
           continue;
         }
         FX_FLOAT root = FXSYS_sqrt(b2_4ac);
         FX_FLOAT s1, s2;
         if (a > 0) {
-          s1 = FXSYS_Div(-b - root, 2 * a);
-          s2 = FXSYS_Div(-b + root, 2 * a);
+          s1 = (-b - root) / (2 * a);
+          s2 = (-b + root) / (2 * a);
         } else {
-          s2 = FXSYS_Div(-b - root, 2 * a);
-          s1 = FXSYS_Div(-b + root, 2 * a);
+          s2 = (-b - root) / (2 * a);
+          s1 = (-b + root) / (2 * a);
         }
         if (bDecreasing) {
           if (s1 >= 0 || bStartExtend) {
@@ -249,15 +246,15 @@ static void DrawFuncShading(CFX_DIBitmap* pBitmap,
                             CPDF_ColorSpace* pCS,
                             int alpha) {
   ASSERT(pBitmap->GetFormat() == FXDIB_Argb);
-  CPDF_Array* pDomain = pDict->GetArray("Domain");
+  CPDF_Array* pDomain = pDict->GetArrayBy("Domain");
   FX_FLOAT xmin = 0, ymin = 0, xmax = 1.0f, ymax = 1.0f;
   if (pDomain) {
-    xmin = pDomain->GetNumber(0);
-    xmax = pDomain->GetNumber(1);
-    ymin = pDomain->GetNumber(2);
-    ymax = pDomain->GetNumber(3);
+    xmin = pDomain->GetNumberAt(0);
+    xmax = pDomain->GetNumberAt(1);
+    ymin = pDomain->GetNumberAt(2);
+    ymax = pDomain->GetNumberAt(3);
   }
-  CFX_Matrix mtDomain2Target = pDict->GetMatrix("Matrix");
+  CFX_Matrix mtDomain2Target = pDict->GetMatrixBy("Matrix");
   CFX_Matrix matrix, reverse_matrix;
   matrix.SetReverse(*pObject2Bitmap);
   reverse_matrix.SetReverse(mtDomain2Target);
@@ -322,7 +319,7 @@ FX_BOOL _GetScanlineIntersect(int y,
       return FALSE;
     }
   }
-  x = x1 + FXSYS_MulDiv(x2 - x1, y - y1, y2 - y1);
+  x = x1 + ((x2 - x1) * (y - y1) / (y2 - y1));
   return TRUE;
 }
 static void DrawGouraud(CFX_DIBitmap* pBitmap,
@@ -358,15 +355,11 @@ static void DrawGouraud(CFX_DIBitmap* pBitmap,
       if (!bIntersect) {
         continue;
       }
-      r[nIntersects] =
-          vertex1.r + FXSYS_MulDiv(vertex2.r - vertex1.r, y - vertex1.y,
-                                   vertex2.y - vertex1.y);
-      g[nIntersects] =
-          vertex1.g + FXSYS_MulDiv(vertex2.g - vertex1.g, y - vertex1.y,
-                                   vertex2.y - vertex1.y);
-      b[nIntersects] =
-          vertex1.b + FXSYS_MulDiv(vertex2.b - vertex1.b, y - vertex1.y,
-                                   vertex2.y - vertex1.y);
+
+      FX_FLOAT y_dist = (y - vertex1.y) / (vertex2.y - vertex1.y);
+      r[nIntersects] = vertex1.r + ((vertex2.r - vertex1.r) * y_dist);
+      g[nIntersects] = vertex1.g + ((vertex2.g - vertex1.g) * y_dist);
+      b[nIntersects] = vertex1.b + ((vertex2.b - vertex1.b) * y_dist);
       nIntersects++;
     }
     if (nIntersects != 2) {
@@ -453,7 +446,7 @@ static void DrawLatticeGouraudShading(CFX_DIBitmap* pBitmap,
                                       int alpha) {
   ASSERT(pBitmap->GetFormat() == FXDIB_Argb);
 
-  int row_verts = pShadingStream->GetDict()->GetInteger("VerticesPerRow");
+  int row_verts = pShadingStream->GetDict()->GetIntegerBy("VerticesPerRow");
   if (row_verts < 2)
     return;
 
@@ -775,11 +768,7 @@ static void DrawCoonPatchMeshes(FX_BOOL bTensor,
   for (int i = 1; i < 13; i++) {
     pPoints[i].m_Flag = FXPT_BEZIERTO;
   }
-  CFX_FloatPoint coords[16];
-  for (int i = 0; i < 16; i++) {
-    coords[i].Set(0.0f, 0.0f);
-  }
-
+  CFX_PointF coords[16];
   int point_count = bTensor ? 16 : 12;
   while (!stream.m_BitStream.IsEOF()) {
     FX_DWORD flag = stream.GetFlag();
@@ -787,11 +776,11 @@ static void DrawCoonPatchMeshes(FX_BOOL bTensor,
     if (flag) {
       iStartPoint = 4;
       iStartColor = 2;
-      CFX_FloatPoint tempCoords[4];
+      CFX_PointF tempCoords[4];
       for (i = 0; i < 4; i++) {
         tempCoords[i] = coords[(flag * 3 + i) % 12];
       }
-      FXSYS_memcpy(coords, tempCoords, sizeof(CFX_FloatPoint) * 4);
+      FXSYS_memcpy(coords, tempCoords, sizeof(tempCoords));
       Coon_Color tempColors[2];
       tempColors[0] = patch.patch_colors[flag];
       tempColors[1] = patch.patch_colors[(flag + 1) % 4];
@@ -841,12 +830,12 @@ void CPDF_RenderStatus::DrawShading(CPDF_ShadingPattern* pPattern,
   if (!pPattern->m_bShadingObj &&
       pPattern->m_pShadingObj->GetDict()->KeyExist("Background")) {
     CPDF_Array* pBackColor =
-        pPattern->m_pShadingObj->GetDict()->GetArray("Background");
+        pPattern->m_pShadingObj->GetDict()->GetArrayBy("Background");
     if (pBackColor &&
         pBackColor->GetCount() >= (FX_DWORD)pColorSpace->CountComponents()) {
       CFX_FixedBufGrow<FX_FLOAT, 16> comps(pColorSpace->CountComponents());
       for (int i = 0; i < pColorSpace->CountComponents(); i++) {
-        comps[i] = pBackColor->GetNumber(i);
+        comps[i] = pBackColor->GetNumberAt(i);
       }
       FX_FLOAT R = 0.0f, G = 0.0f, B = 0.0f;
       pColorSpace->GetRGB(comps, R, G, B);
@@ -855,7 +844,7 @@ void CPDF_RenderStatus::DrawShading(CPDF_ShadingPattern* pPattern,
     }
   }
   if (pDict->KeyExist("BBox")) {
-    CFX_FloatRect rect = pDict->GetRect("BBox");
+    CFX_FloatRect rect = pDict->GetRectBy("BBox");
     rect.Transform(pMatrix);
     clip_rect.Intersect(rect.GetOutterRect());
   }
@@ -912,19 +901,19 @@ void CPDF_RenderStatus::DrawShading(CPDF_ShadingPattern* pPattern,
   buffer.OutputToDevice();
 }
 void CPDF_RenderStatus::DrawShadingPattern(CPDF_ShadingPattern* pattern,
-                                           CPDF_PageObject* pPageObj,
+                                           const CPDF_PageObject* pPageObj,
                                            const CFX_Matrix* pObj2Device,
                                            FX_BOOL bStroke) {
   if (!pattern->Load()) {
     return;
   }
   m_pDevice->SaveState();
-  if (pPageObj->m_Type == PDFPAGE_PATH) {
-    if (!SelectClipPath((CPDF_PathObject*)pPageObj, pObj2Device, bStroke)) {
+  if (pPageObj->IsPath()) {
+    if (!SelectClipPath(pPageObj->AsPath(), pObj2Device, bStroke)) {
       m_pDevice->RestoreState();
       return;
     }
-  } else if (pPageObj->m_Type == PDFPAGE_IMAGE) {
+  } else if (pPageObj->IsImage()) {
     FX_RECT rect = pPageObj->GetBBox(pObj2Device);
     m_pDevice->SetClip_Rect(&rect);
   } else {
@@ -943,7 +932,7 @@ void CPDF_RenderStatus::DrawShadingPattern(CPDF_ShadingPattern* pattern,
               m_Options.m_ColorMode == RENDER_COLOR_ALPHA);
   m_pDevice->RestoreState();
 }
-FX_BOOL CPDF_RenderStatus::ProcessShading(CPDF_ShadingObject* pShadingObj,
+FX_BOOL CPDF_RenderStatus::ProcessShading(const CPDF_ShadingObject* pShadingObj,
                                           const CFX_Matrix* pObj2Device) {
   FX_RECT rect = pShadingObj->GetBBox(pObj2Device);
   FX_RECT clip_box = m_pDevice->GetClipBox();
@@ -989,24 +978,24 @@ static CFX_DIBitmap* DrawPatternBitmap(CPDF_Document* pDoc,
   flags |= RENDER_FORCE_HALFTONE;
   options.m_Flags = flags;
   CPDF_RenderContext context(pDoc, pCache);
-  context.DrawObjectList(&bitmap_device, pPattern->m_pForm, &mtPattern2Bitmap,
-                         &options);
+  context.AppendLayer(pPattern->m_pForm, &mtPattern2Bitmap);
+  context.Render(&bitmap_device, &options, nullptr);
   return pBitmap;
 }
 void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
-                                          CPDF_PageObject* pPageObj,
+                                          const CPDF_PageObject* pPageObj,
                                           const CFX_Matrix* pObj2Device,
                                           FX_BOOL bStroke) {
   if (!pPattern->Load()) {
     return;
   }
   m_pDevice->SaveState();
-  if (pPageObj->m_Type == PDFPAGE_PATH) {
-    if (!SelectClipPath((CPDF_PathObject*)pPageObj, pObj2Device, bStroke)) {
+  if (pPageObj->IsPath()) {
+    if (!SelectClipPath(pPageObj->AsPath(), pObj2Device, bStroke)) {
       m_pDevice->RestoreState();
       return;
     }
-  } else if (pPageObj->m_Type == PDFPAGE_IMAGE) {
+  } else if (pPageObj->IsImage()) {
     FX_RECT rect = pPageObj->GetBBox(pObj2Device);
     m_pDevice->SetClip_Rect(&rect);
   } else {
@@ -1047,14 +1036,16 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
   mtDevice2Pattern.SetReverse(mtPattern2Device);
   CFX_FloatRect clip_box_p(clip_box);
   clip_box_p.Transform(&mtDevice2Pattern);
-  min_col = (int)FXSYS_ceil(
-      FXSYS_Div(clip_box_p.left - pPattern->m_BBox.right, pPattern->m_XStep));
-  max_col = (int)FXSYS_floor(
-      FXSYS_Div(clip_box_p.right - pPattern->m_BBox.left, pPattern->m_XStep));
-  min_row = (int)FXSYS_ceil(
-      FXSYS_Div(clip_box_p.bottom - pPattern->m_BBox.top, pPattern->m_YStep));
-  max_row = (int)FXSYS_floor(
-      FXSYS_Div(clip_box_p.top - pPattern->m_BBox.bottom, pPattern->m_YStep));
+
+  min_col = (int)FXSYS_ceil((clip_box_p.left - pPattern->m_BBox.right) /
+                            pPattern->m_XStep);
+  max_col = (int)FXSYS_floor((clip_box_p.right - pPattern->m_BBox.left) /
+                             pPattern->m_XStep);
+  min_row = (int)FXSYS_ceil((clip_box_p.bottom - pPattern->m_BBox.top) /
+                            pPattern->m_YStep);
+  max_row = (int)FXSYS_floor((clip_box_p.top - pPattern->m_BBox.bottom) /
+                             pPattern->m_YStep);
+
   if (width > clip_box.Width() || height > clip_box.Height() ||
       width * height > clip_box.Width() * clip_box.Height()) {
     CPDF_GraphicStates* pStates = NULL;
@@ -1063,7 +1054,7 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
     }
     CPDF_Dictionary* pFormResource = NULL;
     if (pPattern->m_pForm->m_pFormDict) {
-      pFormResource = pPattern->m_pForm->m_pFormDict->GetDict("Resources");
+      pFormResource = pPattern->m_pForm->m_pFormDict->GetDictBy("Resources");
     }
     for (int col = min_col; col <= max_col; col++)
       for (int row = min_row; row <= max_row; row++) {
@@ -1111,13 +1102,13 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
   CFX_DIBitmap* pPatternBitmap = NULL;
   if (width * height < 16) {
     CFX_DIBitmap* pEnlargedBitmap =
-        DrawPatternBitmap(m_pContext->m_pDocument, m_pContext->m_pPageCache,
+        DrawPatternBitmap(m_pContext->GetDocument(), m_pContext->GetPageCache(),
                           pPattern, pObj2Device, 8, 8, m_Options.m_Flags);
     pPatternBitmap = pEnlargedBitmap->StretchTo(width, height);
     delete pEnlargedBitmap;
   } else {
     pPatternBitmap = DrawPatternBitmap(
-        m_pContext->m_pDocument, m_pContext->m_pPageCache, pPattern,
+        m_pContext->GetDocument(), m_pContext->GetPageCache(), pPattern,
         pObj2Device, width, height, m_Options.m_Flags);
   }
   if (!pPatternBitmap) {
@@ -1179,7 +1170,7 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
   m_pDevice->RestoreState();
   delete pPatternBitmap;
 }
-void CPDF_RenderStatus::DrawPathWithPattern(CPDF_PathObject* pPathObj,
+void CPDF_RenderStatus::DrawPathWithPattern(const CPDF_PathObject* pPathObj,
                                             const CFX_Matrix* pObj2Device,
                                             CPDF_Color* pColor,
                                             FX_BOOL bStroke) {
@@ -1195,7 +1186,7 @@ void CPDF_RenderStatus::DrawPathWithPattern(CPDF_PathObject* pPathObj,
                        pObj2Device, bStroke);
   }
 }
-void CPDF_RenderStatus::ProcessPathPattern(CPDF_PathObject* pPathObj,
+void CPDF_RenderStatus::ProcessPathPattern(const CPDF_PathObject* pPathObj,
                                            const CFX_Matrix* pObj2Device,
                                            int& filltype,
                                            FX_BOOL& bStroke) {

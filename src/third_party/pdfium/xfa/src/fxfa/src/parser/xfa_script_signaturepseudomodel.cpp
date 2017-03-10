@@ -5,16 +5,16 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_script_signaturepseudomodel.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_signaturepseudomodel.h"
 CScript_SignaturePseudoModel::CScript_SignaturePseudoModel(
     CXFA_Document* pDocument)
     : CXFA_OrdinaryObject(pDocument, XFA_ELEMENT_SignaturePseudoModel) {
@@ -35,7 +35,7 @@ void CScript_SignaturePseudoModel::Script_SignaturePseudoModel_Verify(
   IXFA_Doc* hDoc = pNotify->GetHDOC();
   CXFA_Node* pNode = NULL;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   int32_t bVerify = pNotify->GetDocProvider()->Verify(hDoc, pNode);
   FXJSE_HVALUE hValue = pArguments->GetReturnValue();
@@ -90,6 +90,8 @@ void CScript_SignaturePseudoModel::Script_SignaturePseudoModel_Enumerate(
   }
   IXFA_Doc* hDoc = pNotify->GetHDOC();
   CXFA_NodeList* pList = pNotify->GetDocProvider()->Enumerate(hDoc);
+  if (!pList)
+    return;
   FXJSE_Value_Set(pArguments->GetReturnValue(),
                   m_pDocument->GetScriptContext()->GetJSValueFromMap(pList));
 }
@@ -108,7 +110,7 @@ void CScript_SignaturePseudoModel::Script_SignaturePseudoModel_Clear(
   CXFA_Node* pNode = NULL;
   FX_BOOL bClear = TRUE;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   if (iLength >= 2) {
     bClear = pArguments->GetInt32(1) == 0 ? FALSE : TRUE;

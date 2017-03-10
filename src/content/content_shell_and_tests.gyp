@@ -18,12 +18,11 @@
       }],
     ],
   },
-  'conditions': [
-    ['OS != "ios"', {
-      'includes': [
-        '../build/win_precompile.gypi',
-        'content_shell.gypi',
-      ],
-    }],
+  'includes': [
+    '../build/win_precompile.gypi',
+    'content_shell.gypi',
+
+    # blpwtk2: Remove test-only code
+    # 'content_tests.gypi',
   ],
 }

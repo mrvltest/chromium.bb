@@ -5,18 +5,18 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_script_layoutpseudomodel.h"
-#include "xfa_document_layout_imp.h"
-#include "xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_layoutpseudomodel.h"
 CScript_LayoutPseudoModel::CScript_LayoutPseudoModel(CXFA_Document* pDocument)
     : CXFA_OrdinaryObject(pDocument, XFA_ELEMENT_LayoutPseudoModel) {
   m_uScriptHash = XFA_HASHCODE_Layout;
@@ -64,7 +64,7 @@ void CScript_LayoutPseudoModel::Script_LayoutPseudoModel_HWXY(
   CFX_WideString wsUnit = FX_WSTRC(L"pt");
   int32_t iIndex = 0;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   if (iLength >= 2) {
     CFX_ByteString bsUnit = pArguments->GetUTF8String(1);
@@ -176,7 +176,7 @@ void CScript_LayoutPseudoModel::Script_LayoutPseudoModel_PageSpan(
   }
   CXFA_Node* pNode = NULL;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   if (!pNode) {
     return;
@@ -440,7 +440,7 @@ void CScript_LayoutPseudoModel::Script_LayoutPseudoModel_AbsPageInBatch(
   }
   CXFA_Node* pNode = NULL;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   if (!pNode) {
     return;
@@ -474,7 +474,7 @@ void CScript_LayoutPseudoModel::Script_LayoutPseudoModel_SheetInBatch(
   }
   CXFA_Node* pNode = NULL;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   if (!pNode) {
     return;
@@ -528,7 +528,7 @@ void CScript_LayoutPseudoModel::Script_LayoutPseudoModel_PageImp(
   }
   CXFA_Node* pNode = NULL;
   if (iLength >= 1) {
-    pNode = (CXFA_Node*)pArguments->GetObject(0);
+    pNode = static_cast<CXFA_Node*>(pArguments->GetObject(0));
   }
   int32_t iPage = 0;
   FXJSE_HVALUE hValue = pArguments->GetReturnValue();

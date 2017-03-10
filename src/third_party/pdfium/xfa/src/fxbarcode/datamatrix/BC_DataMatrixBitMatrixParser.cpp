@@ -20,10 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixBitMatrixParser.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_DataMatrixVersion.h"
-#include "BC_DataMatrixBitMatrixParser.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixVersion.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_DataMatrixBitMatrixParser::CBC_DataMatrixBitMatrixParser() {
   m_mappingBitMatrix = NULL;
   m_version = NULL;
@@ -45,14 +49,8 @@ void CBC_DataMatrixBitMatrixParser::Init(CBC_CommonBitMatrix* bitMatrix,
                             m_mappingBitMatrix->GetHeight());
 }
 CBC_DataMatrixBitMatrixParser::~CBC_DataMatrixBitMatrixParser() {
-  if (m_mappingBitMatrix != NULL) {
-    delete m_mappingBitMatrix;
-  }
-  m_mappingBitMatrix = NULL;
-  if (m_readMappingMatrix != NULL) {
-    delete m_readMappingMatrix;
-  }
-  m_readMappingMatrix = NULL;
+  delete m_mappingBitMatrix;
+  delete m_readMappingMatrix;
 }
 CBC_DataMatrixVersion* CBC_DataMatrixBitMatrixParser::GetVersion() {
   return m_version;
@@ -68,7 +66,7 @@ CBC_DataMatrixVersion* CBC_DataMatrixBitMatrixParser::ReadVersion(
   return temp;
 }
 CFX_ByteArray* CBC_DataMatrixBitMatrixParser::ReadCodewords(int32_t& e) {
-  CBC_AutoPtr<CFX_ByteArray> result(new CFX_ByteArray());
+  std::unique_ptr<CFX_ByteArray> result(new CFX_ByteArray());
   result->SetSize(m_version->GetTotalCodewords());
   int32_t resultOffset = 0;
   int32_t row = 4;

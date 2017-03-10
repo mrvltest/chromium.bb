@@ -20,12 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "core/include/fxcrt/fx_basic.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
-#include "BC_OneDReader.h"
-#include "BC_OneDimReader.h"
-#include "BC_OnedEAN13Reader.h"
-#include "BC_OnedUPCAReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedEAN13Reader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedUPCAReader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_OnedUPCAReader::CBC_OnedUPCAReader() {
   m_ean13Reader = NULL;
 }
@@ -33,10 +35,7 @@ void CBC_OnedUPCAReader::Init() {
   m_ean13Reader = new CBC_OnedEAN13Reader;
 }
 CBC_OnedUPCAReader::~CBC_OnedUPCAReader() {
-  if (m_ean13Reader != NULL) {
-    delete m_ean13Reader;
-  }
-  m_ean13Reader = NULL;
+  delete m_ean13Reader;
 }
 CFX_ByteString CBC_OnedUPCAReader::DecodeRow(int32_t rowNumber,
                                              CBC_CommonBitArray* row,

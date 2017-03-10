@@ -25,11 +25,8 @@
 #include "content/public/common/url_constants.h"
 #include "content/public/common/web_preferences.h"
 
-// SHEZ: Remove test-only code.
+// blpwtk2: Remove test-only code
 // #include "content/public/test/test_mojo_app.h"
-// #include "content/shell/browser/blink_test_controller.h"
-// #include "content/shell/browser/layout_test/layout_test_browser_main_parts.h"
-// #include "content/shell/browser/layout_test/layout_test_resource_dispatcher_host_delegate.h"
 
 #include "content/shell/browser/shell.h"
 #include "content/shell/browser/shell_access_token_store.h"
@@ -66,6 +63,10 @@
 #if defined(OS_WIN)
 #include "content/common/sandbox_win.h"
 #include "sandbox/win/src/sandbox.h"
+#endif
+
+#if defined(ENABLE_MOJO_MEDIA_IN_BROWSER_PROCESS)
+#include "media/mojo/services/mojo_media_application_factory.h"
 #endif
 
 namespace content {
@@ -152,15 +153,7 @@ ShellContentBrowserClient::~ShellContentBrowserClient() {
 
 BrowserMainParts* ShellContentBrowserClient::CreateBrowserMainParts(
     const MainFunctionParams& parameters) {
-  shell_browser_main_parts_ =
-      // SHEZ: Remove test-only code.
-#if 0
-       base::CommandLine::ForCurrentProcess()->HasSwitch(
-                                  switches::kRunLayoutTest)
-                                  ? new LayoutTestBrowserMainParts(parameters)
-                                  :
-#endif
-                                  new ShellBrowserMainParts(parameters);
+  shell_browser_main_parts_ = new ShellBrowserMainParts(parameters);
   return shell_browser_main_parts_;
 }
 
@@ -229,6 +222,14 @@ bool ShellContentBrowserClient::IsNPAPIEnabled() {
 #endif
 }
 
+void ShellContentBrowserClient::RegisterInProcessMojoApplications(
+    StaticMojoApplicationMap* apps) {
+#if (ENABLE_MOJO_MEDIA_IN_BROWSER_PROCESS)
+  apps->insert(std::make_pair(GURL("mojo:media"),
+                              base::Bind(&media::CreateMojoMediaApplication)));
+#endif
+}
+
 void ShellContentBrowserClient::RegisterOutOfProcessMojoApplications(
       OutOfProcessMojoApplicationMap* apps) {
     // SHEZ: Remove test-only code.
@@ -241,10 +242,6 @@ void ShellContentBrowserClient::RegisterOutOfProcessMojoApplications(
 void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kRunLayoutTest)) {
-    command_line->AppendSwitch(switches::kRunLayoutTest);
-  }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDumpLineBoxTrees)) {
     command_line->AppendSwitch(switches::kDumpLineBoxTrees);
@@ -299,31 +296,13 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   }
 }
 
-void ShellContentBrowserClient::OverrideWebkitPrefs(
-    RenderViewHost* render_view_host,
-    WebPreferences* prefs) {
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kRunLayoutTest))
-    return;
-  // SHEZ: Remove test code.
-#if 0
-  BlinkTestController::Get()->OverrideWebkitPrefs(prefs);
-#endif
-}
-
 void ShellContentBrowserClient::ResourceDispatcherHostCreated() {
   resource_dispatcher_host_delegate_.reset(
-      // SHEZ: Remove test-only code.
-#if 0
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kRunLayoutTest)
-          ? new LayoutTestResourceDispatcherHostDelegate
-          :
-#endif
-          new ShellResourceDispatcherHostDelegate);
+      new ShellResourceDispatcherHostDelegate);
   ResourceDispatcherHost::Get()->SetDelegate(
       resource_dispatcher_host_delegate_.get());
 }
+
 
 std::string ShellContentBrowserClient::GetDefaultDownloadName() {
   return "download";
@@ -369,7 +348,7 @@ bool ShellContentBrowserClient::ShouldSwapProcessesForRedirect(
 
 DevToolsManagerDelegate*
 ShellContentBrowserClient::GetDevToolsManagerDelegate() {
-  return new ShellDevToolsManagerDelegate(browser_context());
+  return new ShellDevToolsManagerDelegate();
 }
 
 void ShellContentBrowserClient::OpenURL(

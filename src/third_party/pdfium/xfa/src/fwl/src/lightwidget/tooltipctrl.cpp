@@ -4,15 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/include/fwl/lightwidget/tooltipctrl.h"
+
 #include <memory>
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 
 CFWL_ToolTip* CFWL_ToolTip::Create() {
   return new CFWL_ToolTip;
@@ -84,7 +86,6 @@ CFWL_ToolTip::CFWL_ToolTipDP::CFWL_ToolTipDP() : m_pBitmap(NULL) {
   m_wsCaption = L"";
   m_nInitDelayTime = 500;
   m_nAutoPopDelayTime = 50000;
-  m_fIconSize.Set(0.0, 0.0);
   m_fAnchor.Set(0.0, 0.0, 0.0, 0.0);
 }
 FWL_ERR CFWL_ToolTip::CFWL_ToolTipDP::GetCaption(IFWL_Widget* pWidget,

@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef FXJSE_UTIL_INLINE_H_
-#define FXJSE_UTIL_INLINE_H_
+#ifndef XFA_SRC_FXJSE_SRC_UTIL_INLINE_H_
+#define XFA_SRC_FXJSE_SRC_UTIL_INLINE_H_
+
+#include "xfa/src/fxjse/src/context.h"
+
 static V8_INLINE v8::Local<v8::Object> FXJSE_GetGlobalObjectFromContext(
     const v8::Local<v8::Context>& hContext) {
   return hContext->Global()->GetPrototype().As<v8::Object>();
@@ -44,4 +47,5 @@ static V8_INLINE void* FXJSE_RetrieveObjectBinding(
   }
   return hObject->GetAlignedPointerFromInternalField(0);
 }
-#endif
+
+#endif  // XFA_SRC_FXJSE_SRC_UTIL_INLINE_H_

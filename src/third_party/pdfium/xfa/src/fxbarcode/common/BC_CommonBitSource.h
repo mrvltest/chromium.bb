@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_COMMONBITSOURCE_H_
-#define _BC_COMMONBITSOURCE_H_
+#ifndef XFA_SRC_FXBARCODE_COMMON_BC_COMMONBITSOURCE_H_
+#define XFA_SRC_FXBARCODE_COMMON_BC_COMMONBITSOURCE_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 class CBC_CommonBitSource {
  public:
   CBC_CommonBitSource(CFX_ByteArray* bytes);
@@ -19,4 +23,5 @@ class CBC_CommonBitSource {
   int32_t m_byteOffset;
   int32_t m_bitOffset;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_BC_COMMONBITSOURCE_H_

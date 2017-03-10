@@ -6,14 +6,15 @@
 
 #include <algorithm>
 
+#include "xfa/src/fdp/src/css/fde_csscache.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_csscache.h"
-_FDE_CSSCACHEITEM::_FDE_CSSCACHEITEM(IFDE_CSSStyleSheet* p)
+
+FDE_CSSCACHEITEM::FDE_CSSCACHEITEM(IFDE_CSSStyleSheet* p)
     : pStylesheet(p), dwActivity(0) {
   FXSYS_assert(pStylesheet);
   pStylesheet->AddRef();
 }
-_FDE_CSSCACHEITEM::~_FDE_CSSCACHEITEM() {
+FDE_CSSCACHEITEM::~FDE_CSSCACHEITEM() {
   pStylesheet->Release();
 }
 IFDE_CSSStyleSheetCache* IFDE_CSSStyleSheetCache::Create() {
@@ -25,7 +26,7 @@ CFDE_CSSStyleSheetCache::CFDE_CSSStyleSheetCache()
 
 CFDE_CSSStyleSheetCache::~CFDE_CSSStyleSheetCache() {
   for (const auto& pair : m_Stylesheets) {
-    FDE_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, pair.second);
+    FXTARGET_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, pair.second);
   }
   m_Stylesheets.clear();
   if (m_pFixedStore) {
@@ -43,7 +44,7 @@ void CFDE_CSSStyleSheetCache::AddStyleSheet(const CFX_ByteStringC& szKey,
   }
   auto it = m_Stylesheets.find(szKey);
   if (it != m_Stylesheets.end()) {
-    FDE_LPCSSCACHEITEM pItem = it->second;
+    FDE_CSSCACHEITEM* pItem = it->second;
     if (pItem->pStylesheet != pStyleSheet) {
       pItem->pStylesheet->Release();
       pItem->pStylesheet = pStyleSheet;
@@ -55,7 +56,7 @@ void CFDE_CSSStyleSheetCache::AddStyleSheet(const CFX_ByteStringC& szKey,
       RemoveLowestActivityItem();
     }
     m_Stylesheets[szKey] =
-        FDE_NewWith(m_pFixedStore) FDE_CSSCACHEITEM(pStyleSheet);
+        FXTARGET_NewWith(m_pFixedStore) FDE_CSSCACHEITEM(pStyleSheet);
   }
 }
 IFDE_CSSStyleSheet* CFDE_CSSStyleSheetCache::GetStyleSheet(
@@ -64,7 +65,7 @@ IFDE_CSSStyleSheet* CFDE_CSSStyleSheetCache::GetStyleSheet(
   if (it == m_Stylesheets.end()) {
     return nullptr;
   }
-  FDE_LPCSSCACHEITEM pItem = it->second;
+  FDE_CSSCACHEITEM* pItem = it->second;
   pItem->dwActivity++;
   pItem->pStylesheet->AddRef();
   return pItem->pStylesheet;
@@ -74,7 +75,7 @@ void CFDE_CSSStyleSheetCache::RemoveStyleSheet(const CFX_ByteStringC& szKey) {
   if (it == m_Stylesheets.end()) {
     return;
   }
-  FDE_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, it->second);
+  FXTARGET_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, it->second);
   m_Stylesheets.erase(it);
 }
 void CFDE_CSSStyleSheetCache::RemoveLowestActivityItem() {
@@ -91,12 +92,12 @@ void CFDE_CSSStyleSheetCache::RemoveLowestActivityItem() {
     }
   }
   if (found != m_Stylesheets.end()) {
-    FDE_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, found->second);
+    FXTARGET_DeleteWith(FDE_CSSCACHEITEM, m_pFixedStore, found->second);
     m_Stylesheets.erase(found);
   }
 }
-_FDE_CSSTAGCACHE::_FDE_CSSTAGCACHE(_FDE_CSSTAGCACHE* parent,
-                                   IFDE_CSSTagProvider* tag)
+FDE_CSSTAGCACHE::FDE_CSSTAGCACHE(FDE_CSSTAGCACHE* parent,
+                                 IFDE_CSSTagProvider* tag)
     : pTag(tag),
       pParent(parent),
       dwIDHash(0),
@@ -124,7 +125,7 @@ _FDE_CSSTAGCACHE::_FDE_CSSTAGCACHE(_FDE_CSSTAGCACHE* parent,
     }
   }
 }
-_FDE_CSSTAGCACHE::_FDE_CSSTAGCACHE(const _FDE_CSSTAGCACHE& it)
+FDE_CSSTAGCACHE::FDE_CSSTAGCACHE(const FDE_CSSTAGCACHE& it)
     : pTag(it.pTag),
       pParent(it.pParent),
       dwIDHash(it.dwIDHash),
@@ -141,7 +142,7 @@ void CFDE_CSSAccelerator::OnEnterTag(IFDE_CSSTagProvider* pTag) {
   m_Stack.Push(item);
 }
 void CFDE_CSSAccelerator::OnLeaveTag(IFDE_CSSTagProvider* pTag) {
-  FDE_CSSTAGCACHE* pItem = m_Stack.GetTopElement();
-  FXSYS_assert(pItem && pItem->GetTag() == pTag);
+  FXSYS_assert(m_Stack.GetTopElement());
+  FXSYS_assert(m_Stack.GetTopElement()->GetTag() == pTag);
   m_Stack.Pop();
 }

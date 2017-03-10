@@ -4,18 +4,30 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_WIDGETTP_H
-#define _FWL_WIDGETTP_H
+#ifndef XFA_INCLUDE_FWL_THEME_WIDGETTP_H_
+#define XFA_INCLUDE_FWL_THEME_WIDGETTP_H_
+
+#include <memory>
+#include <vector>
+
+#include "core/include/fxcrt/fx_coordinates.h"
+#include "core/include/fxcrt/fx_system.h"
+#include "xfa/include/fwl/core/fwl_error.h"
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/include/fwl/core/fwl_widget.h"
+#include "xfa/include/fwl/theme/utils.h"
+
 class IFWL_ThemeProvider;
 class IFWL_Widget;
 class IFDE_TextOut;
 class IFX_Font;
 class IFX_FontMgr;
+class CFWL_ArrowData;
+
 #if _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
 class IFX_FontSourceEnum;
 #endif
-class CFWL_WidgetTP;
-class CFWL_ArrowData;
+
 class CFWL_WidgetTP {
  public:
   virtual FX_BOOL IsValidWidget(IFWL_Widget* pWidget);
@@ -142,6 +154,7 @@ void FWLTHEME_Release();
 FX_DWORD FWL_GetThemeLayout(FX_DWORD dwThemeID);
 FX_DWORD FWL_GetThemeColor(FX_DWORD dwThemeID);
 FX_DWORD FWL_MakeThemeID(FX_DWORD dwLayout, FX_DWORD dwColor);
+
 class CFWL_ArrowData {
  public:
   static CFWL_ArrowData* GetInstance();
@@ -162,6 +175,7 @@ class CFWL_ArrowData {
   CFWL_ArrowData();
   static CFWL_ArrowData* m_pInstance;
 };
+
 class CFWL_FontData {
  public:
   CFWL_FontData();
@@ -184,16 +198,22 @@ class CFWL_FontData {
   IFX_FontSourceEnum* m_pFontSource;
 #endif
 };
+
 class CFWL_FontManager {
  public:
-  CFWL_FontManager();
-  virtual ~CFWL_FontManager();
+  static CFWL_FontManager* GetInstance();
+  static void DestroyInstance();
+
   IFX_Font* FindFont(const CFX_WideStringC& wsFontFamily,
                      FX_DWORD dwFontStyles,
                      FX_WORD dwCodePage);
 
  protected:
-  CFX_PtrArray m_arrFonts;
+  CFWL_FontManager();
+  virtual ~CFWL_FontManager();
+
+  static CFWL_FontManager* s_FontManager;
+  std::vector<std::unique_ptr<CFWL_FontData>> m_FontsArray;
 };
-CFWL_FontManager* FWL_GetFontManager();
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_WIDGETTP_H_

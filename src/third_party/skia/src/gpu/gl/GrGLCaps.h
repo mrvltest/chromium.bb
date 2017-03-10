@@ -9,6 +9,8 @@
 #ifndef GrGLCaps_DEFINED
 #define GrGLCaps_DEFINED
 
+#include <functional>
+
 #include "glsl/GrGLSL.h"
 #include "GrCaps.h"
 #include "GrGLStencilAttachment.h"
@@ -19,6 +21,7 @@
 
 class GrGLContextInfo;
 class GrGLSLCaps;
+class GrGLRenderTarget;
 
 /**
  * Stores some capabilities of a GL context. Most are determined by the GL
@@ -74,10 +77,20 @@ public:
         kLast_MSFBOType = kMixedSamples_MSFBOType
     };
 
+    enum BlitFramebufferSupport {
+        kNone_BlitFramebufferSupport,
+        /**
+         * ANGLE exposes a limited blit framebuffer extension that does not allow for stretching
+         * or mirroring.
+         */
+        kNoScalingNoMirroring_BlitFramebufferSupport,
+        kFull_BlitFramebufferSupport
+    };
+
     enum InvalidateFBType {
         kNone_InvalidateFBType,
         kDiscard_InvalidateFBType,       //<! glDiscardFramebuffer()
-        kInvalidate_InvalidateFBType,     //<! glInvalidateFramebuffer()
+        kInvalidate_InvalidateFBType,    //<! glInvalidateFramebuffer()
 
         kLast_InvalidateFBType = kInvalidate_InvalidateFBType
     };
@@ -199,7 +212,7 @@ public:
     MSFBOType msFBOType() const { return fMSFBOType; }
 
     /**
-     * Does the supported MSAA FBO extension have MSAA renderbuffers?
+     * Does the preferred MSAA FBO extension have MSAA renderbuffers?
      */
     bool usesMSAARenderBuffers() const {
         return kNone_MSFBOType != fMSFBOType &&
@@ -207,6 +220,11 @@ public:
                kES_EXT_MsToTexture_MSFBOType != fMSFBOType &&
                kMixedSamples_MSFBOType != fMSFBOType;
     }
+
+    /**
+     * What functionality is supported by glBlitFramebuffer.
+     */
+    BlitFramebufferSupport blitFramebufferSupport() const { return fBlitFramebufferSupport; }
 
     /**
      * Is the MSAA FBO extension one where the texture is multisampled when bound to an FBO and
@@ -280,13 +298,25 @@ public:
     /// Can we call glDisable(GL_MULTISAMPLE)?
     bool multisampleDisableSupport() const { return fMultisampleDisableSupport; }
 
+    /// Is there support for glDraw*Indirect? Note that the baseInstance fields of indirect draw
+    /// commands cannot be used unless we have base instance support.
+    bool drawIndirectSupport() const { return fDrawIndirectSupport; }
+
+    /// Is there support for glMultiDraw*Indirect? Note that the baseInstance fields of indirect
+    /// draw commands cannot be used unless we have base instance support.
+    bool multiDrawIndirectSupport() const { return fMultiDrawIndirectSupport; }
+
+    /// Are the baseInstance fields supported in indirect draw commands?
+    bool baseInstanceSupport() const { return fBaseInstanceSupport; }
+
     /// Use indices or vertices in CPU arrays rather than VBOs for dynamic content.
     bool useNonVBOVertexAndIndexDynamicData() const { return fUseNonVBOVertexAndIndexDynamicData; }
 
-    /// Does ReadPixels support the provided format/type combo?
-    bool readPixelsSupported(const GrGLInterface* intf,
+    /// Does ReadPixels support reading readConfig pixels from a FBO that is renderTargetConfig?
+    bool readPixelsSupported(GrPixelConfig renderTargetConfig,
                              GrPixelConfig readConfig,
-                             GrPixelConfig currFBOConfig) const;
+                             std::function<void (GrGLenum, GrGLint*)> getIntegerv,
+                             std::function<bool ()> bindRenderTarget) const;
 
     bool isCoreProfile() const { return fIsCoreProfile; }
 
@@ -348,6 +378,8 @@ private:
                                   const GrGLInterface* intf,
                                   GrGLSLCaps* glslCaps);
 
+    GrGLStandard fStandard;
+
     SkTArray<StencilFormat, true> fStencilFormats;
 
     int fMaxFragmentUniformVectors;
@@ -372,6 +404,9 @@ private:
     bool fDebugSupport : 1;
     bool fES2CompatibilitySupport : 1;
     bool fMultisampleDisableSupport : 1;
+    bool fDrawIndirectSupport : 1;
+    bool fMultiDrawIndirectSupport : 1;
+    bool fBaseInstanceSupport : 1;
     bool fUseNonVBOVertexAndIndexDynamicData : 1;
     bool fIsCoreProfile : 1;
     bool fBindFragDataLocationSupport : 1;
@@ -382,6 +417,8 @@ private:
     bool fExternalTextureSupport : 1;
     bool fRectangleTextureSupport : 1;
     bool fTextureSwizzleSupport : 1;
+
+    BlitFramebufferSupport fBlitFramebufferSupport;
 
     /** Number type of the components (with out considering number of bits.) */
     enum FormatType {

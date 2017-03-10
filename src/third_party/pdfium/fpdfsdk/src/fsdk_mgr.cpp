@@ -28,6 +28,27 @@
 #include <ctime>
 #endif
 
+namespace {
+
+int CharSet2CP(int charset) {
+  if (charset == 128)
+    return 932;
+  if (charset == 134)
+    return 936;
+  if (charset == 129)
+    return 949;
+  if (charset == 136)
+    return 950;
+  return 0;
+}
+
+}  // namespace
+
+FPDF_WIDESTRING AsFPDFWideString(CFX_ByteString* bsUTF16LE) {
+  return reinterpret_cast<FPDF_WIDESTRING>(
+      bsUTF16LE->GetBuffer(bsUTF16LE->GetLength()));
+}
+
 class CFX_SystemHandler : public IFX_SystemHandler {
  public:
   explicit CFX_SystemHandler(CPDFDoc_Environment* pEnv)
@@ -155,31 +176,17 @@ FX_BOOL CFX_SystemHandler::FindNativeTrueTypeFont(
   if (!pFontMapper)
     return FALSE;
 
-  int nSize = pFontMapper->m_InstalledTTFonts.GetSize();
-  if (nSize == 0) {
+  if (pFontMapper->m_InstalledTTFonts.empty())
     pFontMapper->LoadInstalledFonts();
-    nSize = pFontMapper->m_InstalledTTFonts.GetSize();
-  }
 
-  for (int i = 0; i < nSize; ++i) {
-    if (pFontMapper->m_InstalledTTFonts[i].Compare(sFontFaceName))
+  for (const auto& font : pFontMapper->m_InstalledTTFonts) {
+    if (font.Compare(sFontFaceName))
       return TRUE;
   }
 
   return FALSE;
 }
 
-static int CharSet2CP(int charset) {
-  if (charset == 128)
-    return 932;
-  if (charset == 134)
-    return 936;
-  if (charset == 129)
-    return 949;
-  if (charset == 136)
-    return 950;
-  return 0;
-}
 CPDF_Font* CFX_SystemHandler::AddNativeTrueTypeFontToPDF(
     CPDF_Document* pDoc,
     CFX_ByteString sFontFaceName,
@@ -226,19 +233,15 @@ int CPDFDoc_Environment::JS_appAlert(const FX_WCHAR* Msg,
                                      const FX_WCHAR* Title,
                                      FX_UINT Type,
                                      FX_UINT Icon) {
-  if (m_pInfo && m_pInfo->m_pJsPlatform && m_pInfo->m_pJsPlatform->app_alert) {
-    CFX_ByteString bsMsg = CFX_WideString(Msg).UTF16LE_Encode();
-    CFX_ByteString bsTitle = CFX_WideString(Title).UTF16LE_Encode();
-    FPDF_WIDESTRING pMsg = (FPDF_WIDESTRING)bsMsg.GetBuffer(bsMsg.GetLength());
-    FPDF_WIDESTRING pTitle =
-        (FPDF_WIDESTRING)bsTitle.GetBuffer(bsTitle.GetLength());
-    int ret = m_pInfo->m_pJsPlatform->app_alert(m_pInfo->m_pJsPlatform, pMsg,
-                                                pTitle, Type, Icon);
-    bsMsg.ReleaseBuffer();
-    bsTitle.ReleaseBuffer();
-    return ret;
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->app_alert) {
+    return -1;
   }
-  return -1;
+  CFX_ByteString bsMsg = CFX_WideString(Msg).UTF16LE_Encode();
+  CFX_ByteString bsTitle = CFX_WideString(Title).UTF16LE_Encode();
+  return m_pInfo->m_pJsPlatform->app_alert(
+      m_pInfo->m_pJsPlatform, AsFPDFWideString(&bsMsg),
+      AsFPDFWideString(&bsTitle), Type, Icon);
 }
 
 int CPDFDoc_Environment::JS_appResponse(const FX_WCHAR* Question,
@@ -248,90 +251,79 @@ int CPDFDoc_Environment::JS_appResponse(const FX_WCHAR* Question,
                                         FPDF_BOOL bPassword,
                                         void* response,
                                         int length) {
-  if (m_pInfo && m_pInfo->m_pJsPlatform &&
-      m_pInfo->m_pJsPlatform->app_response) {
-    CFX_ByteString bsQuestion = CFX_WideString(Question).UTF16LE_Encode();
-    CFX_ByteString bsTitle = CFX_WideString(Title).UTF16LE_Encode();
-    CFX_ByteString bsDefault = CFX_WideString(Default).UTF16LE_Encode();
-    CFX_ByteString bsLabel = CFX_WideString(cLabel).UTF16LE_Encode();
-    FPDF_WIDESTRING pQuestion =
-        (FPDF_WIDESTRING)bsQuestion.GetBuffer(bsQuestion.GetLength());
-    FPDF_WIDESTRING pTitle =
-        (FPDF_WIDESTRING)bsTitle.GetBuffer(bsTitle.GetLength());
-    FPDF_WIDESTRING pDefault =
-        (FPDF_WIDESTRING)bsDefault.GetBuffer(bsDefault.GetLength());
-    FPDF_WIDESTRING pLabel =
-        (FPDF_WIDESTRING)bsLabel.GetBuffer(bsLabel.GetLength());
-    int ret = m_pInfo->m_pJsPlatform->app_response(
-        m_pInfo->m_pJsPlatform, pQuestion, pTitle, pDefault, pLabel, bPassword,
-        response, length);
-    bsQuestion.ReleaseBuffer();
-    bsTitle.ReleaseBuffer();
-    bsDefault.ReleaseBuffer();
-    bsLabel.ReleaseBuffer();
-    return ret;
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->app_response) {
+    return -1;
   }
-  return -1;
+  CFX_ByteString bsQuestion = CFX_WideString(Question).UTF16LE_Encode();
+  CFX_ByteString bsTitle = CFX_WideString(Title).UTF16LE_Encode();
+  CFX_ByteString bsDefault = CFX_WideString(Default).UTF16LE_Encode();
+  CFX_ByteString bsLabel = CFX_WideString(cLabel).UTF16LE_Encode();
+  return m_pInfo->m_pJsPlatform->app_response(
+      m_pInfo->m_pJsPlatform, AsFPDFWideString(&bsQuestion),
+      AsFPDFWideString(&bsTitle), AsFPDFWideString(&bsDefault),
+      AsFPDFWideString(&bsLabel), bPassword, response, length);
+}
+
+void CPDFDoc_Environment::JS_appBeep(int nType) {
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->app_beep) {
+    return;
+  }
+  m_pInfo->m_pJsPlatform->app_beep(m_pInfo->m_pJsPlatform, nType);
 }
 
 CFX_WideString CPDFDoc_Environment::JS_fieldBrowse() {
   if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
       !m_pInfo->m_pJsPlatform->Field_browse) {
-    return L"";
+    return CFX_WideString();
   }
-
   const int nRequiredLen =
       m_pInfo->m_pJsPlatform->Field_browse(m_pInfo->m_pJsPlatform, nullptr, 0);
   if (nRequiredLen <= 0)
-    return L"";
+    return CFX_WideString();
 
   std::unique_ptr<char[]> pBuff(new char[nRequiredLen]);
   memset(pBuff.get(), 0, nRequiredLen);
   const int nActualLen = m_pInfo->m_pJsPlatform->Field_browse(
       m_pInfo->m_pJsPlatform, pBuff.get(), nRequiredLen);
   if (nActualLen <= 0 || nActualLen > nRequiredLen)
-    return L"";
+    return CFX_WideString();
 
-  CFX_ByteString bsRet = CFX_ByteString(pBuff.get(), nActualLen);
-  CFX_WideString wsRet = CFX_WideString::FromLocal(bsRet);
-  return wsRet;
+  return CFX_WideString::FromLocal(CFX_ByteString(pBuff.get(), nActualLen));
 }
 
 CFX_WideString CPDFDoc_Environment::JS_docGetFilePath() {
   if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
       !m_pInfo->m_pJsPlatform->Doc_getFilePath) {
-    return L"";
+    return CFX_WideString();
   }
-
   const int nRequiredLen = m_pInfo->m_pJsPlatform->Doc_getFilePath(
       m_pInfo->m_pJsPlatform, nullptr, 0);
   if (nRequiredLen <= 0)
-    return L"";
+    return CFX_WideString();
 
   std::unique_ptr<char[]> pBuff(new char[nRequiredLen]);
   memset(pBuff.get(), 0, nRequiredLen);
   const int nActualLen = m_pInfo->m_pJsPlatform->Doc_getFilePath(
       m_pInfo->m_pJsPlatform, pBuff.get(), nRequiredLen);
   if (nActualLen <= 0 || nActualLen > nRequiredLen)
-    return L"";
+    return CFX_WideString();
 
-  CFX_ByteString bsRet = CFX_ByteString(pBuff.get(), nActualLen);
-  CFX_WideString wsRet = CFX_WideString::FromLocal(bsRet);
-  return wsRet;
+  return CFX_WideString::FromLocal(CFX_ByteString(pBuff.get(), nActualLen));
 }
 
 void CPDFDoc_Environment::JS_docSubmitForm(void* formData,
                                            int length,
                                            const FX_WCHAR* URL) {
-  if (m_pInfo && m_pInfo->m_pJsPlatform &&
-      m_pInfo->m_pJsPlatform->Doc_submitForm) {
-    CFX_ByteString bsDestination = CFX_WideString(URL).UTF16LE_Encode();
-    FPDF_WIDESTRING pDestination =
-        (FPDF_WIDESTRING)bsDestination.GetBuffer(bsDestination.GetLength());
-    m_pInfo->m_pJsPlatform->Doc_submitForm(m_pInfo->m_pJsPlatform, formData,
-                                           length, pDestination);
-    bsDestination.ReleaseBuffer();
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->Doc_submitForm) {
+    return;
   }
+  CFX_ByteString bsDestination = CFX_WideString(URL).UTF16LE_Encode();
+  m_pInfo->m_pJsPlatform->Doc_submitForm(m_pInfo->m_pJsPlatform, formData,
+                                         length,
+                                         AsFPDFWideString(&bsDestination));
 }
 
 void CPDFDoc_Environment::JS_docmailForm(void* mailData,
@@ -342,26 +334,44 @@ void CPDFDoc_Environment::JS_docmailForm(void* mailData,
                                          const FX_WCHAR* CC,
                                          const FX_WCHAR* BCC,
                                          const FX_WCHAR* Msg) {
-  if (m_pInfo && m_pInfo->m_pJsPlatform && m_pInfo->m_pJsPlatform->Doc_mail) {
-    CFX_ByteString bsTo = CFX_WideString(To).UTF16LE_Encode();
-    CFX_ByteString bsCC = CFX_WideString(Subject).UTF16LE_Encode();
-    CFX_ByteString bsBcc = CFX_WideString(BCC).UTF16LE_Encode();
-    CFX_ByteString bsSubject = CFX_WideString(Subject).UTF16LE_Encode();
-    CFX_ByteString bsMsg = CFX_WideString(Msg).UTF16LE_Encode();
-    FPDF_WIDESTRING pTo = (FPDF_WIDESTRING)bsTo.GetBuffer(bsTo.GetLength());
-    FPDF_WIDESTRING pCC = (FPDF_WIDESTRING)bsCC.GetBuffer(bsCC.GetLength());
-    FPDF_WIDESTRING pBcc = (FPDF_WIDESTRING)bsBcc.GetBuffer(bsBcc.GetLength());
-    FPDF_WIDESTRING pSubject =
-        (FPDF_WIDESTRING)bsSubject.GetBuffer(bsSubject.GetLength());
-    FPDF_WIDESTRING pMsg = (FPDF_WIDESTRING)bsMsg.GetBuffer(bsMsg.GetLength());
-    m_pInfo->m_pJsPlatform->Doc_mail(m_pInfo->m_pJsPlatform, mailData, length,
-                                     bUI, pTo, pSubject, pCC, pBcc, pMsg);
-    bsTo.ReleaseBuffer();
-    bsCC.ReleaseBuffer();
-    bsBcc.ReleaseBuffer();
-    bsSubject.ReleaseBuffer();
-    bsMsg.ReleaseBuffer();
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->Doc_mail) {
+    return;
   }
+  CFX_ByteString bsTo = CFX_WideString(To).UTF16LE_Encode();
+  CFX_ByteString bsSubject = CFX_WideString(Subject).UTF16LE_Encode();
+  CFX_ByteString bsCC = CFX_WideString(CC).UTF16LE_Encode();
+  CFX_ByteString bsBcc = CFX_WideString(BCC).UTF16LE_Encode();
+  CFX_ByteString bsMsg = CFX_WideString(Msg).UTF16LE_Encode();
+  m_pInfo->m_pJsPlatform->Doc_mail(
+      m_pInfo->m_pJsPlatform, mailData, length, bUI, AsFPDFWideString(&bsTo),
+      AsFPDFWideString(&bsSubject), AsFPDFWideString(&bsCC),
+      AsFPDFWideString(&bsBcc), AsFPDFWideString(&bsMsg));
+}
+
+void CPDFDoc_Environment::JS_docprint(FPDF_BOOL bUI,
+                                      int nStart,
+                                      int nEnd,
+                                      FPDF_BOOL bSilent,
+                                      FPDF_BOOL bShrinkToFit,
+                                      FPDF_BOOL bPrintAsImage,
+                                      FPDF_BOOL bReverse,
+                                      FPDF_BOOL bAnnotations) {
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->Doc_print) {
+    return;
+  }
+  m_pInfo->m_pJsPlatform->Doc_print(m_pInfo->m_pJsPlatform, bUI, nStart, nEnd,
+                                    bSilent, bShrinkToFit, bPrintAsImage,
+                                    bReverse, bAnnotations);
+}
+
+void CPDFDoc_Environment::JS_docgotoPage(int nPageNum) {
+  if (!m_pInfo || !m_pInfo->m_pJsPlatform ||
+      !m_pInfo->m_pJsPlatform->Doc_gotoPage) {
+    return;
+  }
+  m_pInfo->m_pJsPlatform->Doc_gotoPage(m_pInfo->m_pJsPlatform, nPageNum);
 }
 
 IJS_Runtime* CPDFDoc_Environment::GetJSRuntime() {
@@ -388,6 +398,13 @@ CFFL_IFormFiller* CPDFDoc_Environment::GetIFormFiller() {
   if (!m_pIFormFiller)
     m_pIFormFiller.reset(new CFFL_IFormFiller(this));
   return m_pIFormFiller.get();
+}
+
+// static
+CPDFSDK_Document* CPDFSDK_Document::FromFPDFFormHandle(
+    FPDF_FORMHANDLE hHandle) {
+  CPDFDoc_Environment* pEnv = static_cast<CPDFDoc_Environment*>(hHandle);
+  return pEnv ? pEnv->GetSDKDocument() : nullptr;
 }
 
 CPDFSDK_Document::CPDFSDK_Document(UnderlyingDocumentType* pDoc,
@@ -465,9 +482,9 @@ FX_BOOL CPDFSDK_Document::ProcOpenAction() {
   if (!pRoot)
     return FALSE;
 
-  CPDF_Object* pOpenAction = pRoot->GetDict("OpenAction");
+  CPDF_Object* pOpenAction = pRoot->GetDictBy("OpenAction");
   if (!pOpenAction)
-    pOpenAction = pRoot->GetArray("OpenAction");
+    pOpenAction = pRoot->GetArrayBy("OpenAction");
 
   if (!pOpenAction)
     return FALSE;
@@ -819,7 +836,7 @@ CPDFSDK_Annot* CPDFSDK_PageView::AddAnnot(IXFA_Widget* pPDFAnnot) {
 #endif  // PDF_ENABLE_XFA
 
 CPDFSDK_Annot* CPDFSDK_PageView::AddAnnot(CPDF_Dictionary* pDict) {
-  return pDict ? AddAnnot(pDict->GetString("Subtype"), pDict) : nullptr;
+  return pDict ? AddAnnot(pDict->GetStringBy("Subtype"), pDict) : nullptr;
 }
 
 CPDFSDK_Annot* CPDFSDK_PageView::AddAnnot(const FX_CHAR* lpSubType,
@@ -1056,10 +1073,7 @@ void CPDFSDK_PageView::LoadFXAnnots() {
 #ifdef PDF_ENABLE_XFA
   m_page->AddRef();
   if (m_pSDKDoc->GetXFADocument()->GetDocType() == DOCTYPE_DYNAMIC_XFA) {
-    IXFA_PageView* pageView = NULL;
-    pageView = m_page->GetXFAPageView();
-    ASSERT(pageView != NULL);
-
+    IXFA_PageView* pageView = m_page->GetXFAPageView();
     IXFA_WidgetIterator* pWidgetHander = pageView->CreateWidgetIterator(
         XFA_TRAVERSEWAY_Form, XFA_WIDGETFILTER_Visible |
                                   XFA_WIDGETFILTER_Viewable |
@@ -1081,7 +1095,7 @@ void CPDFSDK_PageView::LoadFXAnnots() {
     pWidgetHander->Release();
   } else {
     CPDF_Page* pPage = m_page->GetPDFPage();
-    ASSERT(pPage != NULL);
+    ASSERT(pPage);
     FX_BOOL enableAPUpdate = CPDF_InterForm::UpdatingAPEnabled();
     // Disable the default AP construction.
     CPDF_InterForm::EnableUpdateAP(FALSE);
@@ -1115,6 +1129,18 @@ void CPDFSDK_PageView::LoadFXAnnots() {
   }
 #endif  // PDF_ENABLE_XFA
 
+  SetLock(FALSE);
+}
+
+void CPDFSDK_PageView::ClearFXAnnots() {
+  SetLock(TRUE);
+  if (m_pSDKDoc && GetFocusAnnot())
+    m_pSDKDoc->SetFocusAnnot(nullptr);
+  m_CaptureWidget = nullptr;
+  for (CPDFSDK_Annot* pAnnot : m_fxAnnotArray)
+    m_pSDKDoc->GetEnv()->GetAnnotHandlerMgr()->ReleaseAnnot(pAnnot);
+  m_fxAnnotArray.clear();
+  m_pAnnotList.reset();
   SetLock(FALSE);
 }
 
