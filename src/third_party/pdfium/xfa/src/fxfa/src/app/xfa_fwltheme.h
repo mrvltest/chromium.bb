@@ -4,8 +4,25 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_FWL_THEME_IMP_H
-#define _XFA_FWL_THEME_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FWLTHEME_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FWLTHEME_H_
+
+#include "xfa/include/fwl/core/fwl_target.h"
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/include/fwl/theme/barcodetp.h"
+#include "xfa/include/fwl/theme/carettp.h"
+#include "xfa/include/fwl/theme/checkboxtp.h"
+#include "xfa/include/fwl/theme/comboboxtp.h"
+#include "xfa/include/fwl/theme/datetimepickertp.h"
+#include "xfa/include/fwl/theme/edittp.h"
+#include "xfa/include/fwl/theme/listboxtp.h"
+#include "xfa/include/fwl/theme/monthcalendartp.h"
+#include "xfa/include/fwl/theme/pictureboxtp.h"
+#include "xfa/include/fwl/theme/pushbuttontp.h"
+#include "xfa/include/fwl/theme/scrollbartp.h"
+#include "xfa/include/fwl/theme/widgettp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+
 class CXFA_FWLTheme : public IFWL_ThemeProvider {
  public:
   CXFA_FWLTheme(CXFA_FFApp* pApp);
@@ -89,4 +106,5 @@ class CXFA_FWLEditTP : public CFWL_EditTP {
  public:
   virtual FX_BOOL DrawBackground(CFWL_ThemeBackground* pParams);
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FWLTHEME_H_

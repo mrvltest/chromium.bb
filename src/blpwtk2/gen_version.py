@@ -107,6 +107,7 @@ def writeBlpv8ProductsFile(f, version):
   f.write('#define BLPV8_DLL_NAME "blpv8{}.dll"\n'.format(productAppend))
   f.write('#define BLPV8_NATIVES_BLOB_NAME "natives_blob{}.bin"\n'.format(productAppend))
   f.write('#define BLPV8_SNAPSHOT_BLOB_NAME "snapshot_blob{}.bin"\n'.format(productAppend))
+  f.write('#define BLPV8_SNAPSHOT_BLOB_IGNITION_NAME "snapshot_blob_ignition{}.bin"\n'.format(productAppend))
   f.write('#define BLPV8_ICUDTL_DAT_NAME "icudtl{}.dat"\n'.format(productAppend))
   f.write('\n')
   f.write('#endif  // INCLUDED_GENERATED_BLPV8_PRODUCTS\n')

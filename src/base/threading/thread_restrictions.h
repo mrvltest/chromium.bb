@@ -81,7 +81,7 @@ class WindowResizeHelperMac;
 }
 
 namespace views {
-class WindowManagerConnection;
+class ScreenMus;
 }
 
 namespace base {
@@ -239,7 +239,7 @@ class BASE_EXPORT ThreadRestrictions {
 #if !defined(OFFICIAL_BUILD)
   friend class content::SoftwareOutputDeviceMus;  // Interim non-production code
 #endif
-  friend class views::WindowManagerConnection;
+  friend class views::ScreenMus;
 // END USAGE THAT NEEDS TO BE FIXED.
 
   // Constructing a ScopedAllowWait temporarily allows waiting on the current

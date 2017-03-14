@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fdp/src/css/fde_cssdatatable.h"
+
+#include "xfa/src/fgas/include/fx_alg.h"
+#include "xfa/src/fgas/include/fx_cpg.h"
+#include "xfa/src/fgas/include/fx_sys.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_cssdatatable.h"
 
 FX_BOOL FDE_CSSLengthToFloat(const FDE_CSSLENGTH& len,
                              FX_FLOAT fPercentBase,
@@ -843,16 +847,20 @@ int32_t CFDE_CSSValueListParser::SkipTo(FX_WCHAR wch,
                                         FX_BOOL bBrContinue) {
   const FX_WCHAR* pStart = m_pCur;
   if (!bBrContinue) {
-    if (bWSSeparator)
-      while (++m_pCur<m_pEnd&& * m_pCur != wch&& * m_pCur> ' ')
-        ;
-    else
-      while (++m_pCur < m_pEnd && *m_pCur != wch)
-        ;
+    if (bWSSeparator) {
+      while ((++m_pCur < m_pEnd) && (*m_pCur != wch) && (*m_pCur > ' ')) {
+        continue;
+      }
+    } else {
+      while (++m_pCur < m_pEnd && *m_pCur != wch) {
+        continue;
+      }
+    }
+
   } else {
     int32_t iBracketCount = 0;
     if (bWSSeparator) {
-      while (m_pCur<m_pEnd&& * m_pCur != wch&& * m_pCur> ' ') {
+      while ((m_pCur < m_pEnd) && (*m_pCur != wch) && (*m_pCur > ' ')) {
         if (*m_pCur == '(') {
           iBracketCount++;
         } else if (*m_pCur == ')') {

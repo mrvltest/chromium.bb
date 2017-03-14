@@ -10,12 +10,13 @@
 
 #include <math.h>
 #include <stdio.h>
+
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <queue>
 
 #include "webrtc/base/arraysize.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/common_audio/include/audio_util.h"
 #include "webrtc/common_audio/resampler/include/push_resampler.h"
 #include "webrtc/common_audio/resampler/push_sinc_resampler.h"
@@ -34,7 +35,7 @@
 #include "external/webrtc/webrtc/modules/audio_processing/test/unittest.pb.h"
 #else
 #include "testing/gtest/include/gtest/gtest.h"
-#include "webrtc/audio_processing/unittest.pb.h"
+#include "webrtc/modules/audio_processing/unittest.pb.h"
 #endif
 
 namespace webrtc {
@@ -203,10 +204,10 @@ int16_t MaxAudioFrame(const AudioFrame& frame) {
 #if defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
 void TestStats(const AudioProcessing::Statistic& test,
                const audioproc::Test::Statistic& reference) {
-  EXPECT_EQ(reference.instant(), test.instant);
+  EXPECT_NEAR(reference.instant(), test.instant, 1);
   EXPECT_EQ(reference.average(), test.average);
   EXPECT_EQ(reference.maximum(), test.maximum);
-  EXPECT_EQ(reference.minimum(), test.minimum);
+  EXPECT_NEAR(reference.minimum(), test.minimum, 1);
 }
 
 void WriteStatsMessage(const AudioProcessing::Statistic& output,
@@ -226,7 +227,7 @@ void OpenFileAndWriteMessage(const std::string filename,
 
   int32_t size = msg.ByteSize();
   ASSERT_GT(size, 0);
-  rtc::scoped_ptr<uint8_t[]> array(new uint8_t[size]);
+  std::unique_ptr<uint8_t[]> array(new uint8_t[size]);
   ASSERT_TRUE(msg.SerializeToArray(array.get(), size));
 
   ASSERT_EQ(1u, fwrite(&size, sizeof(size), 1, file));
@@ -383,17 +384,18 @@ class ApmTest : public ::testing::Test {
   int AnalyzeReverseStreamChooser(Format format);
   void ProcessDebugDump(const std::string& in_filename,
                         const std::string& out_filename,
-                        Format format);
+                        Format format,
+                        int max_size_bytes);
   void VerifyDebugDumpTest(Format format);
 
   const std::string output_path_;
   const std::string ref_path_;
   const std::string ref_filename_;
-  rtc::scoped_ptr<AudioProcessing> apm_;
+  std::unique_ptr<AudioProcessing> apm_;
   AudioFrame* frame_;
   AudioFrame* revframe_;
-  rtc::scoped_ptr<ChannelBuffer<float> > float_cb_;
-  rtc::scoped_ptr<ChannelBuffer<float> > revfloat_cb_;
+  std::unique_ptr<ChannelBuffer<float> > float_cb_;
+  std::unique_ptr<ChannelBuffer<float> > revfloat_cb_;
   int output_sample_rate_hz_;
   size_t num_output_channels_;
   FILE* far_file_;
@@ -1078,8 +1080,8 @@ TEST_F(ApmTest, EchoControlMobile) {
   // Set and get echo path
   const size_t echo_path_size =
       apm_->echo_control_mobile()->echo_path_size_bytes();
-  rtc::scoped_ptr<char[]> echo_path_in(new char[echo_path_size]);
-  rtc::scoped_ptr<char[]> echo_path_out(new char[echo_path_size]);
+  std::unique_ptr<char[]> echo_path_in(new char[echo_path_size]);
+  std::unique_ptr<char[]> echo_path_out(new char[echo_path_size]);
   EXPECT_EQ(apm_->kNullPointerError,
             apm_->echo_control_mobile()->SetEchoPath(NULL, echo_path_size));
   EXPECT_EQ(apm_->kNullPointerError,
@@ -1304,15 +1306,15 @@ TEST_F(ApmTest, AgcOnlyAdaptsWhenTargetSignalIsPresent) {
   config.Set<Beamforming>(new Beamforming(true, geometry));
   testing::NiceMock<MockNonlinearBeamformer>* beamformer =
       new testing::NiceMock<MockNonlinearBeamformer>(geometry);
-  rtc::scoped_ptr<AudioProcessing> apm(
+  std::unique_ptr<AudioProcessing> apm(
       AudioProcessing::Create(config, beamformer));
   EXPECT_EQ(kNoErr, apm->gain_control()->Enable(true));
   ChannelBuffer<float> src_buf(kSamplesPerChannel, kNumInputChannels);
   ChannelBuffer<float> dest_buf(kSamplesPerChannel, kNumOutputChannels);
   const size_t max_length = kSamplesPerChannel * std::max(kNumInputChannels,
                                                           kNumOutputChannels);
-  rtc::scoped_ptr<int16_t[]> int_data(new int16_t[max_length]);
-  rtc::scoped_ptr<float[]> float_data(new float[max_length]);
+  std::unique_ptr<int16_t[]> int_data(new int16_t[max_length]);
+  std::unique_ptr<float[]> float_data(new float[max_length]);
   std::string filename = ResourceFilePath("far", kSampleRateHz);
   FILE* far_file = fopen(filename.c_str(), "rb");
   ASSERT_TRUE(far_file != NULL) << "Could not open file " << filename << "\n";
@@ -1706,7 +1708,8 @@ TEST_F(ApmTest, SplittingFilter) {
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
 void ApmTest::ProcessDebugDump(const std::string& in_filename,
                                const std::string& out_filename,
-                               Format format) {
+                               Format format,
+                               int max_size_bytes) {
   FILE* in_file = fopen(in_filename.c_str(), "rb");
   ASSERT_TRUE(in_file != NULL);
   audioproc::Event event_msg;
@@ -1734,7 +1737,8 @@ void ApmTest::ProcessDebugDump(const std::string& in_filename,
       if (first_init) {
         // StartDebugRecording() writes an additional init message. Don't start
         // recording until after the first init to avoid the extra message.
-        EXPECT_NOERR(apm_->StartDebugRecording(out_filename.c_str()));
+        EXPECT_NOERR(
+            apm_->StartDebugRecording(out_filename.c_str(), max_size_bytes));
         first_init = false;
       }
 
@@ -1809,34 +1813,54 @@ void ApmTest::VerifyDebugDumpTest(Format format) {
       test::OutputPath(), std::string("ref") + format_string + "_aecdump");
   const std::string out_filename = test::TempFilename(
       test::OutputPath(), std::string("out") + format_string + "_aecdump");
+  const std::string limited_filename = test::TempFilename(
+      test::OutputPath(), std::string("limited") + format_string + "_aecdump");
+  const size_t logging_limit_bytes = 100000;
+  // We expect at least this many bytes in the created logfile.
+  const size_t logging_expected_bytes = 95000;
   EnableAllComponents();
-  ProcessDebugDump(in_filename, ref_filename, format);
-  ProcessDebugDump(ref_filename, out_filename, format);
+  ProcessDebugDump(in_filename, ref_filename, format, -1);
+  ProcessDebugDump(ref_filename, out_filename, format, -1);
+  ProcessDebugDump(ref_filename, limited_filename, format, logging_limit_bytes);
 
   FILE* ref_file = fopen(ref_filename.c_str(), "rb");
   FILE* out_file = fopen(out_filename.c_str(), "rb");
+  FILE* limited_file = fopen(limited_filename.c_str(), "rb");
   ASSERT_TRUE(ref_file != NULL);
   ASSERT_TRUE(out_file != NULL);
-  rtc::scoped_ptr<uint8_t[]> ref_bytes;
-  rtc::scoped_ptr<uint8_t[]> out_bytes;
+  ASSERT_TRUE(limited_file != NULL);
+  std::unique_ptr<uint8_t[]> ref_bytes;
+  std::unique_ptr<uint8_t[]> out_bytes;
+  std::unique_ptr<uint8_t[]> limited_bytes;
 
   size_t ref_size = ReadMessageBytesFromFile(ref_file, &ref_bytes);
   size_t out_size = ReadMessageBytesFromFile(out_file, &out_bytes);
+  size_t limited_size = ReadMessageBytesFromFile(limited_file, &limited_bytes);
   size_t bytes_read = 0;
+  size_t bytes_read_limited = 0;
   while (ref_size > 0 && out_size > 0) {
     bytes_read += ref_size;
+    bytes_read_limited += limited_size;
     EXPECT_EQ(ref_size, out_size);
+    EXPECT_GE(ref_size, limited_size);
     EXPECT_EQ(0, memcmp(ref_bytes.get(), out_bytes.get(), ref_size));
+    EXPECT_EQ(0, memcmp(ref_bytes.get(), limited_bytes.get(), limited_size));
     ref_size = ReadMessageBytesFromFile(ref_file, &ref_bytes);
     out_size = ReadMessageBytesFromFile(out_file, &out_bytes);
+    limited_size = ReadMessageBytesFromFile(limited_file, &limited_bytes);
   }
   EXPECT_GT(bytes_read, 0u);
+  EXPECT_GT(bytes_read_limited, logging_expected_bytes);
+  EXPECT_LE(bytes_read_limited, logging_limit_bytes);
   EXPECT_NE(0, feof(ref_file));
   EXPECT_NE(0, feof(out_file));
+  EXPECT_NE(0, feof(limited_file));
   ASSERT_EQ(0, fclose(ref_file));
   ASSERT_EQ(0, fclose(out_file));
+  ASSERT_EQ(0, fclose(limited_file));
   remove(ref_filename.c_str());
   remove(out_filename.c_str());
+  remove(limited_filename.c_str());
 }
 
 TEST_F(ApmTest, VerifyDebugDumpInt) {
@@ -1853,13 +1877,13 @@ TEST_F(ApmTest, DebugDump) {
   const std::string filename =
       test::TempFilename(test::OutputPath(), "debug_aec");
   EXPECT_EQ(apm_->kNullPointerError,
-            apm_->StartDebugRecording(static_cast<const char*>(NULL)));
+            apm_->StartDebugRecording(static_cast<const char*>(NULL), -1));
 
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
   // Stopping without having started should be OK.
   EXPECT_EQ(apm_->kNoError, apm_->StopDebugRecording());
 
-  EXPECT_EQ(apm_->kNoError, apm_->StartDebugRecording(filename.c_str()));
+  EXPECT_EQ(apm_->kNoError, apm_->StartDebugRecording(filename.c_str(), -1));
   EXPECT_EQ(apm_->kNoError, apm_->ProcessStream(frame_));
   EXPECT_EQ(apm_->kNoError, apm_->AnalyzeReverseStream(revframe_));
   EXPECT_EQ(apm_->kNoError, apm_->StopDebugRecording());
@@ -1873,7 +1897,7 @@ TEST_F(ApmTest, DebugDump) {
   ASSERT_EQ(0, remove(filename.c_str()));
 #else
   EXPECT_EQ(apm_->kUnsupportedFunctionError,
-            apm_->StartDebugRecording(filename.c_str()));
+            apm_->StartDebugRecording(filename.c_str(), -1));
   EXPECT_EQ(apm_->kUnsupportedFunctionError, apm_->StopDebugRecording());
 
   // Verify the file has NOT been written.
@@ -1884,7 +1908,7 @@ TEST_F(ApmTest, DebugDump) {
 // TODO(andrew): expand test to verify output.
 TEST_F(ApmTest, DebugDumpFromFileHandle) {
   FILE* fid = NULL;
-  EXPECT_EQ(apm_->kNullPointerError, apm_->StartDebugRecording(fid));
+  EXPECT_EQ(apm_->kNullPointerError, apm_->StartDebugRecording(fid, -1));
   const std::string filename =
       test::TempFilename(test::OutputPath(), "debug_aec");
   fid = fopen(filename.c_str(), "w");
@@ -1894,7 +1918,7 @@ TEST_F(ApmTest, DebugDumpFromFileHandle) {
   // Stopping without having started should be OK.
   EXPECT_EQ(apm_->kNoError, apm_->StopDebugRecording());
 
-  EXPECT_EQ(apm_->kNoError, apm_->StartDebugRecording(fid));
+  EXPECT_EQ(apm_->kNoError, apm_->StartDebugRecording(fid, -1));
   EXPECT_EQ(apm_->kNoError, apm_->AnalyzeReverseStream(revframe_));
   EXPECT_EQ(apm_->kNoError, apm_->ProcessStream(frame_));
   EXPECT_EQ(apm_->kNoError, apm_->StopDebugRecording());
@@ -1908,7 +1932,7 @@ TEST_F(ApmTest, DebugDumpFromFileHandle) {
   ASSERT_EQ(0, remove(filename.c_str()));
 #else
   EXPECT_EQ(apm_->kUnsupportedFunctionError,
-            apm_->StartDebugRecording(fid));
+            apm_->StartDebugRecording(fid, -1));
   EXPECT_EQ(apm_->kUnsupportedFunctionError, apm_->StopDebugRecording());
 
   ASSERT_EQ(0, fclose(fid));
@@ -1921,7 +1945,7 @@ TEST_F(ApmTest, FloatAndIntInterfacesGiveSimilarResults) {
 
   Config config;
   config.Set<ExperimentalAgc>(new ExperimentalAgc(false));
-  rtc::scoped_ptr<AudioProcessing> fapm(AudioProcessing::Create(config));
+  std::unique_ptr<AudioProcessing> fapm(AudioProcessing::Create(config));
   EnableAllComponents();
   EnableAllAPComponents(fapm.get());
   for (int i = 0; i < ref_data.test_size(); i++) {
@@ -2262,7 +2286,7 @@ TEST_F(ApmTest, NoErrorsWithKeyboardChannel) {
     {AudioProcessing::kStereoAndKeyboard, AudioProcessing::kStereo},
   };
 
-  rtc::scoped_ptr<AudioProcessing> ap(AudioProcessing::Create());
+  std::unique_ptr<AudioProcessing> ap(AudioProcessing::Create());
   // Enable one component just to ensure some processing takes place.
   ap->noise_suppression()->Enable(true);
   for (size_t i = 0; i < arraysize(cf); ++i) {
@@ -2387,7 +2411,7 @@ class AudioProcessingTest
                             std::string output_file_prefix) {
     Config config;
     config.Set<ExperimentalAgc>(new ExperimentalAgc(false));
-    rtc::scoped_ptr<AudioProcessing> ap(AudioProcessing::Create(config));
+    std::unique_ptr<AudioProcessing> ap(AudioProcessing::Create(config));
     EnableAllAPComponents(ap.get());
 
     ProcessingConfig processing_config = {
@@ -2432,8 +2456,8 @@ class AudioProcessingTest
     const int max_length =
         2 * std::max(std::max(out_cb.num_frames(), rev_out_cb.num_frames()),
                      std::max(fwd_cb.num_frames(), rev_cb.num_frames()));
-    rtc::scoped_ptr<float[]> float_data(new float[max_length]);
-    rtc::scoped_ptr<int16_t[]> int_data(new int16_t[max_length]);
+    std::unique_ptr<float[]> float_data(new float[max_length]);
+    std::unique_ptr<int16_t[]> int_data(new int16_t[max_length]);
 
     int analog_level = 127;
     while (ReadChunk(far_file, int_data.get(), float_data.get(), &rev_cb) &&
@@ -2560,12 +2584,12 @@ TEST_P(AudioProcessingTest, Formats) {
       const size_t ref_length = SamplesFromRate(ref_rate) * out_num;
       const size_t out_length = SamplesFromRate(out_rate) * out_num;
       // Data from the reference file.
-      rtc::scoped_ptr<float[]> ref_data(new float[ref_length]);
+      std::unique_ptr<float[]> ref_data(new float[ref_length]);
       // Data from the output file.
-      rtc::scoped_ptr<float[]> out_data(new float[out_length]);
+      std::unique_ptr<float[]> out_data(new float[out_length]);
       // Data from the resampled output, in case the reference and output rates
       // don't match.
-      rtc::scoped_ptr<float[]> cmp_data(new float[ref_length]);
+      std::unique_ptr<float[]> cmp_data(new float[ref_length]);
 
       PushResampler<float> resampler;
       resampler.InitializeIfNeeded(out_rate, ref_rate, out_num);

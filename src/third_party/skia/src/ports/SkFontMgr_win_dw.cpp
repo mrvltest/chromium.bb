@@ -273,7 +273,7 @@ public:
         if (!SUCCEEDED(fFactory->QueryInterface(&fFactory2))) {
             // IUnknown::QueryInterface states that if it fails, punk will be set to nullptr.
             // http://blogs.msdn.com/b/oldnewthing/archive/2004/03/26/96777.aspx
-            SK_ALWAYSBREAK(nullptr == fFactory2.get());
+            SkASSERT_RELEASE(nullptr == fFactory2.get());
         }
 #endif
         memcpy(fLocaleName.get(), localeName, localeNameLength * sizeof(WCHAR));
@@ -1083,7 +1083,8 @@ SK_API HRESULT SkFontMgr_GetFontCollectionToUse(IDWriteFontCollection** fontColl
   return S_OK;
 }
 
-SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory) {
+SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory,
+                                            IDWriteFontCollection* collection) {
     if (nullptr == factory) {
         factory = sk_get_dwrite_factory();
         if (nullptr == factory) {
@@ -1091,9 +1092,12 @@ SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory) {
         }
     }
 
-    SkTScopedComPtr<IDWriteFontCollection> sysFontCollection;
-    HRNM(SkFontMgr_GetFontCollectionToUse(&sysFontCollection, factory),
-         "Could not get system font collection.");
+    SkTScopedComPtr<IDWriteFontCollection> systemFontCollection;
+    if (nullptr == collection) {
+        HRNM(SkFontMgr_GetFontCollectionToUse(&systemFontCollection, factory),
+             "Could not get system font collection.");
+        collection = systemFontCollection.get();
+    }
 
     WCHAR localeNameStorage[LOCALE_NAME_MAX_LENGTH];
     WCHAR* localeName = nullptr;
@@ -1111,7 +1115,7 @@ SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory) {
         };
     }
 
-    return new SkFontMgr_DirectWrite(factory, sysFontCollection.get(), localeName, localeNameLen);
+    return new SkFontMgr_DirectWrite(factory, collection, localeName, localeNameLen);
 }
 
 #include "SkFontMgr_indirect.h"

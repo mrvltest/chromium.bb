@@ -49,34 +49,34 @@ IndentBlockCommand::IndentBlockCommand(Document& document)
 {
 }
 
-PassRefPtr<Element> IndentBlockCommand::createIndentBlock(const QualifiedName& tagName) const
+PassRefPtrWillBeRawPtr<Element> IndentBlockCommand::createIndentBlock(const QualifiedName& tagName) const
 {
-    RefPtr<Element> element = createHTMLElement(document(), tagName);
+    RefPtrWillBeRawPtr<Element> element = createHTMLElement(document(), tagName);
     if (tagName.matches(blockquoteTag))
         element->setAttribute(styleAttr, "margin: 0 0 0 40px; border: none; padding: 0px;");
     return element.release();
 }
 
-void IndentBlockCommand::indentSiblings(PassRefPtr<Node> prpFirstSibling, PassRefPtr<Node> prpLastSibling, Node* lastNode)
+void IndentBlockCommand::indentSiblings(PassRefPtrWillBeRawPtr<Node> prpFirstSibling, PassRefPtrWillBeRawPtr<Node> prpLastSibling, Node* lastNode, EditingState *editingState)
 {
-    RefPtr<Node> firstSibling = prpFirstSibling;
-    RefPtr<Node> lastSibling = prpLastSibling;
+    RefPtrWillBeRawPtr<Node> firstSibling = prpFirstSibling;
+    RefPtrWillBeRawPtr<Node> lastSibling = prpLastSibling;
 
-    RefPtr<Element> blockForIndent;
-    RefPtr<Node> refChild;
+    RefPtrWillBeRawPtr<Element> blockForIndent;
+    RefPtrWillBeRawPtr<Node> refChild;
     bool needToMergeNextSibling = false;
 
     const blink::HTMLQualifiedName blockQName
         = getBlockQuoteName(firstSibling->parentNode());
 
-    RefPtr<Node> previousSibling = previousRenderedSiblingExcludingWhitespace(firstSibling.get());
+    RefPtrWillBeRawPtr<Node> previousSibling = previousRenderedSiblingExcludingWhitespace(firstSibling.get());
     if (previousSibling && previousSibling->isElementNode()
             && toElement(previousSibling)->hasTagName(blockQName)) {
         blockForIndent = toElement(previousSibling.get());
         firstSibling = previousSibling->nextSibling();
     }
 
-    RefPtr<Node> nextSibling = nextRenderedSiblingExcludingWhitespace(lastSibling.get());
+    RefPtrWillBeRawPtr<Node> nextSibling = nextRenderedSiblingExcludingWhitespace(lastSibling.get());
     if (nextSibling && nextSibling->hasTagName(blockQName) && !lastNode->isDescendantOf(nextSibling.get())) {
         if (!blockForIndent) {
             blockForIndent = toElement(nextSibling.get());
@@ -89,13 +89,13 @@ void IndentBlockCommand::indentSiblings(PassRefPtr<Node> prpFirstSibling, PassRe
 
     if (!blockForIndent) {
         blockForIndent = createIndentBlock(blockQName);
-        insertNodeBefore(blockForIndent, firstSibling);
+        insertNodeBefore(blockForIndent, firstSibling, editingState);
     }
 
-    moveRemainingSiblingsToNewParent(firstSibling.get(), lastSibling->nextSibling(), blockForIndent, refChild);
+    moveRemainingSiblingsToNewParent(firstSibling.get(), lastSibling->nextSibling(), blockForIndent, editingState, refChild);
     if (needToMergeNextSibling) {
-        moveRemainingSiblingsToNewParent(nextSibling->firstChild(), nextSibling->lastChild()->nextSibling(), blockForIndent);
-        removeNode(nextSibling);
+        moveRemainingSiblingsToNewParent(nextSibling->firstChild(), nextSibling->lastChild()->nextSibling(), blockForIndent, editingState);
+        removeNode(nextSibling, editingState);
     }
 }
 

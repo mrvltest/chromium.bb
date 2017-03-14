@@ -82,14 +82,14 @@ OutdentBlockCommand::OutdentBlockCommand(Document& document)
 {
 }
 
-PassRefPtr<Node> OutdentBlockCommand::splitStart(Node* ancestor, PassRefPtr<Node> prpChild)
+PassRefPtrWillBeRawPtr<Node> OutdentBlockCommand::splitStart(Node* ancestor, PassRefPtrWillBeRawPtr<Node> prpChild)
 {
     ASSERT(prpChild->isDescendantOf(ancestor));
 
-    RefPtr<Node> child = prpChild;
+    RefPtrWillBeRawPtr<Node> child = prpChild;
 
     while (child != ancestor) {
-        RefPtr<Node> previous = previousRenderedSiblingExcludingWhitespace(child.get());
+        RefPtrWillBeRawPtr<Node> previous = previousRenderedSiblingExcludingWhitespace(child.get());
         if (previous)
             splitElement(toElement(child->parentNode()), previous->nextSibling());
         child = child->parentNode();
@@ -99,16 +99,16 @@ PassRefPtr<Node> OutdentBlockCommand::splitStart(Node* ancestor, PassRefPtr<Node
     return child.release();
 }
 
-PassRefPtr<Node> OutdentBlockCommand::splitEnd(Node* ancestor, PassRefPtr<Node> prpChild)
+PassRefPtrWillBeRawPtr<Node> OutdentBlockCommand::splitEnd(Node* ancestor, PassRefPtrWillBeRawPtr<Node> prpChild)
 {
     ASSERT(prpChild->isDescendantOf(ancestor));
 
-    RefPtr<Node> child = prpChild;
+    RefPtrWillBeRawPtr<Node> child = prpChild;
     bool reachedAncestor = false;
 
     while (!reachedAncestor) {
         reachedAncestor = child->parentNode() == ancestor;
-        RefPtr<Node> next = nextRenderedSiblingExcludingWhitespace(child.get());
+        RefPtrWillBeRawPtr<Node> next = nextRenderedSiblingExcludingWhitespace(child.get());
         if (next)
             splitElement(toElement(child->parentNode()), next);
         child = child->parentNode();
@@ -118,42 +118,42 @@ PassRefPtr<Node> OutdentBlockCommand::splitEnd(Node* ancestor, PassRefPtr<Node> 
     return child.release();
 }
 
-void OutdentBlockCommand::outdentSiblings(PassRefPtr<Node> prpFirstSibling, PassRefPtr<Node> prpLastSibling, Node* indentBlock)
+void OutdentBlockCommand::outdentSiblings(PassRefPtrWillBeRawPtr<Node> prpFirstSibling, PassRefPtrWillBeRawPtr<Node> prpLastSibling, Node* indentBlock, EditingState *editingState)
 {
     ASSERT(indentBlock);
     if (!prpFirstSibling) {
         ASSERT(!prpLastSibling);
         ASSERT(!indentBlock->firstChild());
-        removeNode(indentBlock);
+        removeNode(indentBlock, editingState);
         return;
     }
 
     ASSERT(prpFirstSibling->isDescendantOf(indentBlock));
     ASSERT(prpFirstSibling->parentNode() == prpLastSibling->parentNode());
 
-    RefPtr<Node> firstSibling = prpFirstSibling;
-    RefPtr<Node> lastSibling = prpLastSibling;
+    RefPtrWillBeRawPtr<Node> firstSibling = prpFirstSibling;
+    RefPtrWillBeRawPtr<Node> lastSibling = prpLastSibling;
 
     lastSibling = splitEnd(indentBlock, lastSibling);
     indentBlock = lastSibling->parentNode();
     firstSibling = splitStart(indentBlock, firstSibling);
     ASSERT(firstSibling->parentNode() == indentBlock);
 
-    RefPtr<Node> current = firstSibling;
-    RefPtr<Node> end = lastSibling->nextSibling();
+    RefPtrWillBeRawPtr<Node> current = firstSibling;
+    RefPtrWillBeRawPtr<Node> end = lastSibling->nextSibling();
     while (current != end) {
-        RefPtr<Node> next = current->nextSibling();
-        removeNode(current);
-        insertNodeBefore(current, indentBlock);
+        RefPtrWillBeRawPtr<Node> next = current->nextSibling();
+        removeNode(current, editingState);
+        insertNodeBefore(current, indentBlock, editingState);
         current = next;
     }
 
     if (!hasVisibleChildren(indentBlock)) {
-        removeNode(indentBlock);
+        removeNode(indentBlock, editingState);
     }
 }
 
-void OutdentBlockCommand::formatBlockSiblings(PassRefPtr<Node> prpFirstSibling, PassRefPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode)
+void OutdentBlockCommand::formatBlockSiblings(PassRefPtrWillBeRawPtr<Node> prpFirstSibling, PassRefPtrWillBeRawPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode, EditingState *editingState)
 {
     ASSERT(prpFirstSibling);
     ASSERT(prpLastSibling);
@@ -161,30 +161,30 @@ void OutdentBlockCommand::formatBlockSiblings(PassRefPtr<Node> prpFirstSibling, 
     ASSERT(prpFirstSibling->parentNode() == prpLastSibling->parentNode());
     ASSERT(prpFirstSibling->isDescendantOf(stayWithin));
 
-    RefPtr<Node> firstSibling = prpFirstSibling;
-    RefPtr<Node> lastSibling = prpLastSibling;
+    RefPtrWillBeRawPtr<Node> firstSibling = prpFirstSibling;
+    RefPtrWillBeRawPtr<Node> lastSibling = prpLastSibling;
 
     Node* indentBlock = findCommonIndentationBlock(firstSibling.get(), lastSibling.get(), stayWithin);
     if (indentBlock) {
         if (indentBlock == firstSibling) {
             ASSERT(indentBlock == lastSibling);
-            removeNodePreservingChildren(firstSibling);
+            removeNodePreservingChildren(firstSibling, editingState);
         }
         else
-            outdentSiblings(firstSibling, lastSibling, indentBlock);
+            outdentSiblings(firstSibling, lastSibling, indentBlock, editingState);
         return;
     }
 
     // If there is no common indent block, then look to see if any of
     // the siblings, or their children, are themselves indent blocks,
     // and if so, remove them to remove the indentation
-    RefPtr<Node> current = firstSibling;
-    RefPtr<Node> end = NodeTraversal::nextSkippingChildren(*lastSibling, stayWithin);
+    RefPtrWillBeRawPtr<Node> current = firstSibling;
+    RefPtrWillBeRawPtr<Node> end = NodeTraversal::nextSkippingChildren(*lastSibling, stayWithin);
     while (current != end) {
-        RefPtr<Node> next;
+        RefPtrWillBeRawPtr<Node> next;
         if (isIndentationBlock(current.get(), stayWithin)) {
             next = NodeTraversal::nextSkippingChildren(*current, stayWithin);
-            removeNodePreservingChildren(current);
+            removeNodePreservingChildren(current, editingState);
         }
         else
             next = NodeTraversal::next(*current, stayWithin);

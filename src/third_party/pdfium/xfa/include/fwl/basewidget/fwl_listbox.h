@@ -4,12 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_LISTBOX_H
-#define _FWL_LISTBOX_H
-class CFWL_WidgetImpProperties;
-class IFWL_Widget;
+#ifndef XFA_INCLUDE_FWL_BASEWIDGET_FWL_LISTBOX_H_
+#define XFA_INCLUDE_FWL_BASEWIDGET_FWL_LISTBOX_H_
+
+#include "xfa/include/fwl/core/fwl_note.h"
+#include "xfa/include/fwl/core/fwl_widget.h"
+
 class IFWL_ListBoxDP;
-class IFWL_ListBox;
+
 #define FWL_CLASS_ListBox L"FWL_LISTBOX"
 #define FWL_CLASSHASH_ListBox 1777358317
 #define FWL_STYLEEXT_LTB_MultiSelection (1L << 0)
@@ -48,20 +50,24 @@ class IFWL_ListBox;
 #define FWL_EVT_LTB_DrawItem L"FWL_EVENT_LTB_DrawItem"
 #define FWL_EVTHASH_LTB_SelChanged 1701781688
 #define FWL_EVTHASH_LTB_DrawItem 1050853991
+
 BEGIN_FWL_EVENT_DEF(CFWL_EvtLtbSelChanged, FWL_EVTHASH_LTB_SelChanged)
 CFX_Int32Array iarraySels;
 END_FWL_EVENT_DEF
+
 BEGIN_FWL_EVENT_DEF(CFWL_EvtLtbDrawItem, FWL_EVTHASH_LTB_DrawItem)
 CFX_Graphics* m_pGraphics;
 CFX_Matrix m_matrix;
 int32_t m_index;
 CFX_RectF m_rect;
 END_FWL_EVENT_DEF
-typedef struct _FWL_HLISTITEM { void* pData; } * FWL_HLISTITEM;
-typedef struct _FWL_ListBoxItemData {
+
+typedef struct FWL_HLISTITEM_ { void* pData; } * FWL_HLISTITEM;
+struct FWL_ListBoxItemData {
   IFWL_ListBoxDP* pDataProvider;
   int32_t iIndex;
-} FWL_ListBoxItemData;
+};
+
 class IFWL_ListBoxDP : public IFWL_DataProvider {
  public:
   virtual int32_t CountItems(IFWL_Widget* pWidget) = 0;
@@ -126,4 +132,5 @@ class IFWL_ListBox : public IFWL_Widget {
  protected:
   IFWL_ListBox();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_BASEWIDGET_FWL_LISTBOX_H_

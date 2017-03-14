@@ -66,6 +66,7 @@
         'layer_delegate.h',
         'layer_owner.cc',
         'layer_owner.h',
+        'layer_threaded_animation_delegate.h',
         'layer_tree_owner.cc',
         'layer_tree_owner.h',
         'layer_type.h',
@@ -158,6 +159,11 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cc/cc.gyp:cc',
+        '<(DEPTH)/cc/cc.gyp:cc_surfaces',
+
+        # blpwtk2: Remove test-only code
+        # '<(DEPTH)/cc/cc_tests.gyp:cc_test_support',
+
         '<(DEPTH)/skia/skia.gyp:skia',
         '<(DEPTH)/ui/base/ui_base.gyp:ui_base',
         '<(DEPTH)/ui/gfx/gfx.gyp:gfx',
@@ -182,15 +188,6 @@
         # osmesa GL implementation is used on linux.
         ['OS=="linux"', {
           'dependencies': [
-          ],
-        }],
-        ['os_posix == 1 and OS != "mac"', {
-          'conditions': [
-            ['use_allocator!="none"', {
-              'dependencies': [
-                '<(DEPTH)/base/allocator/allocator.gyp:allocator',
-              ],
-            }],
           ],
         }],
         ['OS == "android"', {

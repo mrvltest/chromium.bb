@@ -45,9 +45,7 @@ static const uint32_t kMaxKeySize = 1024;
 
 class GLBigKeyProcessor : public GrGLSLFragmentProcessor {
 public:
-    GLBigKeyProcessor(const GrProcessor&) {}
-
-    virtual void emitCode(EmitArgs& args) override {
+    void emitCode(EmitArgs& args) override {
         // pass through
         GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
         if (args.fInputColor) {
@@ -76,7 +74,7 @@ public:
     const char* name() const override { return "Big Ole Key"; }
 
     GrGLSLFragmentProcessor* onCreateGLSLInstance() const override {
-        return new GLBigKeyProcessor(*this);
+        return new GLBigKeyProcessor;
     }
 
 private:
@@ -172,7 +170,7 @@ static GrRenderTarget* random_render_target(GrTextureProvider* textureProvider, 
 
     GrTexture* texture = textureProvider->findAndRefTextureByUniqueKey(key);
     if (!texture) {
-        texture = textureProvider->createTexture(texDesc, true);
+        texture = textureProvider->createTexture(texDesc, SkBudgeted::kYes);
         if (texture) {
             textureProvider->assignUniqueKeyToTexture(key, texture);
         }
@@ -312,13 +310,13 @@ bool GrDrawingManager::ProgramUnitTest(GrContext* context, int maxStages) {
     dummyDesc.fWidth = 34;
     dummyDesc.fHeight = 18;
     SkAutoTUnref<GrTexture> dummyTexture1(
-        context->textureProvider()->createTexture(dummyDesc, false, nullptr, 0));
+        context->textureProvider()->createTexture(dummyDesc, SkBudgeted::kNo, nullptr, 0));
     dummyDesc.fFlags = kNone_GrSurfaceFlags;
     dummyDesc.fConfig = kAlpha_8_GrPixelConfig;
     dummyDesc.fWidth = 16;
     dummyDesc.fHeight = 22;
     SkAutoTUnref<GrTexture> dummyTexture2(
-        context->textureProvider()->createTexture(dummyDesc, false, nullptr, 0));
+        context->textureProvider()->createTexture(dummyDesc, SkBudgeted::kNo, nullptr, 0));
 
     if (!dummyTexture1 || ! dummyTexture2) {
         SkDebugf("Could not allocate dummy textures");
@@ -375,7 +373,7 @@ bool GrDrawingManager::ProgramUnitTest(GrContext* context, int maxStages) {
     rtDesc.fFlags = kRenderTarget_GrSurfaceFlag;
     rtDesc.fConfig = kRGBA_8888_GrPixelConfig;
     SkAutoTUnref<GrRenderTarget> rt(
-        context->textureProvider()->createTexture(rtDesc, false)->asRenderTarget());
+        context->textureProvider()->createTexture(rtDesc, SkBudgeted::kNo)->asRenderTarget());
     int fpFactoryCnt = GrProcessorTestFactory<GrFragmentProcessor>::Count();
     for (int i = 0; i < fpFactoryCnt; ++i) {
         // Since FP factories internally randomize, call each 10 times.

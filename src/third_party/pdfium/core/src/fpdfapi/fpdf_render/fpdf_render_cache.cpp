@@ -4,7 +4,7 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "render_int.h"
+#include "core/src/fpdfapi/fpdf_render/render_int.h"
 
 #include "core/include/fpdfapi/fpdf_pageobj.h"
 #include "core/include/fpdfapi/fpdf_render.h"
@@ -292,7 +292,7 @@ int CPDF_ImageCacheEntry::StartGetCachedBitmap(CPDF_Dictionary* pFormResources,
   return 0;
 }
 void CPDF_ImageCacheEntry::ContinueGetCachedBitmap() {
-  m_MatteColor = ((CPDF_DIBSource*)m_pCurBitmap)->m_MatteColor;
+  m_MatteColor = ((CPDF_DIBSource*)m_pCurBitmap)->GetMatteColor();
   m_pCurMask = ((CPDF_DIBSource*)m_pCurBitmap)->DetachMask();
   CPDF_RenderContext* pContext = m_pRenderStatus->GetContext();
   CPDF_PageRenderCache* pPageRenderCache = pContext->GetPageCache();

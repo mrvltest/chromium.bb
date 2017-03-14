@@ -6,9 +6,8 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/perf_insights/mappers/scheduling/map_wake_ups.html">
-<link rel="import" href="/perf_insights/results/results.html">
-<link rel="import" href="/perf_insights/value/run_info.html">
-<link rel="import" href="/perf_insights/value/value.html">
+<link rel="import" href="/perf_insights/mre/mre_result.html">
+<link rel="import" href="/tracing/base/iteration_helpers.html">
 <link rel="import" href="/tracing/core/test_utils.html">
 
 <script>
@@ -62,14 +61,12 @@ tr.b.unittest.testSuite(function() {
       }));
     });
 
-    var results = new pi.r.Results();
-    var runInfo = new pi.v.RunInfo('my_test.json');
-    pie.mapWakeUpsForTest(results, runInfo, m);
+    var result = new pi.mre.MreResult();
+    pie.mapWakeUpsForTest(result, m);
 
-    assert.lengthOf(results.allValues, 1);
-    assert.instanceOf(results.allValues[0], pi.v.DictValue);
+    assert.equal(tr.b.dictionaryLength(result.pairs), 1);
 
-    var wakeUps = results.allValues[0].value;
+    var wakeUps = result.pairs.wakeUps;
     assert.equal(Object.keys(wakeUps.mainThread).length, 2);
     assert.equal(wakeUps.mainThread.wakeUp1.frequency, 200 / 3);
     assert.deepEqual(wakeUps.mainThread.wakeUp1.sleepTimes, [9, 15]);

@@ -12,6 +12,7 @@ import webtest
 
 from google.appengine.ext import ndb
 
+from dashboard import can_bisect
 from dashboard import namespaced_stored_object
 from dashboard import rietveld_service
 from dashboard import start_try_job
@@ -21,6 +22,9 @@ from dashboard.models import bug_data
 from dashboard.models import graph_data
 from dashboard.models import try_job
 
+# TODO(qyearsley): Shorten this module.
+# See https://github.com/catapult-project/catapult/issues/1917
+# pylint: disable=too-many-lines
 
 # Below is a series of test strings which may contain long lines.
 # pylint: disable=line-too-long
@@ -323,7 +327,7 @@ class StartBisectTest(testing_common.TestCase):
         [('/start_try_job', start_try_job.StartBisectHandler)])
     self.testapp = webtest.TestApp(app)
     namespaced_stored_object.Set(
-        start_try_job._BISECT_BOT_MAP_KEY,
+        can_bisect.BISECT_BOT_MAP_KEY,
         {
             'ChromiumPerf': [
                 ('nexus4', 'android_nexus4_perf_bisect'),
@@ -371,29 +375,31 @@ class StartBisectTest(testing_common.TestCase):
     self.SetCurrentUser('foo@chromium.org')
     testing_common.AddTests(
         ['ChromiumPerf'],
-        ['win7',
-         'android-nexus7',
-         'chromium-rel-win8-dual',
-         'chromium-rel-xp-single'], {
-             'page_cycler.morejs': {
-                 'times': {
-                     'page_load_time': {},
-                     'page_load_time_ref': {},
-                     'blog.chromium.org': {},
-                     'dev.chromium.org': {},
-                     'test.blogspot.com': {},
-                     'http___test.com_': {}
-                 },
-                 'vm_final_size_renderer': {
-                     'ref': {},
-                     'vm_final_size_renderer_extcs1': {}
-                 },
-             },
-             'blink_perf': {
-                 'Animation_balls': {}
-             }
-        }
-    )
+        [
+            'win7',
+            'android-nexus7',
+            'chromium-rel-win8-dual',
+            'chromium-rel-xp-single'
+        ],
+        {
+            'page_cycler.morejs': {
+                'times': {
+                    'page_load_time': {},
+                    'page_load_time_ref': {},
+                    'blog.chromium.org': {},
+                    'dev.chromium.org': {},
+                    'test.blogspot.com': {},
+                    'http___test.com_': {}
+                },
+                'vm_final_size_renderer': {
+                    'ref': {},
+                    'vm_final_size_renderer_extcs1': {}
+                },
+            },
+            'blink_perf': {
+                'Animation_balls': {}
+            }
+        })
     tests = graph_data.Test.query().fetch()
     for test in tests:
       name = test.key.string_id()
@@ -693,7 +699,7 @@ class StartBisectTest(testing_common.TestCase):
 
   def testGuessBisectBot_FetchesNameFromBisectBotMap(self):
     namespaced_stored_object.Set(
-        start_try_job._BISECT_BOT_MAP_KEY,
+        can_bisect.BISECT_BOT_MAP_KEY,
         {'OtherMaster': [('foo', 'super_foo_bisect_bot')]})
     self.assertEqual(
         'super_foo_bisect_bot',
@@ -701,7 +707,7 @@ class StartBisectTest(testing_common.TestCase):
 
   def testGuessBisectBot_PlatformNotFound_UsesFallback(self):
     namespaced_stored_object.Set(
-        start_try_job._BISECT_BOT_MAP_KEY,
+        can_bisect.BISECT_BOT_MAP_KEY,
         {'OtherMaster': [('foo', 'super_foo_bisect_bot')]})
     self.assertEqual(
         'linux_perf_bisect',
@@ -709,7 +715,7 @@ class StartBisectTest(testing_common.TestCase):
 
   def testGuessBisectBot_TreatsMasterNameAsPrefix(self):
     namespaced_stored_object.Set(
-        start_try_job._BISECT_BOT_MAP_KEY,
+        can_bisect.BISECT_BOT_MAP_KEY,
         {'OtherMaster': [('foo', 'super_foo_bisect_bot')]})
     self.assertEqual(
         'super_foo_bisect_bot',
@@ -825,14 +831,6 @@ class StartBisectTest(testing_common.TestCase):
       mock.MagicMock(side_effect=_MockMakeRequest))
   def testPerformBisectStep_DeleteJobOnFailedBisect(self):
     self.SetCurrentUser('foo@chromium.org')
-    # Fake Rietveld auth info
-    cfg = rietveld_service.RietveldConfig(
-        id='default_rietveld_config',
-        client_email='sullivan@chromium.org',
-        service_account_key='Fake Account Key',
-        server_url='https://test-rietveld.appspot.com/')
-    cfg.put()
-
     query_parameters = {
         'bisect_bot': 'linux_perf_bisect',
         'suite': 'dromaeo.jslibstylejquery',
@@ -860,14 +858,6 @@ class StartBisectTest(testing_common.TestCase):
       mock.MagicMock(side_effect=_MockMakeRequest))
   def testPerformPerfTryStep_DeleteJobOnFailedBisect(self):
     self.SetCurrentUser('foo@chromium.org')
-    # Fake Rietveld auth info
-    cfg = rietveld_service.RietveldConfig(
-        id='default_rietveld_config',
-        client_email='sullivan@chromium.org',
-        service_account_key='Fake Account Key',
-        server_url='https://test-rietveld.appspot.com/')
-    cfg.put()
-
     query_parameters = {
         'bisect_bot': 'linux_perf_bisect',
         'suite': 'dromaeo.jslibstylejquery',

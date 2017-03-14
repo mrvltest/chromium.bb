@@ -4,21 +4,21 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_WIDGET_IMP_H
-#define _FXFA_FORMFILLER_WIDGET_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGET_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGET_H_
 
+#include <vector>
+
+#include "core/include/fxcodec/fx_codec_def.h"
+#include "core/include/fxge/fx_ge.h"
 #include "xfa/include/fxfa/fxfa.h"
+#include "xfa/src/fxfa/src/common/xfa_doclayout.h"
 
 class CXFA_FFPageView;
 class CXFA_FFDocView;
 class CXFA_FFDoc;
 class CXFA_FFApp;
 
-#define XFA_GOTO_POSITION_IF_FAIL(arg, pos) \
-  {                                         \
-    if (!(arg))                             \
-      goto pos;                             \
-  }
 inline FX_FLOAT XFA_UnitPx2Pt(FX_FLOAT fPx, FX_FLOAT fDpi) {
   return fPx * 72.0f / fDpi;
 }
@@ -102,7 +102,7 @@ class CXFA_FFWidget : public IXFA_Widget,
   virtual FX_BOOL Delete() { return FALSE; }
   virtual FX_BOOL DeSelect() { return FALSE; }
   virtual FX_BOOL GetSuggestWords(CFX_PointF pointf,
-                                  CFX_ByteStringArray& sSuggest) {
+                                  std::vector<CFX_ByteString>& sSuggest) {
     return FALSE;
   }
   virtual FX_BOOL ReplaceSpellCheckWord(CFX_PointF pointf,
@@ -183,4 +183,5 @@ void XFA_DrawBox(CXFA_Box box,
                  const CFX_RectF& rtWidget,
                  CFX_Matrix* pMatrix,
                  FX_DWORD dwFlags = 0);
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFWIDGET_H_

@@ -20,11 +20,11 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_QRAlignmentPattern.h"
-#include "BC_QRAlignmentPatternFinder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRAlignmentPattern.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRAlignmentPatternFinder.h"
+
 CBC_QRAlignmentPatternFinder::CBC_QRAlignmentPatternFinder(
     CBC_CommonBitMatrix* image,
     int32_t startX,
@@ -37,9 +37,7 @@ CBC_QRAlignmentPatternFinder::CBC_QRAlignmentPatternFinder(
       m_startY(startY),
       m_width(width),
       m_height(height),
-      m_moduleSize(moduleSize)
-
-{
+      m_moduleSize(moduleSize) {
   m_crossCheckStateCount.SetSize(3);
 }
 CBC_QRAlignmentPatternFinder::~CBC_QRAlignmentPatternFinder() {
@@ -75,7 +73,7 @@ CBC_QRAlignmentPattern* CBC_QRAlignmentPatternFinder::Find(int32_t& e) {
             if (FoundPatternCross(stateCount)) {
               CBC_QRAlignmentPattern* confirmed =
                   HandlePossibleCenter(stateCount, i, j);
-              if (confirmed != NULL) {
+              if (confirmed) {
                 return confirmed;
               }
             }
@@ -98,7 +96,7 @@ CBC_QRAlignmentPattern* CBC_QRAlignmentPatternFinder::Find(int32_t& e) {
     if (FoundPatternCross(stateCount)) {
       CBC_QRAlignmentPattern* confirmed =
           HandlePossibleCenter(stateCount, i, maxJ);
-      if (confirmed != NULL) {
+      if (confirmed) {
         return confirmed;
       }
     }

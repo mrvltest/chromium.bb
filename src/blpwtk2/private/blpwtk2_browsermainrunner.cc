@@ -130,8 +130,7 @@ BrowserMainRunner::BrowserMainRunner(
             ContentClient::Instance()->GetUserAgent()));
     Statics::devToolsHttpHandler = d_devtoolsHttpHandler.get();
 
-    gfx::Screen::SetScreenInstance(
-        gfx::SCREEN_TYPE_NATIVE, views::CreateDesktopScreen());
+    gfx::Screen::SetScreenInstance(views::CreateDesktopScreen());
 
     d_viewsDelegate.reset(
         new ViewsDelegateImpl());

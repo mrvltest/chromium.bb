@@ -43,6 +43,7 @@ class GrTextContext;
 class GrTextureParams;
 class GrVertexBuffer;
 class GrStrokeInfo;
+class GrSwizzle;
 class SkTraceMemoryDump;
 
 class SK_API GrContext : public SkRefCnt {
@@ -277,24 +278,17 @@ public:
      * @param src           the surface to copy from.
      * @param srcRect       the rectangle of the src that should be copied.
      * @param dstPoint      the translation applied when writing the srcRect's pixels to the dst.
-     * @param pixelOpsFlags see PixelOpsFlags enum above. (kUnpremul_PixelOpsFlag is not allowed).
      */
-    void copySurface(GrSurface* dst,
+    bool copySurface(GrSurface* dst,
                      GrSurface* src,
                      const SkIRect& srcRect,
-                     const SkIPoint& dstPoint,
-                     uint32_t pixelOpsFlags = 0);
+                     const SkIPoint& dstPoint);
 
     /** Helper that copies the whole surface but fails when the two surfaces are not identically
         sized. */
     bool copySurface(GrSurface* dst, GrSurface* src) {
-        if (NULL == dst || NULL == src || dst->width() != src->width() ||
-            dst->height() != src->height()) {
-            return false;
-        }
-        this->copySurface(dst, src, SkIRect::MakeWH(dst->width(), dst->height()),
-                          SkIPoint::Make(0,0));
-        return true;
+        return this->copySurface(dst, src, SkIRect::MakeWH(dst->width(), dst->height()),
+                                 SkIPoint::Make(0,0));
     }
 
     /**
@@ -429,11 +423,11 @@ private:
     /**
      * These functions create premul <-> unpremul effects if it is possible to generate a pair
      * of effects that make a readToUPM->writeToPM->readToUPM cycle invariant. Otherwise, they
-     * return NULL.
+     * return NULL. They also can perform a swizzle as part of the draw.
      */
-    const GrFragmentProcessor* createPMToUPMEffect(GrTexture*, bool swapRAndB,
+    const GrFragmentProcessor* createPMToUPMEffect(GrTexture*, const GrSwizzle&,
                                                    const SkMatrix&) const;
-    const GrFragmentProcessor* createUPMToPMEffect(GrTexture*, bool swapRAndB,
+    const GrFragmentProcessor* createUPMToPMEffect(GrTexture*, const GrSwizzle&,
                                                    const SkMatrix&) const;
     /** Called before either of the above two functions to determine the appropriate fragment
         processors for conversions. This must be called by readSurfacePixels before a mutex is

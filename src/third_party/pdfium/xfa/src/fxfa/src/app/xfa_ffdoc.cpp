@@ -4,14 +4,19 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+
+#include "xfa/include/fwl/core/fwl_note.h"
+#include "xfa/src/fgas/include/fx_alg.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffapp.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffnotify.h"
-#include "xfa_fontmgr.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffnotify.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_fontmgr.h"
+#include "xfa/src/fxfa/src/common/xfa_docdata.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+
 CXFA_FFDoc::CXFA_FFDoc(CXFA_FFApp* pApp, IXFA_DocProvider* pDocProvider)
     : m_pDocProvider(pDocProvider),
       m_pDocument(nullptr),
@@ -100,7 +105,7 @@ void XFA_XPDPacket_MergeRootNode(CXFA_Node* pOriginRoot, CXFA_Node* pNewRoot) {
 int32_t CXFA_FFDoc::DoLoad(IFX_Pause* pPause) {
   int32_t iStatus = m_pDocument->GetParser()->DoParse(pPause);
   if (iStatus == XFA_PARSESTATUS_Done && !m_pPDFDoc) {
-    CXFA_Node* pPDFNode = (CXFA_Node*)m_pDocument->GetXFANode(XFA_HASHCODE_Pdf);
+    CXFA_Node* pPDFNode = ToNode(m_pDocument->GetXFAObject(XFA_HASHCODE_Pdf));
     if (!pPDFNode) {
       return XFA_PARSESTATUS_SyntaxErr;
     }
@@ -113,13 +118,6 @@ int32_t CXFA_FFDoc::DoLoad(IFX_Pause* pPause) {
     IFX_FileRead* pXFAReader = NULL;
     if (XFA_GetPDFContentsFromPDFXML(pPDFXML, pByteBuffer, iBufferSize)) {
       pXFAReader = FX_CreateMemoryStream(pByteBuffer, iBufferSize, TRUE);
-      if (!pXFAReader) {
-        if (pByteBuffer) {
-          FX_Free(pByteBuffer);
-          pByteBuffer = NULL;
-        }
-        return XFA_PARSESTATUS_SyntaxErr;
-      }
     } else {
       CFX_WideString wsHref;
       ((IFDE_XMLElement*)pPDFXML)->GetString(L"href", wsHref);
@@ -159,7 +157,7 @@ int32_t CXFA_FFDoc::DoLoad(IFX_Pause* pPause) {
 void CXFA_FFDoc::StopLoad() {
   m_pApp->GetXFAFontMgr()->LoadDocFonts(this);
   m_dwDocType = XFA_DOCTYPE_Static;
-  CXFA_Node* pConfig = (CXFA_Node*)m_pDocument->GetXFANode(XFA_HASHCODE_Config);
+  CXFA_Node* pConfig = ToNode(m_pDocument->GetXFAObject(XFA_HASHCODE_Config));
   if (!pConfig) {
     return;
   }
@@ -225,7 +223,7 @@ FX_BOOL CXFA_FFDoc::OpenDoc(CPDF_Document* pPDFDoc) {
   if (pRoot == NULL) {
     return FALSE;
   }
-  CPDF_Dictionary* pAcroForm = pRoot->GetDict("AcroForm");
+  CPDF_Dictionary* pAcroForm = pRoot->GetDictBy("AcroForm");
   if (pAcroForm == NULL) {
     return FALSE;
   }
@@ -233,18 +231,15 @@ FX_BOOL CXFA_FFDoc::OpenDoc(CPDF_Document* pPDFDoc) {
   if (pElementXFA == NULL) {
     return FALSE;
   }
-  int32_t iObjType = pElementXFA->GetType();
   CFX_ArrayTemplate<CPDF_Stream*> xfaStreams;
-  if (iObjType == PDFOBJ_ARRAY) {
+  if (pElementXFA->IsArray()) {
     CPDF_Array* pXFAArray = (CPDF_Array*)pElementXFA;
     FX_DWORD count = pXFAArray->GetCount() / 2;
     for (FX_DWORD i = 0; i < count; i++) {
-      CPDF_Stream* pStream = pXFAArray->GetStream(i * 2 + 1);
-      if (pStream != NULL) {
+      if (CPDF_Stream* pStream = pXFAArray->GetStreamAt(i * 2 + 1))
         xfaStreams.Add(pStream);
-      }
     }
-  } else if (iObjType == PDFOBJ_STREAM) {
+  } else if (pElementXFA->IsStream()) {
     xfaStreams.Add((CPDF_Stream*)pElementXFA);
   }
   if (xfaStreams.GetSize() < 1) {
@@ -335,11 +330,11 @@ CFX_DIBitmap* CXFA_FFDoc::GetPDFNamedImage(const CFX_WideStringC& wsName,
   if (pRoot == NULL) {
     return NULL;
   }
-  CPDF_Dictionary* pNames = pRoot->GetDict("Names");
+  CPDF_Dictionary* pNames = pRoot->GetDictBy("Names");
   if (!pNames) {
     return NULL;
   }
-  CPDF_Dictionary* pXFAImages = pNames->GetDict("XFAImages");
+  CPDF_Dictionary* pXFAImages = pNames->GetDictBy("XFAImages");
   if (!pXFAImages) {
     return NULL;
   }
@@ -372,7 +367,7 @@ CFX_DIBitmap* CXFA_FFDoc::GetPDFNamedImage(const CFX_WideStringC& wsName,
     }
   }
 #endif
-  if (!pObject || pObject->GetType() != PDFOBJ_STREAM) {
+  if (!pObject || !pObject->IsStream()) {
     return NULL;
   }
   if (!imageDIBDpi) {
@@ -396,9 +391,7 @@ CFX_DIBitmap* CXFA_FFDoc::GetPDFNamedImage(const CFX_WideStringC& wsName,
 IFDE_XMLElement* CXFA_FFDoc::GetPackageData(const CFX_WideStringC& wsPackage) {
   FX_DWORD packetHash =
       FX_HashCode_String_GetW(wsPackage.GetPtr(), wsPackage.GetLength());
-  CXFA_Object* pObject = m_pDocument->GetXFANode(packetHash);
-  CXFA_Node* pNode =
-      (pObject && pObject->IsNode()) ? (CXFA_Node*)pObject : NULL;
+  CXFA_Node* pNode = ToNode(m_pDocument->GetXFAObject(packetHash));
   if (!pNode) {
     return NULL;
   }
@@ -420,8 +413,7 @@ FX_BOOL CXFA_FFDoc::SavePackage(const CFX_WideStringC& wsPackage,
   if (packetHash == XFA_HASHCODE_Xfa) {
     pNode = m_pDocument->GetRoot();
   } else {
-    CXFA_Object* pObject = m_pDocument->GetXFANode(packetHash);
-    pNode = (pObject && pObject->IsNode()) ? (CXFA_Node*)pObject : NULL;
+    pNode = ToNode(m_pDocument->GetXFAObject(packetHash));
   }
   FX_BOOL bFlags = FALSE;
   if (pNode) {

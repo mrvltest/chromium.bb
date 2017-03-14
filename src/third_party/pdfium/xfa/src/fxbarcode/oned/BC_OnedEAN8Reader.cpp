@@ -20,12 +20,13 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_OneDReader.h"
-#include "BC_OneDimReader.h"
-#include "BC_OnedEAN8Reader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OnedEAN8Reader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_OnedEAN8Reader::CBC_OnedEAN8Reader() {}
 CBC_OnedEAN8Reader::~CBC_OnedEAN8Reader() {}
 int32_t CBC_OnedEAN8Reader::DecodeMiddle(CBC_CommonBitArray* row,
@@ -66,10 +67,7 @@ int32_t CBC_OnedEAN8Reader::DecodeMiddle(CBC_CommonBitArray* row,
     e = BCExceptionNotFound;
     BC_EXCEPTION_CHECK_ReturnValue(e, 0);
   }
-  if (middleRange != NULL) {
-    delete middleRange;
-    middleRange = NULL;
-  }
+  delete middleRange;
   for (int32_t y = 0; y < 4 && rowOffset < end; y++) {
     int32_t bestMatch =
         DecodeDigit(row, &counters, rowOffset,

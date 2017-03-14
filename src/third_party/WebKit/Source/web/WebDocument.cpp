@@ -244,7 +244,7 @@ WebElement WebDocument::fullScreenElement() const
 
 WebReferrerPolicy WebDocument::referrerPolicy() const
 {
-    return static_cast<WebReferrerPolicy>(constUnwrap<Document>()->referrerPolicy());
+    return static_cast<WebReferrerPolicy>(constUnwrap<Document>()->getReferrerPolicy());
 }
 
 WebString WebDocument::outgoingReferrer()
@@ -279,6 +279,13 @@ WebAXObject WebDocument::accessibilityObjectFromID(int axID) const
     const Document* document = constUnwrap<Document>();
     AXObjectCacheImpl* cache = toAXObjectCacheImpl(document->axObjectCache());
     return cache ? WebAXObject(cache->objectFromAXID(axID)) : WebAXObject();
+}
+
+WebAXObject WebDocument::focusedAccessibilityObject() const
+{
+    const Document* document = constUnwrap<Document>();
+    AXObjectCacheImpl* cache = toAXObjectCacheImpl(document->axObjectCache());
+    return cache ? WebAXObject(cache->focusedObject()) : WebAXObject();
 }
 
 WebVector<WebDraggableRegion> WebDocument::draggableRegions() const
@@ -334,18 +341,6 @@ bool WebDocument::manifestUseCredentials() const
 WebDistillabilityFeatures WebDocument::distillabilityFeatures()
 {
     return DocumentStatisticsCollector::collectStatistics(*unwrap<Document>());
-}
-
-bool WebDocument::attemptedToDetermineEncodingFromContentSniffing() const
-{
-    const Document* document = constUnwrap<Document>();
-    return document->attemptedToDetermineEncodingFromContentSniffing();
-}
-
-bool WebDocument::encodingWasDetectedFromContentSniffing() const
-{
-    const Document* document = constUnwrap<Document>();
-    return document->encodingWasDetectedFromContentSniffing();
 }
 
 WebDocument::WebDocument(const PassRefPtrWillBeRawPtr<Document>& elem)

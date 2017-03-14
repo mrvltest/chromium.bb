@@ -14,11 +14,11 @@
 #include "core/layout/LayoutTableCell.h"
 #include "core/layout/LayoutTextCombine.h"
 #include "core/layout/LayoutTheme.h"
+#include "core/layout/api/LineLayoutAPIShim.h"
 #include "core/layout/api/LineLayoutBox.h"
 #include "core/layout/api/LineLayoutText.h"
 #include "core/layout/line/InlineTextBox.h"
 #include "core/paint/BoxPainter.h"
-#include "core/paint/LineLayoutPaintShim.h"
 #include "core/paint/PaintInfo.h"
 #include "core/paint/TextPainter.h"
 #include "platform/graphics/GraphicsContextStateSaver.h"
@@ -67,7 +67,7 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
     LayoutUnit logicalExtent = logicalVisualOverflow.width();
 
     // We round the y-axis to ensure consistent line heights.
-    LayoutPoint adjustedPaintOffset = LayoutPoint(paintOffset.x(), paintOffset.y().round());
+    LayoutPoint adjustedPaintOffset = LayoutPoint(paintOffset.x(), LayoutUnit(paintOffset.y().round()));
 
     if (m_inlineTextBox.isHorizontal()) {
         if (!paintInfo.cullRect().intersectsHorizontalRange(logicalStart, logicalStart + logicalExtent))
@@ -80,7 +80,7 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
     bool isPrinting = paintInfo.isPrinting();
 
     // Determine whether or not we're selected.
-    bool haveSelection = !isPrinting && paintInfo.phase != PaintPhaseTextClip && m_inlineTextBox.selectionState() != SelectionNone;
+    bool haveSelection = !isPrinting && paintInfo.phase != PaintPhaseTextClip && m_inlineTextBox.getSelectionState() != SelectionNone;
     if (!haveSelection && paintInfo.phase == PaintPhaseSelection) {
         // When only painting the selection, don't bother to paint if there is none.
         return;
@@ -94,14 +94,14 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
             return;
         LayoutRect paintRect(logicalVisualOverflow);
         m_inlineTextBox.logicalRectToPhysicalRect(paintRect);
-        if (paintInfo.phase != PaintPhaseSelection && (haveSelection || paintsMarkerHighlights(*LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem()))))
+        if (paintInfo.phase != PaintPhaseSelection && (haveSelection || paintsMarkerHighlights(*LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem()))))
             paintRect.unite(m_inlineTextBox.localSelectionRect(m_inlineTextBox.start(), m_inlineTextBox.start() + m_inlineTextBox.len()));
         paintRect.moveBy(adjustedPaintOffset);
         drawingRecorder.emplace(paintInfo.context, m_inlineTextBox, DisplayItem::paintPhaseToDrawingType(paintInfo.phase), FloatRect(paintRect));
     }
 
     if (m_inlineTextBox.truncation() != cNoTruncation) {
-        if (m_inlineTextBox.lineLayoutItem().containingBlock().style()->isLeftToRightDirection() != m_inlineTextBox.isLeftToRightDirection()) {
+        if (m_inlineTextBox.getLineLayoutItem().containingBlock().style()->isLeftToRightDirection() != m_inlineTextBox.isLeftToRightDirection()) {
             // Make the visible fragment of text hug the edge closest to the rest of the run by moving the origin
             // at which we start drawing text.
             // e.g. In the case of LTR text truncated in an RTL Context, the correct behavior is:
@@ -110,16 +110,18 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
             // farther to the right.
             // NOTE: WebKit's behavior differs from that of IE which appears to just overlay the ellipsis on top of the
             // truncated string i.e.  |Hello|CBA| -> |...lo|CBA|
-            LayoutUnit widthOfVisibleText = m_inlineTextBox.lineLayoutItem().width(m_inlineTextBox.start(), m_inlineTextBox.truncation(), m_inlineTextBox.textPos(), m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
+            LayoutUnit widthOfVisibleText = LayoutUnit(m_inlineTextBox.getLineLayoutItem().width(
+                m_inlineTextBox.start(), m_inlineTextBox.truncation(), m_inlineTextBox.textPos(),
+                m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle()));
             LayoutUnit widthOfHiddenText = m_inlineTextBox.logicalWidth() - widthOfVisibleText;
             // FIXME: The hit testing logic also needs to take this translation into account.
-            LayoutSize truncationOffset(m_inlineTextBox.isLeftToRightDirection() ? widthOfHiddenText : -widthOfHiddenText, 0);
+            LayoutSize truncationOffset(m_inlineTextBox.isLeftToRightDirection() ? widthOfHiddenText : -widthOfHiddenText, LayoutUnit());
             adjustedPaintOffset.move(m_inlineTextBox.isHorizontal() ? truncationOffset : truncationOffset.transposedSize());
         }
     }
 
     GraphicsContext& context = paintInfo.context;
-    const ComputedStyle& styleToUse = m_inlineTextBox.lineLayoutItem().styleRef(m_inlineTextBox.isFirstLineStyle());
+    const ComputedStyle& styleToUse = m_inlineTextBox.getLineLayoutItem().styleRef(m_inlineTextBox.isFirstLineStyle());
 
     LayoutPoint boxOrigin(m_inlineTextBox.locationIncludingFlipping());
     boxOrigin.move(adjustedPaintOffset.x(), adjustedPaintOffset.y());
@@ -128,8 +130,8 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
     bool shouldRotate = false;
     LayoutTextCombine* combinedText = nullptr;
     if (!m_inlineTextBox.isHorizontal()) {
-        if (styleToUse.hasTextCombine() && m_inlineTextBox.lineLayoutItem().isCombineText()) {
-            combinedText = &toLayoutTextCombine(*LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem()));
+        if (styleToUse.hasTextCombine() && m_inlineTextBox.getLineLayoutItem().isCombineText()) {
+            combinedText = &toLayoutTextCombine(*LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem()));
             if (!combinedText->isCombined())
                 combinedText = nullptr;
         }
@@ -143,9 +145,8 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
     }
 
     // Determine text colors.
-    const LayoutObject& textBoxLayoutObject = *LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem());
-    TextPainter::Style textStyle = TextPainter::textPaintingStyle(textBoxLayoutObject, styleToUse, paintInfo);
-    TextPainter::Style selectionStyle = TextPainter::selectionPaintingStyle(textBoxLayoutObject, haveSelection, paintInfo, textStyle);
+    TextPainter::Style textStyle = TextPainter::textPaintingStyle(m_inlineTextBox.getLineLayoutItem(), styleToUse, paintInfo);
+    TextPainter::Style selectionStyle = TextPainter::selectionPaintingStyle(m_inlineTextBox.getLineLayoutItem(), haveSelection, paintInfo, textStyle);
     bool paintSelectedTextOnly = (paintInfo.phase == PaintPhaseSelection);
     bool paintSelectedTextSeparately = !paintSelectedTextOnly && textStyle != selectionStyle;
 
@@ -159,6 +160,7 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
     if (paintInfo.phase != PaintPhaseSelection && paintInfo.phase != PaintPhaseTextClip && !isPrinting) {
         paintDocumentMarkers(paintInfo, boxOrigin, styleToUse, font, DocumentMarkerPaintPhase::Background);
 
+        const LayoutObject& textBoxLayoutObject = *LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem());
         if (haveSelection && !paintsCompositionMarkers(textBoxLayoutObject)) {
             if (combinedText)
                 paintSelection<InlineTextBoxPainter::PaintOptions::CombinedText>(context, boxRect, styleToUse, font, selectionStyle.fillColor, combinedText);
@@ -169,11 +171,11 @@ void InlineTextBoxPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& 
 
     // 2. Now paint the foreground, including text and decorations like underline/overline (in quirks mode only).
     int length = m_inlineTextBox.len();
-    StringView string = m_inlineTextBox.lineLayoutItem().text().createView();
+    StringView string = m_inlineTextBox.getLineLayoutItem().text().createView();
     ASSERT(m_inlineTextBox.start() + length <= string.length());
     if (static_cast<unsigned>(length) != string.length() || m_inlineTextBox.start())
         string.narrow(m_inlineTextBox.start(), length);
-    int maximumLength = m_inlineTextBox.lineLayoutItem().textLength() - m_inlineTextBox.start();
+    int maximumLength = m_inlineTextBox.getLineLayoutItem().textLength() - m_inlineTextBox.start();
 
     StringBuilder charactersWithHyphen;
     TextRun textRun = m_inlineTextBox.constructTextRun(styleToUse, font, string, maximumLength, m_inlineTextBox.hasHyphen() ? &charactersWithHyphen : 0);
@@ -260,10 +262,7 @@ bool InlineTextBoxPainter::shouldPaintTextBox(const PaintInfo& paintInfo)
     // This code path is only called in PaintPhaseForeground whereas we would
     // expect PaintPhaseSelection. The existing haveSelection logic in paint()
     // tests for != PaintPhaseTextClip.
-    bool paintLineBreaks = RuntimeEnabledFeatures::selectionPaintingWithoutSelectionGapsEnabled();
-    if ((!paintLineBreaks && m_inlineTextBox.isLineBreak())
-        || !paintInfo.shouldPaintWithinRoot(LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem()))
-        || m_inlineTextBox.lineLayoutItem().style()->visibility() != VISIBLE
+    if (m_inlineTextBox.getLineLayoutItem().style()->visibility() != VISIBLE
         || m_inlineTextBox.truncation() == cFullTruncation
         || !m_inlineTextBox.len())
         return false;
@@ -293,7 +292,7 @@ void InlineTextBoxPainter::paintSingleCompositionBackgroundRun(GraphicsContext& 
     if (sPos >= ePos)
         return;
 
-    int deltaY = m_inlineTextBox.lineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
+    int deltaY = m_inlineTextBox.getLineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
     int selHeight = m_inlineTextBox.root().selectionHeight();
     FloatPoint localOrigin(boxOrigin.x().toFloat(), boxOrigin.y().toFloat() - deltaY);
     context.drawHighlightForText(font, m_inlineTextBox.constructTextRun(style, font), localOrigin, selHeight, backgroundColor, sPos, ePos);
@@ -301,10 +300,10 @@ void InlineTextBoxPainter::paintSingleCompositionBackgroundRun(GraphicsContext& 
 
 void InlineTextBoxPainter::paintDocumentMarkers(const PaintInfo& paintInfo, const LayoutPoint& boxOrigin, const ComputedStyle& style, const Font& font, DocumentMarkerPaintPhase markerPaintPhase)
 {
-    if (!m_inlineTextBox.lineLayoutItem().node())
+    if (!m_inlineTextBox.getLineLayoutItem().node())
         return;
 
-    DocumentMarkerVector markers = m_inlineTextBox.lineLayoutItem().document().markers().markersFor(m_inlineTextBox.lineLayoutItem().node());
+    DocumentMarkerVector markers = m_inlineTextBox.getLineLayoutItem().document().markers().markersFor(m_inlineTextBox.getLineLayoutItem().node());
     DocumentMarkerVector::const_iterator markerIt = markers.begin();
 
     // Give any document markers that touch this run a chance to draw before the text has been drawn.
@@ -381,13 +380,13 @@ static GraphicsContext::DocumentMarkerLineStyle lineStyleForMarkerType(DocumentM
 void InlineTextBoxPainter::paintDocumentMarker(GraphicsContext& context, const LayoutPoint& boxOrigin, DocumentMarker* marker, const ComputedStyle& style, const Font& font, bool grammar)
 {
     // Never print spelling/grammar markers (5327887)
-    if (m_inlineTextBox.lineLayoutItem().document().printing())
+    if (m_inlineTextBox.getLineLayoutItem().document().printing())
         return;
 
     if (m_inlineTextBox.truncation() == cFullTruncation)
         return;
 
-    LayoutUnit start = 0; // start of line to draw, relative to tx
+    LayoutUnit start; // start of line to draw, relative to tx
     LayoutUnit width = m_inlineTextBox.logicalWidth(); // how much line to draw
 
     // Determine whether we need to measure text
@@ -407,7 +406,7 @@ void InlineTextBoxPainter::paintDocumentMarker(GraphicsContext& context, const L
             endPosition = std::min<int>(endPosition, m_inlineTextBox.truncation());
 
         // Calculate start & width
-        int deltaY = m_inlineTextBox.lineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
+        int deltaY = m_inlineTextBox.getLineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
         int selHeight = m_inlineTextBox.root().selectionHeight();
         LayoutPoint startPoint(boxOrigin.x(), boxOrigin.y() - deltaY);
         TextRun run = m_inlineTextBox.constructTextRun(style, font);
@@ -415,7 +414,7 @@ void InlineTextBoxPainter::paintDocumentMarker(GraphicsContext& context, const L
         // FIXME: Convert the document markers to float rects.
         IntRect markerRect = enclosingIntRect(font.selectionRectForText(run, FloatPoint(startPoint), selHeight, startPosition, endPosition));
         start = markerRect.x() - startPoint.x();
-        width = markerRect.width();
+        width = LayoutUnit(markerRect.width());
     }
 
     // IMPORTANT: The misspelling underline is not considered when calculating the text bounds, so we have to
@@ -425,7 +424,7 @@ void InlineTextBoxPainter::paintDocumentMarker(GraphicsContext& context, const L
     // So, we generally place the underline at the bottom of the text, but in larger fonts that's not so good so
     // we pin to two pixels under the baseline.
     int lineThickness = misspellingLineThickness;
-    int baseline = m_inlineTextBox.lineLayoutItem().style(m_inlineTextBox.isFirstLineStyle())->fontMetrics().ascent();
+    int baseline = m_inlineTextBox.getLineLayoutItem().style(m_inlineTextBox.isFirstLineStyle())->fontMetrics().ascent();
     int descent = m_inlineTextBox.logicalHeight() - baseline;
     int underlineOffset;
     if (descent <= (lineThickness + 2)) {
@@ -437,8 +436,8 @@ void InlineTextBoxPainter::paintDocumentMarker(GraphicsContext& context, const L
     }
 
     Color markerColor(255,0,0,255);
-    if (m_inlineTextBox.layoutObject().node()) {
-        const Element *element = m_inlineTextBox.layoutObject().node()->rootEditableElement();
+    if (m_inlineTextBox.node()) {
+        const Element *element = m_inlineTextBox.node()->rootEditableElement();
         if (element && element->hasAttributes()) {
             AtomicString colorAttr = nullAtom;
 
@@ -469,7 +468,7 @@ void InlineTextBoxPainter::paintSelection(GraphicsContext& context, const Layout
 {
     // If any table cell in our container hierarchy is fully selected,
     // then don't paint the selection highlight.
-    LayoutBlock* cb = m_inlineTextBox.layoutObject().containingBlock();
+    LayoutBlock* cb = m_inlineTextBox.containingBlock();
     while (cb) {
         if (cb->isTableCell() && toLayoutTableCell(cb)->isFullySelected())
             return;
@@ -482,7 +481,7 @@ void InlineTextBoxPainter::paintSelection(GraphicsContext& context, const Layout
     if (sPos >= ePos)
         return;
 
-    Color c = m_inlineTextBox.lineLayoutItem().selectionBackgroundColor();
+    Color c = m_inlineTextBox.getLineLayoutItem().selectionBackgroundColor();
     if (!c.alpha())
         return;
 
@@ -494,14 +493,14 @@ void InlineTextBoxPainter::paintSelection(GraphicsContext& context, const Layout
     // If the text is truncated, let the thing being painted in the truncation
     // draw its own highlight.
     int length = m_inlineTextBox.truncation() != cNoTruncation ? m_inlineTextBox.truncation() : m_inlineTextBox.len();
-    StringView string = m_inlineTextBox.lineLayoutItem().text().createView();
+    StringView string = m_inlineTextBox.getLineLayoutItem().text().createView();
 
     if (string.length() != static_cast<unsigned>(length) || m_inlineTextBox.start())
         string.narrow(m_inlineTextBox.start(), length);
 
     StringBuilder charactersWithHyphen;
     bool respectHyphen = ePos == length && m_inlineTextBox.hasHyphen();
-    TextRun textRun = m_inlineTextBox.constructTextRun(style, font, string, m_inlineTextBox.lineLayoutItem().textLength() - m_inlineTextBox.start(), respectHyphen ? &charactersWithHyphen : 0);
+    TextRun textRun = m_inlineTextBox.constructTextRun(style, font, string, m_inlineTextBox.getLineLayoutItem().textLength() - m_inlineTextBox.start(), respectHyphen ? &charactersWithHyphen : 0);
     if (respectHyphen)
         ePos = textRun.length();
 
@@ -519,9 +518,9 @@ void InlineTextBoxPainter::paintSelection(GraphicsContext& context, const Layout
     }
 
     LayoutUnit selectionBottom = m_inlineTextBox.root().selectionBottom();
-    LayoutUnit selectionTop = m_inlineTextBox.root().selectionTopAdjustedForPrecedingBlock();
+    LayoutUnit selectionTop = m_inlineTextBox.root().selectionTop();
 
-    int deltaY = roundToInt(m_inlineTextBox.lineLayoutItem().style()->isFlippedLinesWritingMode() ? selectionBottom - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - selectionTop);
+    int deltaY = roundToInt(m_inlineTextBox.getLineLayoutItem().style()->isFlippedLinesWritingMode() ? selectionBottom - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - selectionTop);
     int selHeight = std::max(0, roundToInt(selectionBottom - selectionTop));
 
     FloatPoint localOrigin(boxRect.x().toFloat(), (boxRect.y() - deltaY).toFloat());
@@ -776,14 +775,16 @@ void InlineTextBoxPainter::paintDecoration(const PaintInfo& paintInfo, const Lay
 
     LayoutUnit width = m_inlineTextBox.logicalWidth();
     if (m_inlineTextBox.truncation() != cNoTruncation) {
-        width = m_inlineTextBox.lineLayoutItem().width(m_inlineTextBox.start(), m_inlineTextBox.truncation(), m_inlineTextBox.textPos(), m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
+        width = LayoutUnit(m_inlineTextBox.getLineLayoutItem().width(
+            m_inlineTextBox.start(), m_inlineTextBox.truncation(), m_inlineTextBox.textPos(),
+            m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle()));
         if (!m_inlineTextBox.isLeftToRightDirection())
-            localOrigin.move(m_inlineTextBox.logicalWidth() - width, 0);
+            localOrigin.move(m_inlineTextBox.logicalWidth() - width, LayoutUnit());
     }
 
     // Get the text decoration colors.
     LayoutObject::AppliedTextDecoration underline, overline, linethrough;
-    LayoutObject& textBoxLayoutObject = *LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem());
+    LayoutObject& textBoxLayoutObject = *LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem());
     textBoxLayoutObject.getTextDecorations(deco, underline, overline, linethrough, true);
     if (m_inlineTextBox.isFirstLineStyle())
         textBoxLayoutObject.getTextDecorations(deco, underline, overline, linethrough, true, true);
@@ -836,10 +837,10 @@ void InlineTextBoxPainter::paintCompositionUnderline(GraphicsContext& context, c
 
     // start of line to draw
     float start = paintStart == static_cast<unsigned>(m_inlineTextBox.start()) ? 0 :
-        m_inlineTextBox.lineLayoutItem().width(m_inlineTextBox.start(), paintStart - m_inlineTextBox.start(), m_inlineTextBox.textPos(), m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
+        m_inlineTextBox.getLineLayoutItem().width(m_inlineTextBox.start(), paintStart - m_inlineTextBox.start(), m_inlineTextBox.textPos(), m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
     // how much line to draw
     float width = (paintStart == static_cast<unsigned>(m_inlineTextBox.start()) && paintEnd == static_cast<unsigned>(m_inlineTextBox.end()) + 1) ? m_inlineTextBox.logicalWidth().toFloat() :
-        m_inlineTextBox.lineLayoutItem().width(paintStart, paintEnd - paintStart, m_inlineTextBox.textPos() + start, m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
+        m_inlineTextBox.getLineLayoutItem().width(paintStart, paintEnd - paintStart, LayoutUnit(m_inlineTextBox.textPos() + start), m_inlineTextBox.isLeftToRightDirection() ? LTR : RTL, m_inlineTextBox.isFirstLineStyle());
     // In RTL mode, start and width are computed from the right end of the text box:
     // starting at |logicalWidth| - |start| and continuing left by |width| to
     // |logicalWidth| - |start| - |width|. We will draw that line, but
@@ -852,7 +853,7 @@ void InlineTextBoxPainter::paintCompositionUnderline(GraphicsContext& context, c
     // All other marked text underlines are 1px thick.
     // If there's not enough space the underline will touch or overlap characters.
     int lineThickness = 1;
-    int baseline = m_inlineTextBox.lineLayoutItem().style(m_inlineTextBox.isFirstLineStyle())->fontMetrics().ascent();
+    int baseline = m_inlineTextBox.getLineLayoutItem().style(m_inlineTextBox.isFirstLineStyle())->fontMetrics().ascent();
     if (underline.thick && m_inlineTextBox.logicalHeight() - baseline >= 2)
         lineThickness = 2;
 
@@ -861,15 +862,15 @@ void InlineTextBoxPainter::paintCompositionUnderline(GraphicsContext& context, c
     start += 1;
     width -= 2;
 
-    const ComputedStyle& styleToUse = m_inlineTextBox.layoutObject().styleRef(m_inlineTextBox.isFirstLineStyle());
-    context.setStrokeColor(m_inlineTextBox.layoutObject().resolveColor(styleToUse, CSSPropertyWebkitTextFillColor));
+    const ComputedStyle& styleToUse = m_inlineTextBox.styleRef(m_inlineTextBox.isFirstLineStyle());
+    context.setStrokeColor(LayoutObject::resolveColor(styleToUse, CSSPropertyWebkitTextFillColor));
     context.setStrokeThickness(lineThickness);
-    context.drawLineForText(FloatPoint(boxOrigin.x() + start, (boxOrigin.y() + m_inlineTextBox.logicalHeight() - lineThickness).toFloat()), width, m_inlineTextBox.lineLayoutItem().document().printing());
+    context.drawLineForText(FloatPoint(boxOrigin.x() + start, (boxOrigin.y() + m_inlineTextBox.logicalHeight() - lineThickness).toFloat()), width, m_inlineTextBox.getLineLayoutItem().document().printing());
 }
 
 void InlineTextBoxPainter::paintTextMatchMarkerForeground(const PaintInfo& paintInfo, const LayoutPoint& boxOrigin, DocumentMarker* marker, const ComputedStyle& style, const Font& font)
 {
-    if (!LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem())->frame()->editor().markedTextMatchesAreHighlighted())
+    if (!LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem())->frame()->editor().markedTextMatchesAreHighlighted())
         return;
 
     // TODO(ramya.v): Extract this into a helper function and share many copies of this code.
@@ -894,12 +895,12 @@ void InlineTextBoxPainter::paintTextMatchMarkerForeground(const PaintInfo& paint
 
 void InlineTextBoxPainter::paintTextMatchMarkerBackground(const PaintInfo& paintInfo, const LayoutPoint& boxOrigin, DocumentMarker* marker, const ComputedStyle& style, const Font& font)
 {
-    if (!LineLayoutPaintShim::layoutObjectFrom(m_inlineTextBox.lineLayoutItem())->frame()->editor().markedTextMatchesAreHighlighted())
+    if (!LineLayoutAPIShim::layoutObjectFrom(m_inlineTextBox.getLineLayoutItem())->frame()->editor().markedTextMatchesAreHighlighted())
         return;
 
     // Use same y positioning and height as for selection, so that when the selection and this highlight are on
     // the same word there are no pieces sticking out.
-    int deltaY = m_inlineTextBox.lineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
+    int deltaY = m_inlineTextBox.getLineLayoutItem().style()->isFlippedLinesWritingMode() ? m_inlineTextBox.root().selectionBottom() - m_inlineTextBox.logicalBottom() : m_inlineTextBox.logicalTop() - m_inlineTextBox.root().selectionTop();
     int selHeight = m_inlineTextBox.root().selectionHeight();
 
     int sPos = std::max(marker->startOffset() - m_inlineTextBox.start(), (unsigned)0);

@@ -20,17 +20,20 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderDecoder.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
 #include "xfa/src/fxbarcode/common/BC_CommonDecoderResult.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonDecoder.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonGF256.h"
-#include "BC_QRBitMatrixParser.h"
-#include "BC_QRDataBlock.h"
-#include "BC_QRDecodedBitStreamParser.h"
-#include "BC_QRCoderVersion.h"
-#include "BC_QRCoderFormatInformation.h"
-#include "BC_QRCoderDecoder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRBitMatrixParser.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderFormatInformation.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderVersion.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDataBlock.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDecodedBitStreamParser.h"
+
 CBC_QRCoderDecoder::CBC_QRCoderDecoder() {
   m_rsDecoder = NULL;
 }
@@ -39,10 +42,7 @@ void CBC_QRCoderDecoder::Init() {
   m_rsDecoder = new CBC_ReedSolomonDecoder(CBC_ReedSolomonGF256::QRCodeFild);
 }
 CBC_QRCoderDecoder::~CBC_QRCoderDecoder() {
-  if (m_rsDecoder != NULL) {
-    delete m_rsDecoder;
-  }
-  m_rsDecoder = NULL;
+  delete m_rsDecoder;
 }
 CBC_CommonDecoderResult* CBC_QRCoderDecoder::Decode(FX_BOOL* image,
                                                     int32_t width,
@@ -72,9 +72,8 @@ CBC_CommonDecoderResult* CBC_QRCoderDecoder::Decode(CBC_CommonBitMatrix* bits,
   CBC_QRCoderFormatInformation* temp = parser.ReadFormatInformation(e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
   CBC_QRCoderErrorCorrectionLevel* ecLevel = temp->GetErrorCorrectionLevel();
-  CFX_ByteArray* ba = parser.ReadCodewords(e);
+  std::unique_ptr<CFX_ByteArray> codewords(parser.ReadCodewords(e));
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  CBC_AutoPtr<CFX_ByteArray> codewords(ba);
   CFX_PtrArray* dataBlocks =
       CBC_QRDataBlock::GetDataBlocks(codewords.get(), version, ecLevel, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);

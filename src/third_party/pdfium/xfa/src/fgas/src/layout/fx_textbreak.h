@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_TEXTBREAK_IMP
-#define _FX_TEXTBREAK_IMP
+#ifndef XFA_SRC_FGAS_SRC_LAYOUT_FX_TEXTBREAK_H_
+#define XFA_SRC_FGAS_SRC_LAYOUT_FX_TEXTBREAK_H_
 
 #include "core/include/fxcrt/fx_memory.h"
+#include "xfa/src/fgas/src/layout/fx_unicode.h"
 
 class IFX_ArabicChar;
 class CFX_Txtbreak;
@@ -88,12 +89,12 @@ class CFX_TxtBreak : public IFX_TxtBreak {
   virtual void ClearBreakPieces();
   virtual void Reset();
   virtual int32_t GetDisplayPos(
-      FX_LPCTXTRUN pTxtRun,
+      const FX_TXTRUN* pTxtRun,
       FXTEXT_CHARPOS* pCharPos,
       FX_BOOL bCharCode = FALSE,
       CFX_WideString* pWSForms = NULL,
       FX_AdjustCharDisplayPos pAdjustPos = NULL) const;
-  virtual int32_t GetCharRects(FX_LPCTXTRUN pTxtRun,
+  virtual int32_t GetCharRects(const FX_TXTRUN* pTxtRun,
                                CFX_RectFArray& rtArray,
                                FX_BOOL bCharBBox = FALSE) const;
   void AppendChar_PageLoad(CFX_Char* pCurChar, FX_DWORD dwProps);
@@ -168,4 +169,5 @@ class CFX_TxtBreak : public IFX_TxtBreak {
                      CFX_TxtLine* pNextLine,
                      FX_BOOL bAllChars = FALSE);
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_LAYOUT_FX_TEXTBREAK_H_

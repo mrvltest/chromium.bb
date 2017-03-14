@@ -20,12 +20,14 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_PDF417Common.h"
-#include "BC_PDF417ECModulusPoly.h"
-#include "BC_PDF417ECModulusGF.h"
-#include "BC_PDF417ECErrorCorrection.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Common.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECErrorCorrection.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECModulusGF.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417ECModulusPoly.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_PDF417ECModulusGF* CBC_PDF417ECErrorCorrection::m_field = NULL;
+
 void CBC_PDF417ECErrorCorrection::Initialize(int32_t& e) {
   m_field =
       new CBC_PDF417ECModulusGF(CBC_PDF417Common::NUMBER_OF_CODEWORDS, 3, e);
@@ -94,7 +96,7 @@ int32_t CBC_PDF417ECErrorCorrection::decode(CFX_Int32Array& received,
   }
   for (int32_t i = 0; i < errorLocations->GetSize(); i++) {
     int32_t log = m_field->log(errorLocations->GetAt(i), e);
-    ;
+
     BC_EXCEPTION_CHECK_ReturnValue(e, -1);
     int32_t position = received.GetSize() - 1 - log;
     if (position < 0) {

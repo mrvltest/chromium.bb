@@ -20,24 +20,25 @@
  * limitations under the License.
  */
 
-#include <algorithm>
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderEncoder.h"
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include <algorithm>
+#include <memory>
+
 #include "xfa/src/fxbarcode/BC_UtilCodingConvert.h"
 #include "xfa/src/fxbarcode/common/BC_CommonByteArray.h"
 #include "xfa/src/fxbarcode/common/BC_CommonByteMatrix.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomon.h"
 #include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonGF256.h"
-#include "BC_QRCoder.h"
-#include "BC_QRCoderEncoder.h"
-#include "BC_QRCoderMode.h"
-#include "BC_QRCoderEncoder.h"
-#include "BC_QRCoderECBlocks.h"
-#include "BC_QRCoderVersion.h"
-#include "BC_QRCoderBlockPair.h"
-#include "BC_QRCoderMaskUtil.h"
-#include "BC_QRCoderMatrixUtil.h"
-#include "BC_QRCoderBitVector.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderBitVector.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderBlockPair.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderECBlocks.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderMaskUtil.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderMatrixUtil.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderMode.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderVersion.h"
+
 const int32_t CBC_QRCoderEncoder::m_alphaNumbericTable[] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -45,6 +46,7 @@ const int32_t CBC_QRCoderEncoder::m_alphaNumbericTable[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  44, -1, -1, -1, -1, -1,
     -1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
     25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, -1, -1, -1, -1, -1};
+
 CBC_QRCoderEncoder::CBC_QRCoderEncoder() {}
 CBC_QRCoderEncoder::~CBC_QRCoderEncoder() {}
 class Make_Pair {
@@ -407,10 +409,9 @@ void CBC_QRCoderEncoder::EncodeWithSpecifyVersion(
                         qrCode->GetNumDataBytes(), qrCode->GetNumRSBlocks(),
                         &finalBits, e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);
-  CBC_CommonByteMatrix* pDecoder = new CBC_CommonByteMatrix(
-      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth());
-  pDecoder->Init();
-  CBC_AutoPtr<CBC_CommonByteMatrix> matrix(pDecoder);
+  std::unique_ptr<CBC_CommonByteMatrix> matrix(new CBC_CommonByteMatrix(
+      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth()));
+  matrix->Init();
   int32_t maskPattern = ChooseMaskPattern(
       &finalBits, qrCode->GetECLevel(), qrCode->GetVersion(), matrix.get(), e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);
@@ -498,10 +499,9 @@ catchException:
                         qrCode->GetNumDataBytes(), qrCode->GetNumRSBlocks(),
                         &finalBits, e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);
-  CBC_CommonByteMatrix* pDecoder = new CBC_CommonByteMatrix(
-      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth());
-  pDecoder->Init();
-  CBC_AutoPtr<CBC_CommonByteMatrix> matrix(pDecoder);
+  std::unique_ptr<CBC_CommonByteMatrix> matrix(new CBC_CommonByteMatrix(
+      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth()));
+  matrix->Init();
   int32_t maskPattern = ChooseMaskPattern(
       &finalBits, qrCode->GetECLevel(), qrCode->GetVersion(), matrix.get(), e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);
@@ -549,10 +549,9 @@ void CBC_QRCoderEncoder::Encode(const CFX_WideString& content,
                         qrCode->GetNumDataBytes(), qrCode->GetNumRSBlocks(),
                         &finalBits, e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);
-  CBC_CommonByteMatrix* pDecoder = new CBC_CommonByteMatrix(
-      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth());
-  pDecoder->Init();
-  CBC_AutoPtr<CBC_CommonByteMatrix> matrix(pDecoder);
+  std::unique_ptr<CBC_CommonByteMatrix> matrix(new CBC_CommonByteMatrix(
+      qrCode->GetMatrixWidth(), qrCode->GetMatrixWidth()));
+  matrix->Init();
   int32_t maskPattern = ChooseMaskPattern(
       &finalBits, qrCode->GetECLevel(), qrCode->GetVersion(), matrix.get(), e);
   BC_EXCEPTION_CHECK_ReturnVoid(e);

@@ -4,19 +4,25 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fdp/src/css/fde_csssyntax.h"
+
+#include "xfa/src/fdp/src/css/fde_cssdatatable.h"
+#include "xfa/src/fgas/include/fx_cpg.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_csssyntax.h"
-#include "fde_cssdatatable.h"
+
 #ifdef _cplusplus
 extern "C" {
 #endif
+
 inline FX_BOOL FDE_IsSelectorStart(FX_WCHAR wch) {
   return wch == '.' || wch == '#' || wch == '*' || (wch >= 'a' && wch <= 'z') ||
          (wch >= 'A' && wch <= 'Z');
 }
+
 #ifdef _cplusplus
 };
 #endif
+
 IFDE_CSSSyntaxParser* IFDE_CSSSyntaxParser::Create() {
   return new CFDE_CSSSyntaxParser;
 }
@@ -444,12 +450,10 @@ int32_t CFDE_CSSTextBuf::LoadFromStream(IFX_Stream* pTxtStream,
   if (!ExpandBuf(iMaxChars)) {
     return 0;
   }
-  pTxtStream->Lock();
   if (pTxtStream->GetPosition() != iStreamOffset) {
     pTxtStream->Seek(FX_STREAMSEEK_Begin, iStreamOffset);
   }
   m_iDatLen = pTxtStream->ReadString(m_pBuffer, iMaxChars, bEOS);
-  pTxtStream->Unlock();
   return m_iDatLen;
 }
 FX_BOOL CFDE_CSSTextBuf::ExpandBuf(int32_t iDesiredSize) {

@@ -14,7 +14,7 @@
           'target_name': 'skia_library',
           'type': 'static_library',
           # The optimize: 'max' scattered throughout are particularly
-          # important when compiled by MSVC 2013, which seems 
+          # important when compiled by MSVC 2013, which seems
           # to mis-link-time-compile code that's built with
           # different optimization levels. http://crbug.com/543583
           'variables': {
@@ -35,7 +35,7 @@
         {
           'target_name': 'skia',
           # The optimize: 'max' scattered throughout are particularly
-          # important when compiled by MSVC 2013, which seems 
+          # important when compiled by MSVC 2013, which seems
           # to mis-link-time-compile code that's built with
           # different optimization levels. http://crbug.com/543583
           'variables': {
@@ -75,7 +75,7 @@
         {
           'target_name': 'skia',
           # The optimize: 'max' scattered throughout are particularly
-          # important when compiled by MSVC 2013, which seems 
+          # important when compiled by MSVC 2013, which seems
           # to mis-link-time-compile code that's built with
           # different optimization levels. http://crbug.com/543583
           'variables': {
@@ -126,7 +126,7 @@
     {
       'target_name': 'image_operations_bench',
       # The optimize: 'max' scattered throughout are particularly
-      # important when compiled by MSVC 2013, which seems 
+      # important when compiled by MSVC 2013, which seems
       # to mis-link-time-compile code that's built with
       # different optimization levels. http://crbug.com/543583
       'variables': {
@@ -148,7 +148,7 @@
       'target_name': 'filter_fuzz_stub',
       'type': 'executable',
       # The optimize: 'max' scattered throughout are particularly
-      # important when compiled by MSVC 2013, which seems 
+      # important when compiled by MSVC 2013, which seems
       # to mis-link-time-compile code that's built with
       # different optimization levels. http://crbug.com/543583
       'variables': {
@@ -166,7 +166,7 @@
       'target_name': 'skia_mojo',
       'type': 'static_library',
       # The optimize: 'max' scattered throughout are particularly
-      # important when compiled by MSVC 2013, which seems 
+      # important when compiled by MSVC 2013, which seems
       # to mis-link-time-compile code that's built with
       # different optimization levels. http://crbug.com/543583
       'variables': {
@@ -177,7 +177,7 @@
         '../base/base.gyp:base',
       ],
       'includes': [
-        '../third_party/mojo/mojom_bindings_generator.gypi',
+        '../mojo/mojom_bindings_generator.gypi',
       ],
       'sources': [
         # Note: file list duplicated in GN build.

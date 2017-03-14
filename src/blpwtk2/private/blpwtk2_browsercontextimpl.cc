@@ -34,8 +34,8 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>  // for CHECK
-#include <base/prefs/pref_service_factory.h>
-#include <base/prefs/pref_service.h>
+#include <components/prefs/pref_service_factory.h>
+#include <components/prefs/pref_service.h>
 #include <base/threading/thread_restrictions.h>
 #include <chrome/browser/spellchecker/spellcheck_factory.h>
 #include <chrome/common/pref_names.h>
@@ -98,7 +98,7 @@ BrowserContextImpl::BrowserContextImpl(const std::string& dataDir,
         d_prefRegistry = new user_prefs::PrefRegistrySyncable();
         d_userPrefs = new PrefStore();
 
-        base::PrefServiceFactory factory;
+        PrefServiceFactory factory;
         factory.set_user_prefs(d_userPrefs);
         d_prefService = factory.Create(d_prefRegistry.get());
         user_prefs::UserPrefs::Set(this, d_prefService.get());

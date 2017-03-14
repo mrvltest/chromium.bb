@@ -204,6 +204,12 @@ TEST_F(FPDFViewEmbeddertest, Crasher_572871) {
   EXPECT_TRUE(OpenDocument("bug_572871.pdf"));
 }
 
+// It tests that document can still be loaded even the trailer has no 'Size'
+// field if other information is right.
+TEST_F(FPDFViewEmbeddertest, Failed_213) {
+  EXPECT_TRUE(OpenDocument("bug_213.pdf"));
+}
+
 // The following tests pass if the document opens without infinite looping.
 TEST_F(FPDFViewEmbeddertest, Hang_298) {
   EXPECT_FALSE(OpenDocument("bug_298.pdf"));
@@ -227,4 +233,14 @@ TEST_F(FPDFViewEmbeddertest, Hang_343) {
 // dictionary will not cause an infinite loop in CPDF_SyntaxParser::GetObject().
 TEST_F(FPDFViewEmbeddertest, Hang_344) {
   EXPECT_FALSE(OpenDocument("bug_344.pdf"));
+}
+
+// The test should pass when there is no infinite recursion in
+// CPDF_SyntaxParser::GetString().
+TEST_F(FPDFViewEmbeddertest, Hang_355) {
+  EXPECT_FALSE(OpenDocument("bug_355.pdf"));
+}
+// The test should pass even when the file has circular references to pages.
+TEST_F(FPDFViewEmbeddertest, Hang_360) {
+  EXPECT_FALSE(OpenDocument("bug_360.pdf"));
 }

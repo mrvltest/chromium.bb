@@ -4,10 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_RTFBREAK_IMP
-#define _FX_RTFBREAK_IMP
+#ifndef XFA_SRC_FGAS_SRC_LAYOUT_FX_RTFBREAK_H_
+#define XFA_SRC_FGAS_SRC_LAYOUT_FX_RTFBREAK_H_
 
 #include "core/include/fxcrt/fx_arb.h"
+#include "xfa/src/fgas/include/fx_rbk.h"
+#include "xfa/src/fgas/src/layout/fx_unicode.h"
 
 class CFX_RTFLine;
 class CFX_RTFBreak;
@@ -96,12 +98,12 @@ class CFX_RTFBreak : public IFX_RTFBreak {
   void ClearBreakPieces() override;
   void Reset() override;
   int32_t GetDisplayPos(
-      FX_LPCRTFTEXTOBJ pText,
+      const FX_RTFTEXTOBJ* pText,
       FXTEXT_CHARPOS* pCharPos,
       FX_BOOL bCharCode = FALSE,
       CFX_WideString* pWSForms = NULL,
       FX_AdjustCharDisplayPos pAdjustPos = NULL) const override;
-  int32_t GetCharRects(FX_LPCRTFTEXTOBJ pText,
+  int32_t GetCharRects(const FX_RTFTEXTOBJ* pText,
                        CFX_RectFArray& rtArray,
                        FX_BOOL bCharBBox = FALSE) const override;
   FX_DWORD AppendChar_CharCode(FX_WCHAR wch);
@@ -171,4 +173,5 @@ class CFX_RTFBreak : public IFX_RTFBreak {
                           FX_BOOL bAllChars,
                           FX_DWORD dwStatus);
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_LAYOUT_FX_RTFBREAK_H_

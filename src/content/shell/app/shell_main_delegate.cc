@@ -14,7 +14,6 @@
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
-#include "components/test_runner/blink_test_platform_support.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/common/content_switches.h"
@@ -24,6 +23,7 @@
 // #include "content/public/test/layouttest_support.h"
 
 #include "content/public/test/ppapi_test_utils.h"
+#include "content/shell/app/blink_test_platform_support.h"
 #include "content/shell/app/shell_crash_reporter_client.h"
 
 // SHEZ: remove test only code
@@ -156,7 +156,7 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     // If CheckLayoutSystemDeps succeeds, we don't exit early. Instead we
     // continue and try to load the fonts in BlinkTestPlatformInitialize
     // below, and then try to bring up the rest of the content module.
-    if (!test_runner::CheckLayoutSystemDeps()) {
+    if (!CheckLayoutSystemDeps()) {
       *exit_code = 1;
       return true;
     }
@@ -210,8 +210,6 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     command_line.AppendSwitch(switches::kEnableInbandTextTracks);
     command_line.AppendSwitch(switches::kMuteAudio);
 
-    command_line.AppendSwitch(cc::switches::kEnablePropertyTreeVerification);
-
     command_line.AppendSwitch(switches::kEnablePreciseMemoryInfo);
 
     command_line.AppendSwitchASCII(switches::kHostResolverRules,
@@ -223,14 +221,15 @@ bool ShellMainDelegate::BasicStartupComplete(int* exit_code) {
     media::RemoveProprietaryMediaTypesAndCodecsForTests();
 #endif
 
-    // SHEZ: Remove test-only code
+    // blpwtk2: Remove test-only code
 #if 0
-    if (!test_runner::BlinkTestPlatformInitialize()) {
+    if (!BlinkTestPlatformInitialize()) {
       *exit_code = 1;
       return true;
     }
 #endif
   }
+
   SetContentClient(&content_client_);
   return false;
 }

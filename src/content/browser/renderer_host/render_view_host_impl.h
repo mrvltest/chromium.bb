@@ -151,11 +151,6 @@ class CONTENT_EXPORT RenderViewHostImpl : public RenderViewHost,
   void EnableAltDragRubberbanding(bool enable) override;
   void SelectWordAroundCaret() override;
 
-#if defined(OS_ANDROID)
-  void ActivateNearestFindResult(int request_id, float x, float y) override;
-  void RequestFindMatchRects(int current_version) override;
-#endif
-
   // RenderProcessHostObserver implementation
   void RenderProcessReady(RenderProcessHost* host) override;
   void RenderProcessExited(RenderProcessHost* host,
@@ -256,6 +251,11 @@ class CONTENT_EXPORT RenderViewHostImpl : public RenderViewHost,
   // Creates a full screen RenderWidget.
   void CreateNewFullscreenWidget(int32_t route_id);
 
+  // TODO(creis): Remove after debugging https:/crbug.com/575245.
+  int main_frame_routing_id() const {
+    return main_frame_routing_id_;
+  }
+
   void set_main_frame_routing_id(int routing_id) {
     main_frame_routing_id_ = routing_id;
   }
@@ -288,8 +288,6 @@ class CONTENT_EXPORT RenderViewHostImpl : public RenderViewHost,
   void RenderWidgetWillSetIsLoading(bool is_loading) override;
   void RenderWidgetGotFocus() override;
   void RenderWidgetLostFocus() override;
-  void RenderWidgetWillBeHidden() override;
-  void RenderWidgetWillBeShown() override;
   void RenderWidgetDidForwardMouseEvent(
       const blink::WebMouseEvent& mouse_event) override;
   bool MayRenderWidgetForwardKeyboardEvent(

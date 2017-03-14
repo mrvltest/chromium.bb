@@ -4,11 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_SYMBOLINFO_H_
-#define _BC_SYMBOLINFO_H_
-class CBC_SymbolShapeHint;
+#ifndef XFA_SRC_FXBARCODE_DATAMATRIX_BC_SYMBOLINFO_H_
+#define XFA_SRC_FXBARCODE_DATAMATRIX_BC_SYMBOLINFO_H_
+
+#include "core/include/fxcrt/fx_string.h"
+#include "core/include/fxcrt/fx_system.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_SymbolShapeHint.h"
+
 class CBC_Dimension;
-class CBC_SymbolInfo;
+
 class CBC_SymbolInfo : public CBC_SymbolShapeHint {
  public:
   CBC_SymbolInfo(FX_BOOL rectangular,
@@ -75,4 +79,5 @@ class CBC_SymbolInfo : public CBC_SymbolShapeHint {
                  int32_t rsBlockData,
                  int32_t rsBlockError);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_DATAMATRIX_BC_SYMBOLINFO_H_

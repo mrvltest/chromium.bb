@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_RESULTPOINT_H_
-#define _BC_RESULTPOINT_H_
-class CBC_ResultPoint;
+#ifndef XFA_SRC_FXBARCODE_BC_RESULTPOINT_H_
+#define XFA_SRC_FXBARCODE_BC_RESULTPOINT_H_
+
+#include "core/include/fxcrt/fx_system.h"
+
 class CBC_ResultPoint {
  public:
   CBC_ResultPoint();
@@ -19,4 +21,5 @@ class CBC_ResultPoint {
   FX_FLOAT m_x;
   FX_FLOAT m_y;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_RESULTPOINT_H_

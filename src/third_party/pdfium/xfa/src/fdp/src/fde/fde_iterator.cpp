@@ -4,8 +4,10 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fdp/src/fde/fde_iterator.h"
+#include "xfa/src/fgas/include/fx_utl.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_iterator.h"
+
 IFDE_VisualSetIterator* IFDE_VisualSetIterator::Create() {
   return new CFDE_VisualSetIterator;
 }
@@ -36,7 +38,7 @@ FX_BOOL CFDE_VisualSetIterator::FilterObjects(FX_DWORD dwObjects) {
   if (dwObjects & FDE_VISUALOBJ_Widget) {
     m_dwFilter |= 0xFF00;
   }
-  FDE_LPCANVASITEM pCanvas = m_CanvasStack.GetTopElement();
+  FDE_CANVASITEM* pCanvas = m_CanvasStack.GetTopElement();
   FXSYS_assert(pCanvas != NULL && pCanvas->pCanvas != NULL);
   pCanvas->hPos = pCanvas->pCanvas->GetFirstPosition(NULL);
   return pCanvas->hPos != NULL;
@@ -48,7 +50,7 @@ FDE_HVISUALOBJ CFDE_VisualSetIterator::GetNext(IFDE_VisualSet*& pVisualSet,
                                                FDE_HVISUALOBJ* phCanvasObj,
                                                IFDE_CanvasSet** ppCanvasSet) {
   while (m_CanvasStack.GetSize() > 0) {
-    FDE_LPCANVASITEM pCanvas = m_CanvasStack.GetTopElement();
+    FDE_CANVASITEM* pCanvas = m_CanvasStack.GetTopElement();
     FXSYS_assert(pCanvas != NULL && pCanvas->pCanvas != NULL);
     if (pCanvas->hPos == NULL) {
       if (m_CanvasStack.GetSize() == 1) {

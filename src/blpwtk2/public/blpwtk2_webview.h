@@ -302,10 +302,6 @@ public:
     // Draw the specified region of the main web frame onto a blob.
     virtual void drawContentsToBlob(Blob *blob, const DrawParams& params) = 0;
 
-    // Get a text representation of the main web frame's layout tree. This is
-    // primarily used for debugging purposes only.
-    virtual String getLayoutTreeAsText(int flags) const = 0;
-
     // Return the routingId for this WebView.  This can only be used in the
     // RENDERER_MAIN mode.  The routingId is a unique number generated for each
     // WebView (it is used to route IPC messages to the host process).

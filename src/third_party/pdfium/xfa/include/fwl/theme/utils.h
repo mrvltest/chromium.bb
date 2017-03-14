@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_THEME_UTILS_H
-#define _FWL_THEME_UTILS_H
+#ifndef XFA_INCLUDE_FWL_THEME_UTILS_H_
+#define XFA_INCLUDE_FWL_THEME_UTILS_H_
+
+#include "core/include/fxcrt/fx_system.h"
+
 #define THEME_XPSimilar
 enum FWLTHEME_EDGE {
   FWLTHEME_EDGE_Flat = 0,
@@ -24,7 +27,7 @@ enum FWLTHEME_DIRECTION {
   FWLTHEME_DIRECTION_Left,
   FWLTHEME_DIRECTION_Right
 };
-typedef struct _FWLCOLOR {
+struct FWLCOLOR {
   union {
     FX_DWORD color;
     struct {
@@ -35,18 +38,17 @@ typedef struct _FWLCOLOR {
     };
   };
 
-  _FWLCOLOR() { color = 0; }
-  _FWLCOLOR(FX_DWORD c) { color = c; }
-  _FWLCOLOR(const _FWLCOLOR& c) { color = c.color; }
+  FWLCOLOR() : color(0) {}
+  FWLCOLOR(FX_DWORD c) : color(c) {}
+  FWLCOLOR(const FWLCOLOR& c) : color(c.color) {}
 
-  bool operator==(const _FWLCOLOR& frColor) { return color == frColor.color; }
-
+  bool operator==(const FWLCOLOR& frColor) { return color == frColor.color; }
   operator FX_DWORD() { return color; }
-} FWLCOLOR;
-#define FWLTHEME_BEZIER 0.5522847498308f
-#define FWLTHEME_PI 3.141592f
-#define FWLTHEME_PI_2_1 1.570796f
-#define FWLTHEME_PI_2_3 4.712388f
+};
+#define FWLTHEME_BEZIER FX_BEZIER
+#define FWLTHEME_PI FX_PI
+#define FWLTHEME_PI_2_1 (FX_PI / 2.0f)
+#define FWLTHEME_PI_2_3 (3.0f * FX_PI / 2.0f)
 #define FWLTHEME_COLOR_EDGELT1 (ArgbEncode(255, 172, 168, 153))
 #define FWLTHEME_COLOR_EDGELT2 (ArgbEncode(255, 113, 111, 100))
 #define FWLTHEME_COLOR_EDGERB1 (ArgbEncode(255, 241, 239, 226))
@@ -69,4 +71,5 @@ typedef struct _FWLCOLOR {
 #define FWLTHEME_CAPACITY_ScrollBarWidth 17.0f
 #define FWLTHEME_CAPACITY_CXBorder 1.0f
 #define FWLTHEME_CAPACITY_CYBorder 1.0f
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_UTILS_H_

@@ -61,7 +61,7 @@ void BBWindowHooks::appendTextContent(Node *node, StringBuilder& content,
 {
     if (matchSelector(node, excluder)) {
         content.append(mask);
-    } else if (node->nodeType() == Node::TEXT_NODE) {
+    } else if (node->getNodeType() == Node::TEXT_NODE) {
         content.append((static_cast<CharacterData*>(node))->data());
     } else {
         if (node->hasTagName(HTMLNames::brTag)) {
@@ -140,7 +140,7 @@ void BBWindowHooks::addMarker(Range* range, long markerType)
 
 }
 
-PassRefPtr<Range> BBWindowHooks::findPlainText(Range* range, const String& target, long options)
+PassRefPtrWillBeRawPtr<Range> BBWindowHooks::findPlainText(Range* range, const String& target, long options)
 {
     EphemeralRange result = blink::findPlainText(EphemeralRange(range), target, options);
     return Range::create(result.document(), result.startPosition(), result.endPosition());
@@ -152,7 +152,7 @@ bool BBWindowHooks::checkSpellingForNode(Node* node)
         return false;
     }
 
-    WTF::RefPtr<Element> e = toElement(node);
+    RefPtrWillBeRawPtr<Element> e = toElement(node);
 
     if (e && e->isSpellCheckingEnabled()) {
         LocalFrame *frame = e->document().frame();

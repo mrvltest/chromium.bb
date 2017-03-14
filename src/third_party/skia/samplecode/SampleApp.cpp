@@ -42,6 +42,25 @@
 class GrContext;
 #endif
 
+const struct {
+    SkColorType         fColorType;
+    SkColorProfileType  fProfileType;
+    const char*         fName;
+} gConfig[] = {
+    { kN32_SkColorType,      kLinear_SkColorProfileType, "L32" },
+    { kN32_SkColorType,        kSRGB_SkColorProfileType, "S32" },
+    { kRGBA_F16_SkColorType, kLinear_SkColorProfileType, "F16" },
+};
+
+static const char* find_config_name(const SkImageInfo& info) {
+    for (const auto& config : gConfig) {
+        if (config.fColorType == info.colorType() && config.fProfileType == info.profileType()) {
+            return config.fName;
+        }
+    }
+    return "???";
+}
+
 // Should be 3x + 1
 #define kMaxFatBitsScale    28
 
@@ -187,9 +206,9 @@ public:
                 break;
 #endif // SK_ANGLE
 #if SK_COMMAND_BUFFER
-            case kCommandBuffer_DeviceType:
+            case kCommandBufferES2_DeviceType:
                 // Command buffer is really the only other odd man out :D
-                fBackend = kCommandBuffer_BackEndType;
+                fBackend = kCommandBufferES2_BackEndType;
                 break;
 #endif // SK_COMMAND_BUFFER
             default:
@@ -218,7 +237,7 @@ public:
                 break;
 #endif // SK_ANGLE
 #if SK_COMMAND_BUFFER
-            case kCommandBuffer_DeviceType:
+            case kCommandBufferES2_DeviceType:
                 glInterface.reset(GrGLCreateCommandBufferInterface());
                 break;
 #endif // SK_COMMAND_BUFFER
@@ -673,7 +692,7 @@ static inline SampleWindow::DeviceType cycle_devicetype(SampleWindow::DeviceType
         , SampleWindow::kANGLE_DeviceType
 #endif // SK_ANGLE
 #if SK_COMMAND_BUFFER
-        , SampleWindow::kCommandBuffer_DeviceType
+        , SampleWindow::kCommandBufferES2_DeviceType
 #endif // SK_COMMAND_BUFFER
 #endif // SK_SUPPORT_GPU
     };
@@ -725,6 +744,7 @@ DEFINE_string(sequence, "", "Path to file containing the desired samples/gms to 
 DEFINE_bool(sort, false, "Sort samples by title.");
 DEFINE_bool(list, false, "List samples?");
 DEFINE_bool(gpu, false, "Start up with gpu?");
+DEFINE_bool(redraw, false, "Force continuous redrawing, for profiling or debugging tools.");
 DEFINE_string(key, "", "");  // dummy to enable gm tests that have platform-specific names
 #ifdef SAMPLE_PDF_FILE_VIEWER
 DEFINE_string(pdfPath, "", "Path to direcotry of pdf files.");
@@ -839,7 +859,7 @@ SampleWindow::SampleWindow(void* hwnd, int argc, char** argv, DeviceManager* dev
     fDeviceType = kANGLE_DeviceType;
 #endif
 #if SK_COMMAND_BUFFER && DEFAULT_TO_COMMAND_BUFFER
-    fDeviceType = kCommandBuffer_DeviceType;
+    fDeviceType = kCommandBufferES2_DeviceType;
 #endif
 
     fUseClip = false;
@@ -875,6 +895,10 @@ SampleWindow::SampleWindow(void* hwnd, int argc, char** argv, DeviceManager* dev
     fAppMenu = new SkOSMenu;
     fAppMenu->setTitle("Global Settings");
     int itemID;
+
+    itemID = fAppMenu->appendList("ColorType", "ColorType", sinkID, 0,
+                                  gConfig[0].fName, gConfig[1].fName, gConfig[2].fName, nullptr);
+    fAppMenu->assignKeyEquivalentToItem(itemID, 'C');
 
     itemID = fAppMenu->appendList("Device Type", "Device Type", sinkID, 0,
                                   "Raster",
@@ -1078,7 +1102,7 @@ void SampleWindow::draw(SkCanvas* canvas) {
         this->postInvalDelay();
     }
 
-    if (this->sendAnimatePulse()) {
+    if (this->sendAnimatePulse() || FLAGS_redraw) {
         this->inval(nullptr);
     }
 
@@ -1557,6 +1581,10 @@ bool SampleWindow::onEvent(const SkEvent& evt) {
         this->setDeviceType((DeviceType)selected);
         return true;
     }
+    if (SkOSMenu::FindListIndex(evt, "ColorType", &selected)) {
+        this->setDeviceColorType(gConfig[selected].fColorType, gConfig[selected].fProfileType);
+        return true;
+    }
     if (SkOSMenu::FindSwitchState(evt, "Slide Show", nullptr)) {
         this->toggleSlideshow();
         return true;
@@ -1761,13 +1789,24 @@ bool SampleWindow::onHandleChar(SkUnichar uni) {
 void SampleWindow::setDeviceType(DeviceType type) {
     if (type == fDeviceType)
         return;
+    
+    fDevManager->tearDownBackend(this);
+    
+    fDeviceType = type;
+    
+    fDevManager->setUpBackend(this, fMSAASampleCount);
+    
+    this->updateTitle();
+    this->inval(nullptr);
+}
+
+void SampleWindow::setDeviceColorType(SkColorType ct, SkColorProfileType pt) {
+    this->setColorType(ct, pt);
 
     fDevManager->tearDownBackend(this);
-
-    fDeviceType = type;
-
+    
     fDevManager->setUpBackend(this, fMSAASampleCount);
-
+    
     this->updateTitle();
     this->inval(nullptr);
 }
@@ -1982,9 +2021,6 @@ void SampleWindow::updateTitle() {
 
     title.prepend(gDeviceTypePrefix[fDeviceType]);
 
-    title.prepend(" ");
-    title.prepend(sk_tool_utils::colortype_name(this->getBitmap().colorType()));
-
     if (fTilingMode != kNo_Tiling) {
         title.prependf("<T: %s> ", gTilingInfo[fTilingMode].label);
     }
@@ -2029,6 +2065,8 @@ void SampleWindow::updateTitle() {
                        fDevManager->getGrRenderTarget()->numColorSamples());
     }
 #endif
+
+    title.appendf(" %s", find_config_name(this->info()));
 
     this->setTitle(title.c_str());
 }

@@ -4,18 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_TXTEDTBUF_H
-#define _FDE_TXTEDTBUF_H
+#ifndef XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTBUF_H_
+#define XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTBUF_H_
+
+#include "xfa/src/fgas/include/fx_mem.h"
+
 class IFX_CharIter;
-class CFDE_TxtEdtBufIter;
 class CFDE_TxtEdtBuf;
+
 class CFDE_TxtEdtBufIter : public IFX_CharIter {
  public:
-#ifdef FDE_USEFORMATBLOCK
-  CFDE_TxtEdtBufIter(CFDE_TxtEdtBuf* pBuf, FX_BOOL bForDisplay = TRUE);
-#else
   CFDE_TxtEdtBufIter(CFDE_TxtEdtBuf* pBuf, FX_WCHAR wcAlias = 0);
-#endif
 
   virtual void Release();
   virtual FX_BOOL Next(FX_BOOL bPrev = FALSE);
@@ -33,10 +32,6 @@ class CFDE_TxtEdtBufIter : public IFX_CharIter {
   int32_t m_nCurChunk;
   int32_t m_nCurIndex;
   int32_t m_nIndex;
-#ifdef FDE_USEFORMATBLOCK
-  FX_BOOL m_bForDisplay;
-  int32_t m_nAliasCount;
-#endif
   FX_WCHAR m_Alias;
 };
 class CFDE_TxtEdtBuf : public IFDE_TxtEdtBuf {
@@ -91,4 +86,5 @@ class CFDE_TxtEdtBuf : public IFDE_TxtEdtBuf {
   CFX_PtrArray m_Chunks;
   IFX_MEMAllocator* m_pAllocator;
 };
-#endif
+
+#endif  // XFA_SRC_FEE_SRC_FEE_FDE_TXTEDTBUF_H_

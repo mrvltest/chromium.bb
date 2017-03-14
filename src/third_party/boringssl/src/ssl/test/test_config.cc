@@ -96,6 +96,7 @@ const Flag<bool> kBoolFlags[] = {
   { "-renegotiate-ignore", &TestConfig::renegotiate_ignore },
   { "-disable-npn", &TestConfig::disable_npn },
   { "-p384-only", &TestConfig::p384_only },
+  { "-enable-all-curves", &TestConfig::enable_all_curves },
   { "-use-sparse-dh-prime", &TestConfig::use_sparse_dh_prime },
 };
 
@@ -142,6 +143,8 @@ const Flag<int> kIntFlags[] = {
   { "-expect-total-renegotiations", &TestConfig::expect_total_renegotiations },
   { "-expect-server-key-exchange-hash",
     &TestConfig::expect_server_key_exchange_hash },
+  { "-expect-key-exchange-info",
+    &TestConfig::expect_key_exchange_info },
 };
 
 }  // namespace

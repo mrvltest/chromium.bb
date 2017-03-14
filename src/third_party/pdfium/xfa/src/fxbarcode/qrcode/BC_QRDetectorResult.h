@@ -4,10 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRDETECTORRESULT_H_
-#define _BC_QRDETECTORRESULT_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTORRESULT_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTORRESULT_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_CommonBitMatrix;
 class CBC_ResultPoint;
+
 class CBC_QRDetectorResult {
  private:
   CBC_CommonBitMatrix* m_bits;
@@ -19,4 +23,5 @@ class CBC_QRDetectorResult {
   CBC_CommonBitMatrix* GetBits();
   CFX_PtrArray* GetPoints();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRDETECTORRESULT_H_

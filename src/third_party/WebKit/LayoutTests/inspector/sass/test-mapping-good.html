@@ -1,0 +1,55 @@
+<html>
+<head>
+
+<link rel="stylesheet" href="resources/test-mapping-good.css">
+
+<script src="../../http/tests/inspector/inspector-test.js"></script>
+<script src="../../http/tests/inspector/debugger-test.js"></script>
+<script src="./sass-test.js"></script>
+<script>
+
+function test()
+{
+    var mapping;
+
+    var header = InspectorTest.cssModel.styleSheetHeaders().find(header => !!header.sourceMapURL);
+    InspectorTest.loadASTMapping(header, onMappingLoaded);
+
+    function onMappingLoaded(map)
+    {
+        mapping = map;
+        if (!mapping.isValid()) {
+            InspectorTest.addResult("ERROR: mapping is not valid.");
+            InspectorTest.completeTest();
+            return;
+        }
+        InspectorTest.validateMapping(mapping);
+        InspectorTest.runTestSuite(testSuite);
+    }
+
+    var testSuite = [
+        function testRebase(next)
+        {
+            var cssClone = mapping.cssAST().clone();
+            var sassAST = mapping.sassModels().valuesArray()[0];
+            var sassClone = sassAST.clone();
+            var newMapping = mapping.rebase([cssClone, sassClone]);
+            if (!newMapping.isValid()) {
+                InspectorTest.addResult("ERROR: mapping is not valid.");
+                InspectorTest.completeTest();
+                return;
+            }
+            InspectorTest.validateMapping(newMapping);
+            next();
+        },
+    ];
+}
+
+</script>
+
+</head>
+
+<body onload="runTest()">
+<p>Verify WI.ASTSourceMap rebaselines.</p>
+</body>
+</html>

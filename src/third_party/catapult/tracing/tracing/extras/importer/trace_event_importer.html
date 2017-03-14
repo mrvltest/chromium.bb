@@ -5,17 +5,18 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
+<link rel="import" href="/tracing/base/base64.html">
 <link rel="import" href="/tracing/base/color_scheme.html">
-<link rel="import" href="/tracing/base/quad.html">
 <link rel="import" href="/tracing/base/range.html">
-<link rel="import" href="/tracing/base/units/units.html">
 <link rel="import" href="/tracing/base/utils.html">
 <link rel="import" href="/tracing/extras/importer/trace_code_entry.html">
 <link rel="import" href="/tracing/extras/importer/trace_code_map.html">
 <link rel="import" href="/tracing/extras/importer/v8/codemap.html">
 <link rel="import" href="/tracing/importer/importer.html">
 <link rel="import" href="/tracing/model/attribute.html">
+<link rel="import" href="/tracing/model/clock_sync_record.html">
 <link rel="import" href="/tracing/model/comment_box_annotation.html">
+<link rel="import" href="/tracing/model/constants.html">
 <link rel="import" href="/tracing/model/counter_series.html">
 <link rel="import" href="/tracing/model/flow_event.html">
 <link rel="import" href="/tracing/model/global_memory_dump.html">
@@ -25,8 +26,10 @@ found in the LICENSE file.
 <link rel="import" href="/tracing/model/model.html">
 <link rel="import" href="/tracing/model/process_memory_dump.html">
 <link rel="import" href="/tracing/model/rect_annotation.html">
+<link rel="import" href="/tracing/model/scoped_id.html">
 <link rel="import" href="/tracing/model/slice_group.html">
 <link rel="import" href="/tracing/model/x_marker_annotation.html">
+<link rel="import" href="/tracing/value/unit.html">
 
 <script>
 'use strict';
@@ -36,6 +39,7 @@ found in the LICENSE file.
  * into the provided model.
  */
 tr.exportTo('tr.e.importer', function() {
+  var Base64 = tr.b.Base64;
   var deepCopy = tr.b.deepCopy;
   var ColorScheme = tr.b.ColorScheme;
 
@@ -48,8 +52,8 @@ tr.exportTo('tr.e.importer', function() {
     }
   }
 
-  var timestampFromUs = tr.b.u.Units.timestampFromUs;
-  var maybeTimestampFromUs = tr.b.u.Units.maybeTimestampFromUs;
+  var timestampFromUs = tr.v.Unit.timestampFromUs;
+  var maybeTimestampFromUs = tr.v.Unit.maybeTimestampFromUs;
 
   var PRODUCER = 'producer';
   var CONSUMER = 'consumer';
@@ -57,6 +61,11 @@ tr.exportTo('tr.e.importer', function() {
 
   var MEMORY_DUMP_LEVELS_OF_DETAIL = [undefined, 'light', 'detailed'];
   var GLOBAL_MEMORY_ALLOCATOR_DUMP_PREFIX = 'global/';
+
+  // See tr.model.MemoryAllocatorDump 'weak' field and
+  // base::trace_event::MemoryAllocatorDump::Flags::WEAK in the Chromium
+  // codebase.
+  var WEAK_MEMORY_ALLOCATOR_DUMP_FLAG = 1 << 0;
 
   // Object type name patterns for various compilers.
   var OBJECT_TYPE_NAME_PATTERNS = [
@@ -137,9 +146,9 @@ tr.exportTo('tr.e.importer', function() {
       this.systemTraceEvents_ = container.systemTraceEvents;
 
       // Some trace_event implementations put battor power traces as a
-      // huge string inside container.battorLogAsString. If we see that, pull
+      // huge string inside container.powerTraceAsString. If we see that, pull
       // it out. It will be picked up by extractSubtraces later on.
-      this.battorData_ = container.battorLogAsString;
+      this.battorData_ = container.powerTraceAsString;
 
       // Sampling data.
       this.sampleEvents_ = container.samples;
@@ -148,7 +157,7 @@ tr.exportTo('tr.e.importer', function() {
       // Some implementations specify displayTimeUnit
       if (container.displayTimeUnit) {
         var unitName = container.displayTimeUnit;
-        var unit = tr.b.u.TimeDisplayModes[unitName];
+        var unit = tr.v.TimeDisplayModes[unitName];
         if (unit === undefined) {
           throw new Error('Unit ' + unitName + ' is not supported.');
         }
@@ -156,7 +165,7 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       var knownFieldNames = {
-        battorLogAsString: true,
+        powerTraceAsString: true,
         samples: true,
         stackFrames: true,
         systemTraceEvents: true,
@@ -713,12 +722,46 @@ tr.exportTo('tr.e.importer', function() {
       processEvents.push(event);
     },
 
+    processClockSyncEvent: function(event) {
+      if (event.ph !== 'c')
+        throw new Error('Invalid clock sync event phase "' + event.ph + '".');
+
+      var sync_id = event.args.sync_id;
+      var issue_start_ts = event.args.issue_ts;
+      var issue_end_ts = event.ts;
+
+      if (sync_id === undefined) {
+        this.model_.importWarning({
+          type: 'clock_sync_parse_error',
+          message: 'Clock sync at time ' + issue_end_ts + ' without an ID.'
+        });
+        return;
+      }
+
+      if (issue_start_ts === undefined) {
+        this.model_.importWarning({
+          type: 'clock_sync_parse_error',
+          message: 'Clock sync at time ' + issue_end_ts + ' with ID ' +
+              sync_id + ' without a start timestamp.'
+        });
+        return;
+      }
+
+      var clock_sync_args = {
+        duration: timestampFromUs(issue_end_ts - issue_start_ts)
+      };
+      this.model_.clockSyncRecords.push(new tr.model.PingPongClockSyncRecord(
+        sync_id, timestampFromUs(issue_start_ts),
+        timestampFromUs(issue_end_ts - issue_start_ts)
+      ));
+    },
+
     /**
      * Walks through the events_ list and outputs the structures discovered to
      * model_.
      */
     importEvents: function() {
-      var csr = new tr.ClockSyncRecord('ftrace_importer', 0, {});
+      var csr = new tr.model.InstantClockSyncRecord('ftrace_importer', 0, {});
       this.model_.clockSyncRecords.push(csr);
       if (this.stackFrameEvents_)
         this.importStackFrames_(this.stackFrameEvents_, 'g');
@@ -726,18 +769,36 @@ tr.exportTo('tr.e.importer', function() {
       if (this.traceAnnotations_)
         this.importAnnotations_();
 
+      var importOptions = this.model_.importOptions;
+      var trackDetailedModelStats = importOptions.trackDetailedModelStats;
+
+      var modelStats = this.model_.stats;
+      modelStats.size = 0;
+
       var events = this.events_;
       for (var eI = 0; eI < events.length; eI++) {
         var event = events[eI];
+
         if (event.args === '__stripped__') {
           event.argsStripped = true;
           event.args = undefined;
         }
 
+        var eventSizeInBytes;
+        if (trackDetailedModelStats)
+          eventSizeInBytes = JSON.stringify(event).length;
+        else
+          eventSizeInBytes = undefined;
+
         if (event.ph === 'B' || event.ph === 'E') {
+          modelStats.willProcessBasicTraceEvent(
+              'begin_end (non-comopact)', event.cat, event.name,
+              eventSizeInBytes);
           this.processDurationEvent(event);
 
         } else if (event.ph === 'X') {
+          modelStats.willProcessBasicTraceEvent(
+              'begin_end (compact)', event.cat, event.name, eventSizeInBytes);
           var slice = this.processCompleteEvent(event);
           // TODO(yuhaoz): If Chrome supports creating other events with flow,
           // we will need to call processFlowEvent for them also.
@@ -748,32 +809,52 @@ tr.exportTo('tr.e.importer', function() {
         } else if (event.ph === 'b' || event.ph === 'e' || event.ph === 'n' ||
                    event.ph === 'S' || event.ph === 'F' || event.ph === 'T' ||
                    event.ph === 'p') {
+          modelStats.willProcessBasicTraceEvent(
+              'async', event.cat, event.name, eventSizeInBytes);
           this.processAsyncEvent(event);
 
         // Note, I is historic. The instant event marker got changed, but we
         // want to support loading old trace files so we have both I and i.
         } else if (event.ph === 'I' || event.ph === 'i' || event.ph === 'R') {
+          modelStats.willProcessBasicTraceEvent(
+              'instant', event.cat, event.name, eventSizeInBytes);
           this.processInstantEvent(event);
 
         } else if (event.ph === 'P') {
+          modelStats.willProcessBasicTraceEvent(
+              'samples', event.cat, event.name, eventSizeInBytes);
           this.processTraceSampleEvent(event);
-
         } else if (event.ph === 'C') {
+          modelStats.willProcessBasicTraceEvent(
+              'counters', event.cat, event.name, eventSizeInBytes);
           this.processCounterEvent(event);
-
         } else if (event.ph === 'M') {
+          modelStats.willProcessBasicTraceEvent(
+              'metadata', event.cat, event.name, eventSizeInBytes);
           this.processMetadataEvent(event);
 
         } else if (event.ph === 'N' || event.ph === 'D' || event.ph === 'O') {
+          modelStats.willProcessBasicTraceEvent(
+              'objects', event.cat, event.name, eventSizeInBytes);
           this.processObjectEvent(event);
 
         } else if (event.ph === 's' || event.ph === 't' || event.ph === 'f') {
+          modelStats.willProcessBasicTraceEvent(
+              'flows', event.cat, event.name, eventSizeInBytes);
           this.processFlowEvent(event);
 
         } else if (event.ph === 'v') {
+          modelStats.willProcessBasicTraceEvent(
+              'memory_dumps', event.cat, event.name, eventSizeInBytes);
           this.processMemoryDumpEvent(event);
 
+        } else if (event.ph === 'c') {
+          modelStats.willProcessBasicTraceEvent(
+              'clock_sync', event.cat, event.name, eventSizeInBytes);
+          this.processClockSyncEvent(event);
         } else {
+          modelStats.willProcessBasicTraceEvent(
+              'unknown', event.cat, event.name, eventSizeInBytes);
           this.model_.importWarning({
             type: 'parse_error',
             message: 'Unrecognized event phase: ' +
@@ -1001,14 +1082,6 @@ tr.exportTo('tr.e.importer', function() {
       }
     },
 
-    /**
-     * Called by the model to join references between objects, after final model
-     * bounds have been computed.
-     */
-    joinRefs: function() {
-      this.joinObjectRefs_();
-    },
-
     createAsyncSlices_: function() {
       if (this.allAsyncEvents_.length === 0)
         return;
@@ -1064,7 +1137,7 @@ tr.exportTo('tr.e.importer', function() {
           var matched = /([^\/:]+):([^\/:]+)\/?(.*)/.exec(event.name);
           if (matched !== null) {
             var key = matched[1] + ':' + event.cat;
-            event.args = JSON.parse(window.atob(matched[3]) || '{}');
+            event.args = JSON.parse(Base64.atob(matched[3]) || '{}');
             if (nestableMeasureAsyncEventsByKey[key] === undefined)
               nestableMeasureAsyncEventsByKey[key] = [];
             nestableMeasureAsyncEventsByKey[key].push(asyncEventState);
@@ -1699,6 +1772,8 @@ tr.exportTo('tr.e.importer', function() {
 
       function processEvent(objectEventState) {
         var event = objectEventState.event;
+        var scopedId = new tr.model.ScopedId(
+            event.scope || tr.model.OBJECT_DEFAULT_SCOPE, event.id);
         var thread = objectEventState.thread;
         if (event.name === undefined) {
           this.model_.importWarning({
@@ -1708,7 +1783,7 @@ tr.exportTo('tr.e.importer', function() {
           });
         }
 
-        if (event.id === undefined) {
+        if (scopedId.id === undefined) {
           this.model_.importWarning({
             type: 'object_parse_error',
             message: 'While processing ' + JSON.stringify(event) + ': ' +
@@ -1721,12 +1796,12 @@ tr.exportTo('tr.e.importer', function() {
         if (event.ph === 'N') {
           try {
             instance = process.objects.idWasCreated(
-                event.id, event.cat, event.name, ts);
+                scopedId, event.cat, event.name, ts);
           } catch (e) {
             this.model_.importWarning({
               type: 'object_parse_error',
               message: 'While processing create of ' +
-                  event.id + ' at ts=' + ts + ': ' + e
+                  scopedId + ' at ts=' + ts + ': ' + e
             });
             return;
           }
@@ -1734,7 +1809,7 @@ tr.exportTo('tr.e.importer', function() {
           if (event.args.snapshot === undefined) {
             this.model_.importWarning({
               type: 'object_parse_error',
-              message: 'While processing ' + event.id + ' at ts=' + ts + ': ' +
+              message: 'While processing ' + scopedId + ' at ts=' + ts + ': ' +
                   'Snapshots must have args: {snapshot: ...}'
             });
             return;
@@ -1758,28 +1833,27 @@ tr.exportTo('tr.e.importer', function() {
               baseTypename = undefined;
             }
             snapshot = process.objects.addSnapshot(
-                event.id, cat, event.name, ts,
-                args, baseTypename);
+                scopedId, cat, event.name, ts, args, baseTypename);
             snapshot.snapshottedOnThread = thread;
           } catch (e) {
             this.model_.importWarning({
               type: 'object_parse_error',
               message: 'While processing snapshot of ' +
-                  event.id + ' at ts=' + ts + ': ' + e
+                  scopedId + ' at ts=' + ts + ': ' + e
             });
             return;
           }
           instance = snapshot.objectInstance;
         } else if (event.ph === 'D') {
           try {
-            process.objects.idWasDeleted(event.id, event.cat, event.name, ts);
-            var instanceMap = process.objects.getOrCreateInstanceMap_(event.id);
+            process.objects.idWasDeleted(scopedId, event.cat, event.name, ts);
+            var instanceMap = process.objects.getOrCreateInstanceMap_(scopedId);
             instance = instanceMap.lastInstance;
           } catch (e) {
             this.model_.importWarning({
               type: 'object_parse_error',
               message: 'While processing delete of ' +
-                  event.id + ' at ts=' + ts + ': ' + e
+                  scopedId + ' at ts=' + ts + ': ' + e
             });
             return;
           }
@@ -1857,9 +1931,11 @@ tr.exportTo('tr.e.importer', function() {
         else
           baseTypename = undefined;
 
+        var scope = containingSnapshot.objectInstance.scopedId.scope;
+
         try {
           res = process.objects.addSnapshot(
-              id, cat,
+              new tr.model.ScopedId(scope, id), cat,
               name, containingSnapshot.ts,
               implicitSnapshot, baseTypename);
         } catch (e) {
@@ -2409,6 +2485,10 @@ tr.exportTo('tr.e.importer', function() {
           });
         }
 
+        // A memory allocator dump can have optional flags.
+        var flags = rawAllocatorDump.flags || 0;
+        var isWeakDump = !!(flags & WEAK_MEMORY_ALLOCATOR_DUMP_FLAG);
+
         // Determine if this is a global memory allocator dump (check if
         // it's prefixed with 'global/').
         var containerMemoryDump;
@@ -2441,6 +2521,7 @@ tr.exportTo('tr.e.importer', function() {
           }
           allocatorDump = new tr.model.MemoryAllocatorDump(
               containerMemoryDump, fullName, guid);
+          allocatorDump.weak = isWeakDump;
           dstIndex[fullName] = allocatorDump;
           if (guid !== undefined)
             allMemoryAllocatorDumpsByGuid[guid] = allocatorDump;
@@ -2466,6 +2547,11 @@ tr.exportTo('tr.e.importer', function() {
                 allocatorDump.fullName + ', ' + fullName + ' (ignored).'
             });
             continue;
+          }
+          if (!isWeakDump) {
+            // A MemoryAllocatorDump is non-weak if at least one process dumped
+            // it without WEAK_MEMORY_ALLOCATOR_DUMP_FLAG.
+            allocatorDump.weak = false;
           }
         }
 
@@ -2532,6 +2618,38 @@ tr.exportTo('tr.e.importer', function() {
             parentAlreadyExisted = false;
             parentAllocatorDump = new tr.model.MemoryAllocatorDump(
                 allocatorDump.containerMemoryDump, parentFullName);
+            if (allocatorDump.weak !== false) {
+              // If we are inferring a parent dump (e.g. 'root/parent') of a
+              // current dump (e.g. 'root/parent/current') which is weak (or
+              // was also inferred and we don't know yet whether it's weak or
+              // not), then we clear the weak flag on the parent dump because
+              // we don't know yet whether it should be weak or non-weak:
+              //
+              //   * We can't mark the parent as non-weak straightaway because
+              //     the parent might have no non-weak descendants (in which
+              //     case we want the inferred parent to be weak, so that it
+              //     would be later removed like the current dump).
+              //   * We can't mark the parent as weak immediately either. If we
+              //     did and later encounter a non-weak child of the parent
+              //     (e.g. 'root/parent/another_child'), then we couldn't
+              //     retroactively mark the inferred parent dump as non-weak
+              //     because we couldn't tell whether the parent dump was
+              //     dumped in the trace as weak (in which case it should stay
+              //     weak and be subsequently removed) or whether it was
+              //     inferred as weak (in which case it should be changed to
+              //     non-weak).
+              //
+              // Therefore, we defer marking the inferred parent as
+              // weak/non-weak. If an inferred parent dump does not have any
+              // non-weak child, it will be marked as weak at the end of this
+              // method.
+              //
+              // Note that this should not be confused with the recursive
+              // propagation of the weak flag from parent dumps to their
+              // children and from owned dumps to their owners, which is
+              // performed in GlobalMemoryDump.prototype.removeWeakDumps().
+              parentAllocatorDump.weak = undefined;
+            }
             memoryAllocatorDumpsByFullName[parentFullName] =
                 parentAllocatorDump;
           }
@@ -2542,12 +2660,30 @@ tr.exportTo('tr.e.importer', function() {
 
           // If the parent already existed, then its ancestors were/will be
           // constructed in another iteration of the forEach loop.
-          if (parentAlreadyExisted)
+          if (parentAlreadyExisted) {
+            if (!allocatorDump.weak) {
+              // If the current dump is non-weak, then we must ensure that all
+              // its inferred ancestors are also non-weak.
+              while (parentAllocatorDump !== undefined &&
+                     parentAllocatorDump.weak === undefined) {
+                parentAllocatorDump.weak = false;
+                parentAllocatorDump = parentAllocatorDump.parent;
+              }
+            }
             break;
+          }
 
           fullName = parentFullName;
           allocatorDump = parentAllocatorDump;
         }
+      }
+
+      // All inferred ancestor dumps that have a non-weak child have already
+      // been marked as non-weak. We now mark the rest as weak.
+      for (var fullName in memoryAllocatorDumpsByFullName) {
+        var allocatorDump = memoryAllocatorDumpsByFullName[fullName];
+        if (allocatorDump.weak === undefined)
+          allocatorDump.weak = true;
       }
 
       return rootAllocatorDumps;
@@ -2633,87 +2769,6 @@ tr.exportTo('tr.e.importer', function() {
           }
         }
       }
-    },
-
-    joinObjectRefs_: function() {
-      tr.b.iterItems(this.model_.processes, function(pid, process) {
-        this.joinObjectRefsForProcess_(process);
-      }, this);
-    },
-
-    joinObjectRefsForProcess_: function(process) {
-      // Iterate the world, looking for id_refs
-      var patchupsToApply = [];
-      tr.b.iterItems(process.threads, function(tid, thread) {
-        thread.asyncSliceGroup.slices.forEach(function(item) {
-          this.searchItemForIDRefs_(
-              patchupsToApply, process.objects, 'start', item);
-        }, this);
-        thread.sliceGroup.slices.forEach(function(item) {
-          this.searchItemForIDRefs_(
-              patchupsToApply, process.objects, 'start', item);
-        }, this);
-      }, this);
-      process.objects.iterObjectInstances(function(instance) {
-        instance.snapshots.forEach(function(item) {
-          this.searchItemForIDRefs_(
-              patchupsToApply, process.objects, 'ts', item);
-        }, this);
-      }, this);
-
-      // Change all the fields pointing at id_refs to their real values.
-      patchupsToApply.forEach(function(patchup) {
-        patchup.object[patchup.field] = patchup.value;
-      });
-    },
-
-    searchItemForIDRefs_: function(patchupsToApply, objectCollection,
-                                   itemTimestampField, item) {
-      if (!item.args)
-        throw new Error('item is missing its args');
-
-      function handleField(object, fieldName, fieldValue) {
-        if (!fieldValue || (!fieldValue.id_ref && !fieldValue.idRef))
-          return;
-
-        var id = fieldValue.id_ref || fieldValue.idRef;
-        var ts = item[itemTimestampField];
-        var snapshot = objectCollection.getSnapshotAt(id, ts);
-        if (!snapshot)
-          return;
-
-        // We have to delay the actual change to the new value until after all
-        // refs have been located. Otherwise, we could end up recursing in
-        // ways we definitely didn't intend.
-        patchupsToApply.push({object: object,
-          field: fieldName,
-          value: snapshot});
-      }
-      function iterObjectFieldsRecursively(object) {
-        if (!(object instanceof Object))
-          return;
-
-        if ((object instanceof tr.model.ObjectSnapshot) ||
-            (object instanceof Float32Array) ||
-            (object instanceof tr.b.Quad))
-          return;
-
-        if (object instanceof Array) {
-          for (var i = 0; i < object.length; i++) {
-            handleField(object, i, object[i]);
-            iterObjectFieldsRecursively(object[i]);
-          }
-          return;
-        }
-
-        for (var key in object) {
-          var value = object[key];
-          handleField(object, key, value);
-          iterObjectFieldsRecursively(value);
-        }
-      }
-
-      iterObjectFieldsRecursively(item.args);
     }
   };
 

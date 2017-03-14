@@ -165,7 +165,7 @@ void DOMTimer::stop()
     m_action.clear();
 }
 
-WebTaskRunner* DOMTimer::timerTaskRunner()
+WebTaskRunner* DOMTimer::timerTaskRunner() const
 {
     return executionContext()->timers()->timerTaskRunner();
 }

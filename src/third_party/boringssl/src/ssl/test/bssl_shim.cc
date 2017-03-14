@@ -12,6 +12,10 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
+#if !defined(__STDC_FORMAT_MACROS)
+#define __STDC_FORMAT_MACROS
+#endif
+
 #include <openssl/base.h>
 
 #if !defined(OPENSSL_WINDOWS)
@@ -32,6 +36,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
+#include <inttypes.h>
 #include <string.h>
 
 #include <openssl/bio.h>
@@ -742,6 +747,8 @@ static ScopedSSL_CTX SetupCtx(const TestConfig *config) {
         !BN_set_word(dh->g, 2)) {
       return nullptr;
     }
+    BN_free(dh->q);
+    dh->q = NULL;
     dh->priv_length = 0;
   }
 
@@ -1087,6 +1094,15 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume) {
     return false;
   }
 
+  if (config->expect_key_exchange_info != 0) {
+    uint32_t info = SSL_SESSION_get_key_exchange_info(SSL_get_session(ssl));
+    if (static_cast<uint32_t>(config->expect_key_exchange_info) != info) {
+      fprintf(stderr, "key_exchange_info was %" PRIu32 ", wanted %" PRIu32 "\n",
+              info, static_cast<uint32_t>(config->expect_key_exchange_info));
+      return false;
+    }
+  }
+
   if (!config->is_server) {
     /* Clients should expect a peer certificate chain iff this was not a PSK
      * cipher suite. */
@@ -1234,6 +1250,15 @@ static bool DoExchange(ScopedSSL_SESSION *out_session, SSL_CTX *ssl_ctx,
   if (config->p384_only) {
     int nid = NID_secp384r1;
     if (!SSL_set1_curves(ssl.get(), &nid, 1)) {
+      return false;
+    }
+  }
+  if (config->enable_all_curves) {
+    static const int kAllCurves[] = {
+        NID_X9_62_prime256v1, NID_secp384r1, NID_secp521r1, NID_x25519,
+    };
+    if (!SSL_set1_curves(ssl.get(), kAllCurves,
+                         sizeof(kAllCurves) / sizeof(kAllCurves[0]))) {
       return false;
     }
   }

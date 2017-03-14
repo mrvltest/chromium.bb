@@ -4,8 +4,8 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "pre.h"
-#include "fx_path_generator.h"
+#include "xfa/src/fxgraphics/src/fx_path_generator.h"
+#include "xfa/src/fxgraphics/src/pre.h"
 CFX_PathGenerator::CFX_PathGenerator() {
   m_pPathData = NULL;
 }
@@ -119,8 +119,8 @@ void CFX_PathGenerator::ArcTo(FX_FLOAT x,
                               FX_FLOAT sweep_angle) {
   FX_FLOAT x0 = FXSYS_cos(sweep_angle / 2);
   FX_FLOAT y0 = FXSYS_sin(sweep_angle / 2);
-  FX_FLOAT tx = FXSYS_Div((1.0f - x0) * 4, 3 * 1.0f);
-  FX_FLOAT ty = y0 - FXSYS_Div(FXSYS_Mul(tx, x0), y0);
+  FX_FLOAT tx = ((1.0f - x0) * 4) / (3 * 1.0f);
+  FX_FLOAT ty = y0 - ((tx * x0) / y0);
   FX_FLOAT px[3], py[3];
   px[0] = x0 + tx;
   py[0] = -ty;
@@ -131,14 +131,14 @@ void CFX_PathGenerator::ArcTo(FX_FLOAT x,
   int old_count = m_pPathData->GetPointCount();
   m_pPathData->AddPointCount(3);
   FX_FLOAT bezier_x, bezier_y;
-  bezier_x = x + FXSYS_Mul(width, FXSYS_Mul(px[0], cs) - FXSYS_Mul(py[0], sn));
-  bezier_y = y + FXSYS_Mul(height, FXSYS_Mul(px[0], sn) + FXSYS_Mul(py[0], cs));
+  bezier_x = x + (width * ((px[0] * cs) - (py[0] * sn)));
+  bezier_y = y + (height * ((px[0] * sn) + (py[0] * cs)));
   m_pPathData->SetPoint(old_count, bezier_x, bezier_y, FXPT_BEZIERTO);
-  bezier_x = x + FXSYS_Mul(width, FXSYS_Mul(px[1], cs) - FXSYS_Mul(py[1], sn));
-  bezier_y = y + FXSYS_Mul(height, FXSYS_Mul(px[1], sn) + FXSYS_Mul(py[1], cs));
+  bezier_x = x + (width * ((px[1] * cs) - (py[1] * sn)));
+  bezier_y = y + (height * ((px[1] * sn) + (py[1] * cs)));
   m_pPathData->SetPoint(old_count + 1, bezier_x, bezier_y, FXPT_BEZIERTO);
-  bezier_x = x + FXSYS_Mul(width, FXSYS_cos(start_angle + sweep_angle)),
-  bezier_y = y + FXSYS_Mul(height, FXSYS_sin(start_angle + sweep_angle));
+  bezier_x = x + (width * FXSYS_cos(start_angle + sweep_angle));
+  bezier_y = y + (height * FXSYS_sin(start_angle + sweep_angle));
   m_pPathData->SetPoint(old_count + 2, bezier_x, bezier_y, FXPT_BEZIERTO);
 }
 void CFX_PathGenerator::AddArc(FX_FLOAT x,
@@ -189,9 +189,8 @@ void CFX_PathGenerator::AddArc(FX_FLOAT x,
   }
   m_pPathData->AddPointCount(1);
   m_pPathData->SetPoint(m_pPathData->GetPointCount() - 1,
-                        x + FXSYS_Mul(width, FXSYS_cos(start_angle)),
-                        y + FXSYS_Mul(height, FXSYS_sin(start_angle)),
-                        FXPT_MOVETO);
+                        x + (width * FXSYS_cos(start_angle)),
+                        y + (height * FXSYS_sin(start_angle)), FXPT_MOVETO);
   FX_FLOAT total_sweep = 0, local_sweep = 0, prev_sweep = 0;
   FX_BOOL done = FALSE;
   do {
@@ -227,9 +226,8 @@ void CFX_PathGenerator::AddPie(FX_FLOAT x,
     int old_count = m_pPathData->GetPointCount();
     m_pPathData->AddPointCount(2);
     m_pPathData->SetPoint(old_count, x, y, FXPT_MOVETO);
-    m_pPathData->SetPoint(
-        old_count + 1, x + FXSYS_Mul(width, FXSYS_cos(start_angle)),
-        y + FXSYS_Mul(height, FXSYS_sin(start_angle)), FXPT_LINETO);
+    m_pPathData->SetPoint(old_count + 1, x + (width * FXSYS_cos(start_angle)),
+                          y + (height * FXSYS_sin(start_angle)), FXPT_LINETO);
     return;
   }
   AddArc(x, y, width, height, start_angle, sweep_angle);

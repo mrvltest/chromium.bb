@@ -51,7 +51,7 @@ public:
         setIsText(true);
     }
 
-    LineLayoutText lineLayoutItem() const { return LineLayoutText(InlineBox::lineLayoutItem()); }
+    LineLayoutText getLineLayoutItem() const { return LineLayoutText(InlineBox::getLineLayoutItem()); }
 
     void destroy() final;
 
@@ -126,7 +126,7 @@ private:
     void attachLine() final;
 
 public:
-    SelectionState selectionState() const final;
+    SelectionState getSelectionState() const final;
     bool hasWrappedSelectionNewline() const;
     float newlineSpaceWidth() const;
 

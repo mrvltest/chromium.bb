@@ -4,20 +4,20 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "Document.h"
+#include "fpdfsdk/src/javascript/Document.h"
 
-#include "Field.h"
-#include "Icon.h"
-#include "JS_Context.h"
-#include "JS_Define.h"
-#include "JS_EventHandler.h"
-#include "JS_Object.h"
-#include "JS_Runtime.h"
-#include "JS_Value.h"
-#include "app.h"
 #include "fpdfsdk/include/fsdk_mgr.h"  // For CPDFDoc_Environment.
 #include "fpdfsdk/include/javascript/IJavaScript.h"
-#include "resource.h"
+#include "fpdfsdk/src/javascript/Field.h"
+#include "fpdfsdk/src/javascript/Icon.h"
+#include "fpdfsdk/src/javascript/JS_Context.h"
+#include "fpdfsdk/src/javascript/JS_Define.h"
+#include "fpdfsdk/src/javascript/JS_EventHandler.h"
+#include "fpdfsdk/src/javascript/JS_Object.h"
+#include "fpdfsdk/src/javascript/JS_Runtime.h"
+#include "fpdfsdk/src/javascript/JS_Value.h"
+#include "fpdfsdk/src/javascript/app.h"
+#include "fpdfsdk/src/javascript/resource.h"
 #include "third_party/base/numerics/safe_math.h"
 
 static v8::Isolate* GetIsolate(IJS_Context* cc) {
@@ -741,7 +741,7 @@ FX_BOOL Document::author(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Author");
+    vp << pDictionary->GetUnicodeTextBy("Author");
     return TRUE;
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
@@ -762,15 +762,15 @@ FX_BOOL Document::info(IJS_Context* cc,
   if (!pDictionary)
     return FALSE;
 
-  CFX_WideString cwAuthor = pDictionary->GetUnicodeText("Author");
-  CFX_WideString cwTitle = pDictionary->GetUnicodeText("Title");
-  CFX_WideString cwSubject = pDictionary->GetUnicodeText("Subject");
-  CFX_WideString cwKeywords = pDictionary->GetUnicodeText("Keywords");
-  CFX_WideString cwCreator = pDictionary->GetUnicodeText("Creator");
-  CFX_WideString cwProducer = pDictionary->GetUnicodeText("Producer");
-  CFX_WideString cwCreationDate = pDictionary->GetUnicodeText("CreationDate");
-  CFX_WideString cwModDate = pDictionary->GetUnicodeText("ModDate");
-  CFX_WideString cwTrapped = pDictionary->GetUnicodeText("Trapped");
+  CFX_WideString cwAuthor = pDictionary->GetUnicodeTextBy("Author");
+  CFX_WideString cwTitle = pDictionary->GetUnicodeTextBy("Title");
+  CFX_WideString cwSubject = pDictionary->GetUnicodeTextBy("Subject");
+  CFX_WideString cwKeywords = pDictionary->GetUnicodeTextBy("Keywords");
+  CFX_WideString cwCreator = pDictionary->GetUnicodeTextBy("Creator");
+  CFX_WideString cwProducer = pDictionary->GetUnicodeTextBy("Producer");
+  CFX_WideString cwCreationDate = pDictionary->GetUnicodeTextBy("CreationDate");
+  CFX_WideString cwModDate = pDictionary->GetUnicodeTextBy("ModDate");
+  CFX_WideString cwTrapped = pDictionary->GetUnicodeTextBy("Trapped");
 
   v8::Isolate* isolate = GetIsolate(cc);
   if (vp.IsGetting()) {
@@ -819,7 +819,7 @@ FX_BOOL Document::creationDate(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("CreationDate");
+    vp << pDictionary->GetUnicodeTextBy("CreationDate");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -840,7 +840,7 @@ FX_BOOL Document::creator(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Creator");
+    vp << pDictionary->GetUnicodeTextBy("Creator");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -896,7 +896,7 @@ FX_BOOL Document::keywords(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Keywords");
+    vp << pDictionary->GetUnicodeTextBy("Keywords");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -917,7 +917,7 @@ FX_BOOL Document::modDate(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("ModDate");
+    vp << pDictionary->GetUnicodeTextBy("ModDate");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -938,7 +938,7 @@ FX_BOOL Document::producer(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Producer");
+    vp << pDictionary->GetUnicodeTextBy("Producer");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -959,7 +959,7 @@ FX_BOOL Document::subject(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Subject");
+    vp << pDictionary->GetUnicodeTextBy("Subject");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -983,7 +983,7 @@ FX_BOOL Document::title(IJS_Context* cc,
     return FALSE;
 
   if (vp.IsGetting()) {
-    vp << pDictionary->GetUnicodeText("Title");
+    vp << pDictionary->GetUnicodeTextBy("Title");
   } else {
     if (!m_pDocument->GetPermissions(FPDFPERM_MODIFY))
       return FALSE;
@@ -1378,27 +1378,19 @@ FX_BOOL Document::getPageNthWord(IJS_Context* cc,
 
   CPDF_Page page;
   page.Load(pDocument, pPageDict);
-  page.StartParse();
-  page.ParseContent();
-
-  FX_POSITION pos = page.GetFirstObjectPosition();
+  page.ParseContent(nullptr);
 
   int nWords = 0;
-
   CFX_WideString swRet;
-
-  while (pos) {
-    if (CPDF_PageObject* pPageObj = page.GetNextObject(pos)) {
-      if (pPageObj->m_Type == PDFPAGE_TEXT) {
-        int nObjWords = CountWords((CPDF_TextObject*)pPageObj);
-
-        if (nWords + nObjWords >= nWordNo) {
-          swRet = GetObjWordStr((CPDF_TextObject*)pPageObj, nWordNo - nWords);
-          break;
-        }
-
-        nWords += nObjWords;
+  for (auto& pPageObj : *page.GetPageObjectList()) {
+    if (pPageObj->IsText()) {
+      CPDF_TextObject* pTextObj = pPageObj->AsText();
+      int nObjWords = CountWords(pTextObj);
+      if (nWords + nObjWords >= nWordNo) {
+        swRet = GetObjWordStr(pTextObj, nWordNo - nWords);
+        break;
       }
+      nWords += nObjWords;
     }
   }
 
@@ -1429,7 +1421,6 @@ FX_BOOL Document::getPageNumWords(IJS_Context* cc,
     return FALSE;
 
   int nPageNo = params.size() > 0 ? params[0].ToInt() : 0;
-
   CPDF_Document* pDocument = m_pDocument->GetPDFDocument();
   CJS_Context* pContext = static_cast<CJS_Context*>(cc);
   if (nPageNo < 0 || nPageNo >= pDocument->GetPageCount()) {
@@ -1443,24 +1434,15 @@ FX_BOOL Document::getPageNumWords(IJS_Context* cc,
 
   CPDF_Page page;
   page.Load(pDocument, pPageDict);
-  page.StartParse();
-  page.ParseContent();
-
-  FX_POSITION pos = page.GetFirstObjectPosition();
+  page.ParseContent(nullptr);
 
   int nWords = 0;
-
-  while (pos) {
-    if (CPDF_PageObject* pPageObj = page.GetNextObject(pos)) {
-      if (pPageObj->m_Type == PDFPAGE_TEXT) {
-        CPDF_TextObject* pTextObj = (CPDF_TextObject*)pPageObj;
-        nWords += CountWords(pTextObj);
-      }
-    }
+  for (auto& pPageObj : *page.GetPageObjectList()) {
+    if (pPageObj->IsText())
+      nWords += CountWords(pPageObj->AsText());
   }
 
   vRet = nWords;
-
   return TRUE;
 }
 

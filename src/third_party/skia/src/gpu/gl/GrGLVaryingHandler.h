@@ -24,10 +24,9 @@ public:
                                            GrSLPrecision fsPrecision = kDefault_GrSLPrecision);
 
 private:
-    typedef GrGLProgramDataManager::VaryingInfo VaryingInfo;
-    typedef GrGLProgramDataManager::VaryingInfoArray VaryingInfoArray;
+    void onFinalize() override;
 
-    VaryingInfoArray fPathProcVaryingInfos;
+    GrGLProgramDataManager::VaryingInfoArray fPathProcVaryingInfos;
 
     friend class GrGLProgramBuilder;
 

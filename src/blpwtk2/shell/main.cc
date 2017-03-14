@@ -390,15 +390,6 @@ void testGetPicture(blpwtk2::NativeView hwnd,
 #endif
 }
 
-void testDumpLayoutTree(const blpwtk2::WebView* webView)
-{
-    const blpwtk2::String& text = webView->getLayoutTreeAsText(1);
-
-    std::ofstream file("renderTree.txt", std::ios::binary);
-    file << std::string(text.data(), text.length());
-    file.close();
-}
-
 class Shell : public blpwtk2::WebViewDelegate {
 public:
     static std::set<Shell*> s_shells;
@@ -1481,9 +1472,6 @@ LRESULT CALLBACK shellWndProc(HWND hwnd,        // handle to window
             return 0;
         case IDM_TEST_GET_BITMAP:
             testGetPicture(shell->d_mainWnd, shell->d_webView, blpwtk2::WebView::DrawParams::RendererTypeBitmap, 2, 2);
-            return 0;
-        case IDM_TEST_DUMP_LAYOUT_TREE:
-            testDumpLayoutTree(shell->d_webView);
             return 0;
         case IDM_TEST_DUMP_GPU_INFO:
             g_toolkit->dumpDiagnosticInfo(blpwtk2::Toolkit::DIAGNOSTIC_INFO_GPU, "gpuInfo.txt");

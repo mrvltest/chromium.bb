@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_LOCALE_IMP_H_
-#define _FX_LOCALE_IMP_H_
+#ifndef XFA_SRC_FGAS_SRC_LOCALIZATION_FX_LOCALEIMP_H_
+#define XFA_SRC_FGAS_SRC_LOCALIZATION_FX_LOCALEIMP_H_
+
+#include "xfa/src/fgas/include/fx_locale.h"
+
 class CFX_LCNumeric;
+
 class CFX_Locale : public IFX_Locale {
  public:
   CFX_Locale(CXML_Element* pLocaleData);
@@ -39,6 +43,7 @@ class CFX_Locale : public IFX_Locale {
   virtual ~CFX_Locale();
   CXML_Element* m_pElement;
 };
+
 class CFX_FormatString : public IFX_FormatString {
  public:
   CFX_FormatString(IFX_LocaleMgr* pLocaleMgr, FX_BOOL bUseLCID);
@@ -113,4 +118,5 @@ class CFX_FormatString : public IFX_FormatString {
   IFX_LocaleMgr* m_pLocaleMgr;
   FX_BOOL m_bUseLCID;
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_LOCALIZATION_FX_LOCALEIMP_H_

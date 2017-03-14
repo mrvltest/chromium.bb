@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_EDIFACTENCODER_H_
-#define _BC_EDIFACTENCODER_H_
-class CBC_EncoderContext;
-class CBC_EdifactEncoder;
+#ifndef XFA_SRC_FXBARCODE_DATAMATRIX_BC_EDIFACTENCODER_H_
+#define XFA_SRC_FXBARCODE_DATAMATRIX_BC_EDIFACTENCODER_H_
+
+#include "xfa/src/fxbarcode/datamatrix/BC_Encoder.h"
+
 class CBC_EdifactEncoder : public CBC_Encoder {
  public:
   CBC_EdifactEncoder();
@@ -24,4 +25,5 @@ class CBC_EdifactEncoder : public CBC_Encoder {
                                           int32_t startPos,
                                           int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_DATAMATRIX_BC_EDIFACTENCODER_H_

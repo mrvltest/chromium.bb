@@ -4,13 +4,18 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_ITERATOR_IMP
-#define _FDE_ITERATOR_IMP
-typedef struct _FDE_CANVASITEM : public CFX_Target {
+#ifndef XFA_SRC_FDP_SRC_FDE_FDE_ITERATOR_H_
+#define XFA_SRC_FDP_SRC_FDE_FDE_ITERATOR_H_
+
+#include "xfa/src/fdp/include/fde_psr.h"
+#include "xfa/src/fgas/include/fx_mem.h"
+
+struct FDE_CANVASITEM : public CFX_Target {
   IFDE_CanvasSet* pCanvas;
   FDE_HVISUALOBJ hCanvas;
   FX_POSITION hPos;
-} FDE_CANVASITEM, *FDE_LPCANVASITEM;
+};
+
 class CFDE_VisualSetIterator : public IFDE_VisualSetIterator,
                                public CFX_Target {
  public:
@@ -30,4 +35,5 @@ class CFDE_VisualSetIterator : public IFDE_VisualSetIterator,
   FX_DWORD m_dwFilter;
   CFX_StackTemplate<FDE_CANVASITEM> m_CanvasStack;
 };
-#endif
+
+#endif  // XFA_SRC_FDP_SRC_FDE_FDE_ITERATOR_H_

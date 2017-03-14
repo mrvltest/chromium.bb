@@ -15,6 +15,7 @@
       ],
       'include_dirs': [
         '../include/effects',
+        '../include/client/android',
         '../include/images',
         '../include/ports',
         '../include/private',
@@ -87,17 +88,11 @@
             'freetype.gyp:freetype',
           ],
           'conditions': [
-            [ 'skia_os == "android"', {
-              'dependencies': [
-                 'android_deps.gyp:expat',
-              ],
+            [ 'skia_android_framework', {
+              'link_settings': { 'libraries': [ '-lexpat' ] },
             }, {
-              'link_settings': {
-                'libraries': [
-                  '-ldl',
-                  '-lexpat',
-                ],
-              },
+              'link_settings': { 'libraries': [ '-ldl' ] },
+              'dependencies': [ 'expat.gyp:expat' ],
             }],
             [ 'skia_embedded_fonts', {
               'variables': {

@@ -24,7 +24,7 @@
 #include "core/layout/LayoutListItem.h"
 
 #include "core/HTMLNames.h"
-#include "core/dom/shadow/ComposedTreeTraversal.h"
+#include "core/dom/shadow/FlatTreeTraversal.h"
 #include "core/html/HTMLOListElement.h"
 #include "core/layout/LayoutListMarker.h"
 #include "core/layout/LayoutView.h"
@@ -128,7 +128,7 @@ static Node* enclosingList(const LayoutListItem* listItem)
         return nullptr;
     Node* firstNode = nullptr;
     // We use parentNode because the enclosing list could be a ShadowRoot that's not Element.
-    for (Node* parent = ComposedTreeTraversal::parent(*listItemNode); parent; parent = ComposedTreeTraversal::parent(*parent)) {
+    for (Node* parent = FlatTreeTraversal::parent(*listItemNode); parent; parent = FlatTreeTraversal::parent(*parent)) {
         if (isList(*parent))
             return parent;
         if (!firstNode)
@@ -361,8 +361,8 @@ void LayoutListItem::positionListMarker()
 {
     if (m_marker && m_marker->parent() && m_marker->parent()->isBox() && !m_marker->isInside() && m_marker->inlineBoxWrapper()) {
         LayoutUnit markerOldLogicalLeft = m_marker->logicalLeft();
-        LayoutUnit blockOffset = 0;
-        LayoutUnit lineOffset = 0;
+        LayoutUnit blockOffset;
+        LayoutUnit lineOffset;
         for (LayoutBox* o = m_marker->parentBox(); o != this; o = o->parentBox()) {
             blockOffset += o->logicalTop();
             lineOffset += o->logicalLeft();

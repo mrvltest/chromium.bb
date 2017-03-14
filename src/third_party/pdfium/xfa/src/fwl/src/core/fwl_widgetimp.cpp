@@ -4,15 +4,28 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 #include <algorithm>
 
+#include "xfa/include/fwl/adapter/fwl_adapternative.h"
+#include "xfa/include/fwl/adapter/fwl_adapterthreadmgr.h"
+#include "xfa/include/fwl/adapter/fwl_adapterwidgetmgr.h"
+#include "xfa/include/fwl/basewidget/fwl_combobox.h"
+#include "xfa/include/fwl/basewidget/fwl_datetimepicker.h"
+#include "xfa/include/fwl/basewidget/fwl_menu.h"
+#include "xfa/include/fwl/core/fwl_app.h"
+#include "xfa/include/fwl/core/fwl_content.h"
+#include "xfa/include/fwl/core/fwl_form.h"
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/src/fdp/include/fde_tto.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_appimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 FWL_ERR IFWL_Widget::GetWidgetRect(CFX_RectF& rect, FX_BOOL bAutoSize) {
   return static_cast<CFWL_WidgetImp*>(GetImpl())
       ->GetWidgetRect(rect, bAutoSize);
@@ -640,10 +653,9 @@ CFX_SizeF CFWL_WidgetImp::CalcTextSize(const CFX_WideString& wsText,
                                        IFWL_ThemeProvider* pTheme,
                                        FX_BOOL bMultiLine,
                                        int32_t iLineWidth) {
-  CFX_SizeF sz;
-  sz.Set(0, 0);
   if (!pTheme)
-    return sz;
+    return CFX_SizeF();
+
   CFWL_ThemeText calPart;
   calPart.m_pWidget = m_pInterface;
   calPart.m_wsText = wsText;
@@ -657,9 +669,7 @@ CFX_SizeF CFWL_WidgetImp::CalcTextSize(const CFX_WideString& wsText,
                         : FWL_WGT_CalcWidth;
   rect.Set(0, 0, fWidth, FWL_WGT_CalcHeight);
   pTheme->CalcTextRect(&calPart, rect);
-  sz.x = rect.width;
-  sz.y = rect.height;
-  return sz;
+  return CFX_SizeF(rect.width, rect.height);
 }
 void CFWL_WidgetImp::CalcTextRect(const CFX_WideString& wsText,
                                   IFWL_ThemeProvider* pTheme,
@@ -803,13 +813,7 @@ FX_BOOL CFWL_WidgetImp::GetPopupPosGeneral(FX_FLOAT fMinHeight,
   return TRUE;
 }
 FX_BOOL CFWL_WidgetImp::GetScreenSize(FX_FLOAT& fx, FX_FLOAT& fy) {
-  IFWL_AdapterNative* pNative = FWL_GetAdapterNative();
-  IFWL_AdapterMonitorMgr* pMonitorMgr = pNative->GetMonitorMgr();
-  if (!pMonitorMgr)
-    return FALSE;
-  FWL_HMONITOR hMonitor = pMonitorMgr->GetMonitorByPoint(fx, fy);
-  pMonitorMgr->GetMonitorSize(hMonitor, fx, fy);
-  return TRUE;
+  return FALSE;
 }
 void CFWL_WidgetImp::RegisterEventTarget(IFWL_Widget* pEventSource,
                                          FX_DWORD dwFilter) {
@@ -924,22 +928,21 @@ void CFWL_WidgetImp::NotifyDriver() {
   pDriver->NotifyTargetDestroy(m_pInterface);
 }
 CFX_SizeF CFWL_WidgetImp::GetOffsetFromParent(IFWL_Widget* pParent) {
-  CFX_SizeF szRet;
-  szRet.Set(0, 0);
-  if (pParent == GetInterface()) {
-    return szRet;
-  }
+  if (pParent == GetInterface())
+    return CFX_SizeF();
+
   IFWL_WidgetMgr* pWidgetMgr = FWL_GetWidgetMgr();
   if (!pWidgetMgr)
-    return szRet;
-  szRet.x += m_pProperties->m_rtWidget.left;
-  szRet.y += m_pProperties->m_rtWidget.top;
+    return CFX_SizeF();
+
+  CFX_SizeF szRet(m_pProperties->m_rtWidget.left,
+                  m_pProperties->m_rtWidget.top);
+
   IFWL_Widget* pDstWidget = GetParent();
   while (pDstWidget && pDstWidget != pParent) {
     CFX_RectF rtDst;
     pDstWidget->GetWidgetRect(rtDst);
-    szRet.x += rtDst.left;
-    szRet.y += rtDst.top;
+    szRet += CFX_SizeF(rtDst.left, rtDst.top);
     pDstWidget = pWidgetMgr->GetWidget(pDstWidget, FWL_WGTRELATION_Parent);
   }
   return szRet;

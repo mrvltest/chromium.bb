@@ -11,7 +11,7 @@
 #include "core/include/fxcodec/fx_codec.h"
 #include "core/include/fxge/fx_ge.h"
 #include "core/src/fxge/dib/dib_int.h"
-#include "core/src/fxge/ge/text_int.h"
+#include "core/src/fxge/ge/fx_text_int.h"
 #include "third_party/agg23/agg_conv_dash.h"
 #include "third_party/agg23/agg_conv_stroke.h"
 #include "third_party/agg23/agg_curves.h"
@@ -144,8 +144,8 @@ static void RasterizeStroke(agg::rasterizer_scanline_aa& rasterizer,
   FX_FLOAT width = pGraphState->m_LineWidth * scale;
   FX_FLOAT unit = 1.f;
   if (pObject2Device) {
-    unit = FXSYS_Div(
-        1.0f, (pObject2Device->GetXUnit() + pObject2Device->GetYUnit()) / 2);
+    unit =
+        1.0f / ((pObject2Device->GetXUnit() + pObject2Device->GetYUnit()) / 2);
   }
   if (width < unit) {
     width = unit;

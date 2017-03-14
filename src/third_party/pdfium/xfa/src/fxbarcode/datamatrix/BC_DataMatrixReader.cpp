@@ -20,14 +20,18 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixReader.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/BC_BinaryBitmap.h"
 #include "xfa/src/fxbarcode/BC_Reader.h"
-#include "xfa/src/fxbarcode/qrcode/BC_QRDetectorResult.h"
 #include "xfa/src/fxbarcode/common/BC_CommonDecoderResult.h"
-#include "BC_DataMatrixDecoder.h"
-#include "BC_DataMatrixDetector.h"
-#include "BC_DataMatrixReader.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixDecoder.h"
+#include "xfa/src/fxbarcode/datamatrix/BC_DataMatrixDetector.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDetectorResult.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_DataMatrixReader::CBC_DataMatrixReader() {
   m_decoder = NULL;
 }
@@ -36,10 +40,7 @@ void CBC_DataMatrixReader::Init() {
   m_decoder->Init();
 }
 CBC_DataMatrixReader::~CBC_DataMatrixReader() {
-  if (m_decoder != NULL) {
-    delete m_decoder;
-  }
-  m_decoder = NULL;
+  delete m_decoder;
 }
 CFX_ByteString CBC_DataMatrixReader::Decode(CBC_BinaryBitmap* image,
                                             int32_t hints,
@@ -49,13 +50,11 @@ CFX_ByteString CBC_DataMatrixReader::Decode(CBC_BinaryBitmap* image,
   CBC_DataMatrixDetector detector(cdr);
   detector.Init(e);
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
-  CBC_QRDetectorResult* ddr = detector.Detect(e);
+  std::unique_ptr<CBC_QRDetectorResult> detectorResult(detector.Detect(e));
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
-  CBC_AutoPtr<CBC_QRDetectorResult> detectorResult(ddr);
-  CBC_CommonDecoderResult* ResultTemp =
-      m_decoder->Decode(detectorResult->GetBits(), e);
+  std::unique_ptr<CBC_CommonDecoderResult> decodeResult(
+      m_decoder->Decode(detectorResult->GetBits(), e));
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
-  CBC_AutoPtr<CBC_CommonDecoderResult> decodeResult(ResultTemp);
   return decodeResult->GetText();
 }
 CFX_ByteString CBC_DataMatrixReader::Decode(CBC_BinaryBitmap* image,

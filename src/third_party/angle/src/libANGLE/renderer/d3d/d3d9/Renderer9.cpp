@@ -36,6 +36,7 @@
 #include "libANGLE/renderer/d3d/d3d9/TextureStorage9.h"
 #include "libANGLE/renderer/d3d/d3d9/VertexArray9.h"
 #include "libANGLE/renderer/d3d/d3d9/VertexBuffer9.h"
+#include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/DeviceD3D.h"
 #include "libANGLE/renderer/d3d/FramebufferD3D.h"
 #include "libANGLE/renderer/d3d/IndexDataManager.h"
@@ -524,6 +525,7 @@ void Renderer9::generateDisplayExtensions(egl::DisplayExtensions *outExtensions)
     outExtensions->postSubBuffer       = true;
     outExtensions->createContext       = true;
     outExtensions->deviceQuery         = true;
+    outExtensions->createContextNoError = true;
 
     outExtensions->image               = true;
     outExtensions->imageBase           = true;
@@ -660,6 +662,11 @@ SwapChainD3D *Renderer9::createSwapChain(NativeWindow nativeWindow,
 {
     return new SwapChain9(this, nativeWindow, shareHandle, backBufferFormat, depthBufferFormat,
                           orientation);
+}
+
+CompilerImpl *Renderer9::createCompiler()
+{
+    return new CompilerD3D(SH_HLSL_3_0_OUTPUT);
 }
 
 void *Renderer9::getD3DDevice()
@@ -1164,7 +1171,12 @@ gl::Error Renderer9::applyRenderTarget(const gl::Framebuffer *framebuffer)
     return applyRenderTarget(framebuffer->getColorbuffer(0), framebuffer->getDepthOrStencilbuffer());
 }
 
-gl::Error Renderer9::applyVertexBuffer(const gl::State &state, GLenum mode, GLint first, GLsizei count, GLsizei instances, SourceIndexData * /*sourceInfo*/)
+gl::Error Renderer9::applyVertexBuffer(const gl::State &state,
+                                       GLenum mode,
+                                       GLint first,
+                                       GLsizei count,
+                                       GLsizei instances,
+                                       TranslatedIndexData * /*indexInfo*/)
 {
     gl::Error error = mVertexDataManager->prepareVertexData(state, first, count, &mTranslatedAttribCache, instances);
     if (error.isError())
@@ -1181,13 +1193,12 @@ gl::Error Renderer9::applyIndexBuffer(const gl::Data &data,
                                       GLsizei count,
                                       GLenum mode,
                                       GLenum type,
-                                      TranslatedIndexData *indexInfo,
-                                      SourceIndexData *sourceIndexInfo)
+                                      TranslatedIndexData *indexInfo)
 {
     gl::VertexArray *vao           = data.state->getVertexArray();
     gl::Buffer *elementArrayBuffer = vao->getElementArrayBuffer().get();
     gl::Error error = mIndexDataManager->prepareIndexData(type, count, elementArrayBuffer, indices,
-                                                          indexInfo, sourceIndexInfo, false);
+                                                          indexInfo, false);
     if (error.isError())
     {
         return error;
@@ -2000,14 +2011,14 @@ void Renderer9::markAllStateDirty()
     for (unsigned int i = 0; i < mCurVertexTextures.size(); i++)
     {
         mCurVertexSamplerStates[i].forceSet = true;
-        mCurVertexTextures[i] = DirtyPointer;
+        mCurVertexTextures[i]               = angle::DirtyPointer;
     }
 
     ASSERT(mCurPixelSamplerStates.size() == mCurPixelTextures.size());
     for (unsigned int i = 0; i < mCurPixelSamplerStates.size(); i++)
     {
         mCurPixelSamplerStates[i].forceSet = true;
-        mCurPixelTextures[i] = DirtyPointer;
+        mCurPixelTextures[i]               = angle::DirtyPointer;
     }
 
     mAppliedIBSerial = 0;

@@ -20,11 +20,15 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimReader.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_OneDReader.h"
-#include "BC_OneDimReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 const int32_t CBC_OneDimReader::MAX_AVG_VARIANCE = (int32_t)(256 * 0.48f);
 const int32_t CBC_OneDimReader::MAX_INDIVIDUAL_VARIANCE = (int32_t)(256 * 0.7f);
 const int32_t CBC_OneDimReader::START_END_PATTERN[3] = {1, 1, 1};
@@ -37,6 +41,7 @@ const int32_t CBC_OneDimReader::L_AND_G_PATTERNS[20][4] = {
     {1, 2, 3, 1}, {1, 1, 1, 4}, {1, 3, 1, 2}, {1, 2, 1, 3}, {3, 1, 1, 2},
     {1, 1, 2, 3}, {1, 2, 2, 2}, {2, 2, 1, 2}, {1, 1, 4, 1}, {2, 3, 1, 1},
     {1, 3, 2, 1}, {4, 1, 1, 1}, {2, 1, 3, 1}, {3, 1, 2, 1}, {2, 1, 1, 3}};
+
 CBC_OneDimReader::CBC_OneDimReader() {}
 CBC_OneDimReader::~CBC_OneDimReader() {}
 CFX_Int32Array* CBC_OneDimReader::FindStartGuardPattern(CBC_CommonBitArray* row,
@@ -50,10 +55,7 @@ CFX_Int32Array* CBC_OneDimReader::FindStartGuardPattern(CBC_CommonBitArray* row,
   startEndPattern[2] = START_END_PATTERN[2];
   int32_t nextStart = 0;
   while (!foundStart) {
-    if (startRange != NULL) {
-      delete startRange;
-      startRange = NULL;
-    }
+    delete startRange;
     startRange = FindGuardPattern(row, nextStart, FALSE, &startEndPattern, e);
     BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
     int32_t start = (*startRange)[0];
@@ -74,9 +76,8 @@ CFX_ByteString CBC_OneDimReader::DecodeRow(int32_t rowNumber,
                                            CBC_CommonBitArray* row,
                                            int32_t hints,
                                            int32_t& e) {
-  CFX_Int32Array* StartPattern = FindStartGuardPattern(row, e);
+  std::unique_ptr<CFX_Int32Array> result(FindStartGuardPattern(row, e));
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
-  CBC_AutoPtr<CFX_Int32Array> result(StartPattern);
   CFX_ByteString temp = DecodeRow(rowNumber, row, result.get(), hints, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, "");
   return temp;

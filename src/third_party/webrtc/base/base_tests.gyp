@@ -85,6 +85,7 @@
           'proxy_unittest.cc',
           'proxydetect_unittest.cc',
           'random_unittest.cc',
+          'rate_statistics_unittest.cc',
           'ratelimiter_unittest.cc',
           'ratetracker_unittest.cc',
           'referencecountedsingletonfactory_unittest.cc',
@@ -141,6 +142,7 @@
                   # Disable warnings failing when compiling with Clang on Windows.
                   # https://bugs.chromium.org/p/webrtc/issues/detail?id=5366
                   '-Wno-missing-braces',
+                  '-Wno-sign-compare',
                   '-Wno-unused-const-variable',
                 ],
               },

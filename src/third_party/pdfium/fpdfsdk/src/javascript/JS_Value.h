@@ -62,6 +62,11 @@ class CJS_Value {
   v8::Local<v8::Array> ToV8Array() const;
   v8::Local<v8::Value> ToV8Value() const;
 
+  // Replace the current |m_pValue| with a v8::Number if possible
+  // to make one from the current |m_pValue|, updating |m_eType|
+  // as appropriate to indicate the result.
+  void MaybeCoerceToNumber();
+
   void operator=(int iValue);
   void operator=(bool bValue);
   void operator=(double);
@@ -207,5 +212,17 @@ double JS_MakeTime(int nHour, int nMin, int nSec, int nMs);
 double JS_MakeDate(double day, double time);
 bool JS_PortIsNan(double d);
 double JS_LocalTime(double d);
+
+// Some JS methods have the bizarre convention that they may also be called
+// with a single argument which is an object containing the actual arguments
+// as its properties. The varying arguments to this method are the property
+// names as wchar_t string literals corresponding to each positional argument.
+// The result will always contain |nKeywords| value, with unspecified ones
+// being set to type VT_unknown.
+std::vector<CJS_Value> JS_ExpandKeywordParams(
+    CJS_Runtime* pRuntime,
+    const std::vector<CJS_Value>& originals,
+    size_t nKeywords,
+    ...);
 
 #endif  // FPDFSDK_SRC_JAVASCRIPT_JS_VALUE_H_

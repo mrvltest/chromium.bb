@@ -22,15 +22,15 @@ void SkComposeImageFilter::computeFastBounds(const SkRect& src, SkRect* dst) con
     outer->computeFastBounds(tmp, dst);
 }
 
-bool SkComposeImageFilter::onFilterImage(Proxy* proxy,
-                                         const SkBitmap& src,
-                                         const Context& ctx,
-                                         SkBitmap* result,
-                                         SkIPoint* offset) const {
+bool SkComposeImageFilter::onFilterImageDeprecated(Proxy* proxy,
+                                                   const SkBitmap& src,
+                                                   const Context& ctx,
+                                                   SkBitmap* result,
+                                                   SkIPoint* offset) const {
     SkBitmap tmp;
     SkIPoint innerOffset = SkIPoint::Make(0, 0);
     SkIPoint outerOffset = SkIPoint::Make(0, 0);
-    if (!this->filterInput(1, proxy, src, ctx, &tmp, &innerOffset))
+    if (!this->filterInputDeprecated(1, proxy, src, ctx, &tmp, &innerOffset))
         return false;
 
     SkMatrix outerMatrix(ctx.ctm());
@@ -38,7 +38,7 @@ bool SkComposeImageFilter::onFilterImage(Proxy* proxy,
     SkIRect clipBounds = ctx.clipBounds();
     clipBounds.offset(-innerOffset.x(), -innerOffset.y());
     Context outerContext(outerMatrix, clipBounds, ctx.cache());
-    if (!this->filterInput(0, proxy, tmp, outerContext, result, &outerOffset)) {
+    if (!this->filterInputDeprecated(0, proxy, tmp, outerContext, result, &outerOffset)) {
         return false;
     }
 
@@ -48,12 +48,14 @@ bool SkComposeImageFilter::onFilterImage(Proxy* proxy,
 
 bool SkComposeImageFilter::onFilterBounds(const SkIRect& src,
                                           const SkMatrix& ctm,
-                                          SkIRect* dst) const {
+                                          SkIRect* dst,
+                                          MapDirection direction) const {
     SkImageFilter* outer = getInput(0);
     SkImageFilter* inner = getInput(1);
 
     SkIRect tmp;
-    return inner->filterBounds(src, ctm, &tmp) && outer->filterBounds(tmp, ctm, dst);
+    return inner->filterBounds(src, ctm, &tmp, direction) &&
+           outer->filterBounds(tmp, ctm, dst, direction);
 }
 
 SkFlattenable* SkComposeImageFilter::CreateProc(SkReadBuffer& buffer) {

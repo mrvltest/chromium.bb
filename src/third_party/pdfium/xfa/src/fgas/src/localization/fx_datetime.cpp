@@ -4,7 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fgas/include/fx_datetime.h"
+
 #include "xfa/src/fgas/src/fgas_base.h"
+
+#if _FX_OS_ == _FX_LINUX_DESKTOP_ || _FX_OS_ == _FX_ANDROID_ || \
+    _FX_OS_ == _FX_MACOSX_ || _FX_OS_ == _FX_IOS_
+#include <sys/time.h>
+#include <time.h>
+#endif
+
 const uint8_t g_FXDaysPerMonth[12] = {31, 28, 31, 30, 31, 30,
                                       31, 31, 30, 31, 30, 31};
 const uint8_t g_FXDaysPerLeapMonth[12] = {31, 29, 31, 30, 31, 30,
@@ -122,12 +131,8 @@ static void FX_DaysToDate(int64_t iDays,
   }
   iDay += (uint8_t)iDays;
 }
-#if _FX_OS_ == _FX_LINUX_DESKTOP_ || _FX_OS_ == _FX_ANDROID_ || \
-    _FX_OS_ == _FX_MACOSX_ || _FX_OS_ == _FX_IOS_
-#include <time.h>
-#include <sys/time.h>
-#endif
-typedef struct _FXUT_SYSTEMTIME {
+
+struct FXUT_SYSTEMTIME {
   FX_WORD wYear;
   FX_WORD wMonth;
   FX_WORD wDayOfWeek;
@@ -136,7 +141,8 @@ typedef struct _FXUT_SYSTEMTIME {
   FX_WORD wMinute;
   FX_WORD wSecond;
   FX_WORD wMilliseconds;
-} FXUT_SYSTEMTIME;
+};
+
 void CFX_Unitime::Now() {
   FXUT_SYSTEMTIME utLocal;
 #if _FX_OS_ == _FX_WIN32_DESKTOP_ || _FX_OS_ == _FX_WIN32_MOBILE_ || \

@@ -1005,7 +1005,7 @@ DRAW_PATH:
     this->drawPath(path, paint, nullptr, true);
 }
 
-static SkScalar compute_res_scale_for_stroking(const SkMatrix& matrix) {
+SkScalar SkDraw::ComputeResScaleForStroking(const SkMatrix& matrix) {
     if (!matrix.hasPerspective()) {
         SkScalar sx = SkPoint::Length(matrix[SkMatrix::kMScaleX], matrix[SkMatrix::kMSkewY]);
         SkScalar sy = SkPoint::Length(matrix[SkMatrix::kMSkewX],  matrix[SkMatrix::kMScaleY]);
@@ -1085,7 +1085,7 @@ void SkDraw::drawPath(const SkPath& origSrcPath, const SkPaint& origPaint,
             cullRectPtr = &cullRect;
         }
         doFill = paint->getFillPath(*pathPtr, &tmpPath, cullRectPtr,
-                                    compute_res_scale_for_stroking(*fMatrix));
+                                    ComputeResScaleForStroking(*fMatrix));
         pathPtr = &tmpPath;
     }
 
@@ -1146,9 +1146,6 @@ void SkDraw::drawPath(const SkPath& origSrcPath, const SkPaint& origPaint,
                     proc SK_INIT_TO_AVOID_WARNING;
                     SkDEBUGFAIL("unknown paint cap type");
             }
-#ifdef SK_SUPPORT_LEGACY_HAIR_IGNORES_CAPS
-            proc = SkScan::AntiHairPath;
-#endif
         } else {
             switch (paint->getStrokeCap()) {
                 case SkPaint::kButt_Cap:
@@ -1164,9 +1161,6 @@ void SkDraw::drawPath(const SkPath& origSrcPath, const SkPaint& origPaint,
                     proc SK_INIT_TO_AVOID_WARNING;
                     SkDEBUGFAIL("unknown paint cap type");
             }
-#ifdef SK_SUPPORT_LEGACY_HAIR_IGNORES_CAPS
-            proc = SkScan::HairPath;
-#endif
         }
     }
     proc(*devPathPtr, *fRC, blitter);
@@ -1562,6 +1556,10 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+SkPaint::FakeGamma SkDraw::fakeGamma() const {
+    return fDevice->imageInfo().isLinear() ? SkPaint::FakeGamma::On : SkPaint::FakeGamma::Off;
+}
+
 void SkDraw::drawText(const char text[], size_t byteLength,
                       SkScalar x, SkScalar y, const SkPaint& paint) const {
     SkASSERT(byteLength == 0 || text != nullptr);
@@ -1580,17 +1578,16 @@ void SkDraw::drawText(const char text[], size_t byteLength,
         return;
     }
 
-    SkAutoGlyphCache       autoCache(paint, &fDevice->surfaceProps(), fMatrix);
-    SkGlyphCache*          cache = autoCache.getCache();
+    SkAutoGlyphCache cache(paint, &fDevice->surfaceProps(), this->fakeGamma(), fMatrix);
 
     // The Blitter Choose needs to be live while using the blitter below.
     SkAutoBlitterChoose    blitterChooser(fDst, *fMatrix, paint);
     SkAAClipBlitterWrapper wrapper(*fRC, blitterChooser.get());
-    DrawOneGlyph           drawOneGlyph(*this, paint, cache, wrapper.getBlitter());
+    DrawOneGlyph           drawOneGlyph(*this, paint, cache.get(), wrapper.getBlitter());
 
     SkFindAndPlaceGlyph::ProcessText(
         paint.getTextEncoding(), text, byteLength,
-        {x, y}, *fMatrix, paint.getTextAlign(), cache, drawOneGlyph);
+        {x, y}, *fMatrix, paint.getTextAlign(), cache.get(), drawOneGlyph);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1609,9 +1606,8 @@ void SkDraw::drawPosText_asPaths(const char text[], size_t byteLength,
     paint.setStyle(SkPaint::kFill_Style);
     paint.setPathEffect(nullptr);
 
-    SkDrawCacheProc     glyphCacheProc = paint.getDrawCacheProc();
-    SkAutoGlyphCache    autoCache(paint, &fDevice->surfaceProps(), nullptr);
-    SkGlyphCache*       cache = autoCache.getCache();
+    SkPaint::GlyphCacheProc glyphCacheProc = paint.getGlyphCacheProc(true);
+    SkAutoGlyphCache        cache(paint, &fDevice->surfaceProps(), this->fakeGamma(), nullptr);
 
     const char*        stop = text + byteLength;
     SkTextAlignProc    alignProc(paint.getTextAlign());
@@ -1622,7 +1618,7 @@ void SkDraw::drawPosText_asPaths(const char text[], size_t byteLength,
     paint.setPathEffect(origPaint.getPathEffect());
 
     while (text < stop) {
-        const SkGlyph& glyph = glyphCacheProc(cache, &text, 0, 0);
+        const SkGlyph& glyph = glyphCacheProc(cache.get(), &text);
         if (glyph.fWidth) {
             const SkPath* path = cache->findPath(glyph);
             if (path) {
@@ -1662,18 +1658,17 @@ void SkDraw::drawPosText(const char text[], size_t byteLength,
         return;
     }
 
-    SkAutoGlyphCache       autoCache(paint, &fDevice->surfaceProps(), fMatrix);
-    SkGlyphCache*          cache = autoCache.getCache();
+    SkAutoGlyphCache cache(paint, &fDevice->surfaceProps(), this->fakeGamma(), fMatrix);
 
     // The Blitter Choose needs to be live while using the blitter below.
     SkAutoBlitterChoose    blitterChooser(fDst, *fMatrix, paint);
     SkAAClipBlitterWrapper wrapper(*fRC, blitterChooser.get());
-    DrawOneGlyph           drawOneGlyph(*this, paint, cache, wrapper.getBlitter());
+    DrawOneGlyph           drawOneGlyph(*this, paint, cache.get(), wrapper.getBlitter());
     SkPaint::Align         textAlignment = paint.getTextAlign();
 
     SkFindAndPlaceGlyph::ProcessPosText(
         paint.getTextEncoding(), text, byteLength,
-        offset, *fMatrix, pos, scalarsPerPosition, textAlignment, cache, drawOneGlyph);
+        offset, *fMatrix, pos, scalarsPerPosition, textAlignment, cache.get(), drawOneGlyph);
 }
 
 #if defined _WIN32 && _MSC_VER >= 1300
@@ -1703,7 +1698,7 @@ class SkTriColorShader : public SkShader {
 public:
     SkTriColorShader() {}
 
-    size_t contextSize() const override;
+    size_t contextSize(const ContextRec&) const override;
 
     class TriColorShaderContext : public SkShader::Context {
     public:
@@ -1767,14 +1762,7 @@ bool SkTriColorShader::TriColorShaderContext::setup(const SkPoint pts[], const S
 #include "SkComposeShader.h"
 
 static int ScalarTo256(SkScalar v) {
-    int scale = SkScalarToFixed(v) >> 8;
-    if (scale < 0) {
-        scale = 0;
-    }
-    if (scale > 255) {
-        scale = 255;
-    }
-    return SkAlpha255To256(scale);
+    return static_cast<int>(SkScalarPin(v, 0, 1) * 256 + 0.5);
 }
 
 
@@ -1784,7 +1772,7 @@ SkTriColorShader::TriColorShaderContext::TriColorShaderContext(const SkTriColorS
 
 SkTriColorShader::TriColorShaderContext::~TriColorShaderContext() {}
 
-size_t SkTriColorShader::contextSize() const {
+size_t SkTriColorShader::contextSize(const ContextRec&) const {
     return sizeof(TriColorShaderContext);
 }
 void SkTriColorShader::TriColorShaderContext::shadeSpan(int x, int y, SkPMColor dstC[], int count) {
@@ -1908,7 +1896,8 @@ void SkDraw::drawVertices(SkCanvas::VertexMode vmode, int count,
             if (textures) {
                 SkMatrix tempM;
                 if (texture_to_matrix(state, vertices, textures, &tempM)) {
-                    SkShader::ContextRec rec(p, *fMatrix, &tempM);
+                    SkShader::ContextRec rec(p, *fMatrix, &tempM,
+                                             SkBlitter::PreferredShaderDest(fDst.info()));
                     if (!blitter->resetShaderContext(rec)) {
                         continue;
                     }

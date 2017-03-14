@@ -5,9 +5,10 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffdochandler.h"
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdochandler.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+
 CXFA_FFDocHandler::CXFA_FFDocHandler() {}
 CXFA_FFDocHandler::~CXFA_FFDocHandler() {}
 void CXFA_FFDocHandler::ReleaseDoc(IXFA_Doc* hDoc) {
@@ -79,7 +80,7 @@ XFA_ATTRIBUTEENUM CXFA_FFDocHandler::GetRestoreState(IXFA_Doc* hDoc) {
   if (!pXFADoc) {
     return XFA_ATTRIBUTEENUM_Unknown;
   }
-  CXFA_Node* pForm = (CXFA_Node*)pXFADoc->GetXFANode(XFA_HASHCODE_Form);
+  CXFA_Node* pForm = ToNode(pXFADoc->GetXFAObject(XFA_HASHCODE_Form));
   if (!pForm) {
     return XFA_ATTRIBUTEENUM_Unknown;
   }

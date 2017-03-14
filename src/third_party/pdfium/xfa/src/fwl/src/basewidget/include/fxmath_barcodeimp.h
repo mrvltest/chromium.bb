@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXMATH_BARCODEIMP_H_
-#define _FXMATH_BARCODEIMP_H_
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FXMATH_BARCODEIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FXMATH_BARCODEIMP_H_
+
+#include "xfa/include/fwl/basewidget/fxmath_barcode.h"
+
 class CFX_Barcode : public IFX_Barcode {
  public:
   CFX_Barcode();
@@ -49,4 +52,5 @@ class CFX_Barcode : public IFX_Barcode {
  protected:
   CBC_CodeBase* m_pBCEngine;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FXMATH_BARCODEIMP_H_

@@ -4,15 +4,20 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_ffchoicelist.h"
+
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fwl/core/fwl_app.h"
+#include "xfa/include/fwl/lightwidget/combobox.h"
+#include "xfa/include/fwl/lightwidget/listbox.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffdocview.h"
-#include "xfa_ffchoicelist.h"
-#include "xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+
 CXFA_FFListBox::CXFA_FFListBox(CXFA_FFPageView* pPageView,
                                CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFField(pPageView, pDataAcc), m_pOldDelegate(NULL) {}
@@ -66,8 +71,7 @@ FX_BOOL CXFA_FFListBox::OnKillFocus(CXFA_FFWidget* pNewFocus) {
   return TRUE;
 }
 FX_BOOL CXFA_FFListBox::CommitData() {
-  FXSYS_assert(m_pNormalWidget != NULL);
-  CFWL_ListBox* pListBox = (CFWL_ListBox*)m_pNormalWidget;
+  CFWL_ListBox* pListBox = static_cast<CFWL_ListBox*>(m_pNormalWidget);
   int32_t iSels = pListBox->CountSelItems();
   CFX_Int32Array iSelArray;
   for (int32_t i = 0; i < iSels; i++) {
@@ -289,12 +293,10 @@ void CXFA_FFComboBox::UpdateWidgetProperty() {
 FX_BOOL CXFA_FFComboBox::OnRButtonUp(FX_DWORD dwFlags,
                                      FX_FLOAT fx,
                                      FX_FLOAT fy) {
-  if (!CXFA_FFField::OnRButtonUp(dwFlags, fx, fy)) {
+  if (!CXFA_FFField::OnRButtonUp(dwFlags, fx, fy))
     return FALSE;
-  }
-  CFX_PointF pt;
-  pt.Set(fx, fy);
-  GetDoc()->GetDocProvider()->PopupMenu(this, pt, NULL);
+
+  GetDoc()->GetDocProvider()->PopupMenu(this, CFX_PointF(fx, fy), nullptr);
   return TRUE;
 }
 FX_BOOL CXFA_FFComboBox::OnKillFocus(CXFA_FFWidget* pNewWidget) {
@@ -501,9 +503,7 @@ void CXFA_FFComboBox::OnPostOpen(IFWL_Widget* pWidget) {
   eParam.m_pTarget = m_pDataAcc;
   m_pDataAcc->ProcessEvent(XFA_ATTRIBUTEENUM_PostOpen, &eParam);
 }
-void CXFA_FFComboBox::OnAddDoRecord(IFWL_Widget* pWidget) {
-  GetDoc()->GetDocProvider()->AddDoRecord(this);
-}
+
 int32_t CXFA_FFComboBox::OnProcessMessage(CFWL_Message* pMessage) {
   return m_pOldDelegate->OnProcessMessage(pMessage);
 }

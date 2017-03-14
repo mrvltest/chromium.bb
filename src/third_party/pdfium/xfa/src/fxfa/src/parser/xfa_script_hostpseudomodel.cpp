@@ -5,16 +5,16 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_script_hostpseudomodel.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_hostpseudomodel.h"
 CScript_HostPseudoModel::CScript_HostPseudoModel(CXFA_Document* pDocument)
     : CXFA_OrdinaryObject(pDocument, XFA_ELEMENT_HostPseudoModel) {
   m_uScriptHash = XFA_HASHCODE_Host;
@@ -305,7 +305,7 @@ void CScript_HostPseudoModel::Script_HostPseudoModel_OpenList(
   if (iLength >= 1) {
     FXJSE_HVALUE hValue = pArguments->GetValue(0);
     if (FXJSE_Value_IsObject(hValue)) {
-      pNode = (CXFA_Node*)FXJSE_Value_ToObject(hValue, NULL);
+      pNode = static_cast<CXFA_Node*>(FXJSE_Value_ToObject(hValue, nullptr));
     } else if (FXJSE_Value_IsUTF8String(hValue)) {
       CFX_ByteString bsString;
       FXJSE_Value_ToUTF8String(hValue, bsString);
@@ -330,7 +330,7 @@ void CScript_HostPseudoModel::Script_HostPseudoModel_OpenList(
         FXJSE_Value_Release(hValue);
         return;
       }
-      pNode = (CXFA_Node*)resoveNodeRS.nodes[0];
+      pNode = resoveNodeRS.nodes[0]->AsNode();
     }
     FXJSE_Value_Release(hValue);
   }
@@ -463,7 +463,7 @@ void CScript_HostPseudoModel::Script_HostPseudoModel_ResetData(
     if (iRet < 1 || !resoveNodeRS.nodes[0]->IsNode()) {
       continue;
     }
-    pNode = (CXFA_Node*)resoveNodeRS.nodes[0];
+    pNode = resoveNodeRS.nodes[0]->AsNode();
     pNotify->ResetData(pNode->GetWidgetData());
   }
   if (!pNode) {
@@ -508,7 +508,7 @@ void CScript_HostPseudoModel::Script_HostPseudoModel_SetFocus(
   if (iLength >= 1) {
     FXJSE_HVALUE hValue = pArguments->GetValue(0);
     if (FXJSE_Value_IsObject(hValue)) {
-      pNode = (CXFA_Node*)FXJSE_Value_ToObject(hValue, NULL);
+      pNode = static_cast<CXFA_Node*>(FXJSE_Value_ToObject(hValue, NULL));
     } else if (FXJSE_Value_IsUTF8String(hValue)) {
       CFX_ByteString bsString;
       FXJSE_Value_ToUTF8String(hValue, bsString);
@@ -533,7 +533,7 @@ void CScript_HostPseudoModel::Script_HostPseudoModel_SetFocus(
         FXJSE_Value_Release(hValue);
         return;
       }
-      pNode = (CXFA_Node*)resoveNodeRS.nodes[0];
+      pNode = resoveNodeRS.nodes[0]->AsNode();
     }
     FXJSE_Value_Release(hValue);
   }

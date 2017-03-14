@@ -4,8 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_CSS
-#define _FDE_CSS
+#ifndef XFA_SRC_FDP_INCLUDE_FDE_CSS_H_
+#define XFA_SRC_FDP_INCLUDE_FDE_CSS_H_
+
+#include "core/include/fxge/fx_dib.h"
+#include "xfa/src/fgas/include/fx_fnt.h"
+#include "xfa/src/fgas/include/fx_stm.h"
+#include "xfa/src/fgas/include/fx_utl.h"
+
 class IFDE_HTMNotify;
 class IFDE_CSSValue;
 class IFDE_CSSPrimitiveValue;
@@ -40,6 +46,7 @@ class IFDE_CSSQuoteContext;
 class IFDE_CSSContentContext;
 class IFDE_CSSMultiColumnContext;
 class IFDE_CSSFloatContext;
+
 enum FDE_CSSVALUETYPE {
   FDE_CSSVALUETYPE_Primitive = 1,
   FDE_CSSVALUETYPE_List = 2,
@@ -1082,4 +1089,5 @@ class IFDE_CSSStyleSelector {
                             int32_t iDeclCount,
                             IFDE_CSSComputedStyle* pDestStyle) = 0;
 };
-#endif
+
+#endif  // XFA_SRC_FDP_INCLUDE_FDE_CSS_H_

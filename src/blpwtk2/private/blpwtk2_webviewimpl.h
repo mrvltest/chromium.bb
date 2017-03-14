@@ -145,7 +145,6 @@ class WebViewImpl : public WebView,
     void handleInputEvents(const InputEvent *events, size_t eventsCount) override;
     void setDelegate(WebViewDelegate* delegate) override;
     void drawContentsToBlob(Blob *blob, const DrawParams& params) override;
-    String getLayoutTreeAsText(int flags) const override;
     int getRoutingId() const override;
     void setBackgroundColor(NativeColor color) override;
     void setRegion(NativeRegion region) override;

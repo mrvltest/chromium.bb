@@ -20,8 +20,9 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_CommonByteMatrix.h"
+#include "core/include/fxcrt/fx_memory.h"
+#include "xfa/src/fxbarcode/common/BC_CommonByteMatrix.h"
+
 CBC_CommonByteMatrix::CBC_CommonByteMatrix(int32_t width, int32_t height) {
   m_height = height;
   m_width = width;
@@ -32,10 +33,7 @@ void CBC_CommonByteMatrix::Init() {
   FXSYS_memset(m_bytes, 0xff, m_height * m_width);
 }
 CBC_CommonByteMatrix::~CBC_CommonByteMatrix() {
-  if (m_bytes != NULL) {
-    FX_Free(m_bytes);
-    m_bytes = NULL;
-  }
+  FX_Free(m_bytes);
 }
 int32_t CBC_CommonByteMatrix::GetHeight() {
   return m_height;

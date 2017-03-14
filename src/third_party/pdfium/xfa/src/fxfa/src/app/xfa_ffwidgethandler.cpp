@@ -5,14 +5,15 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_fwladapter.h"
-#include "xfa_ffwidgethandler.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffchoicelist.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffchoicelist.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidgethandler.h"
+#include "xfa/src/fxfa/src/app/xfa_fwladapter.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+
 CXFA_FFWidgetHandler::CXFA_FFWidgetHandler(CXFA_FFDocView* pDocView)
     : m_pDocView(pDocView) {}
 CXFA_FFWidgetHandler::~CXFA_FFWidgetHandler() {}
@@ -497,26 +498,22 @@ CXFA_Node* CXFA_FFWidgetHandler::CreateSubform(CXFA_Node* pParent,
 CXFA_Node* CXFA_FFWidgetHandler::CreateFormItem(XFA_ELEMENT eElement,
                                                 CXFA_Node* pParent,
                                                 CXFA_Node* pBefore) const {
-  CXFA_Node* pTemplateParent =
-      pParent != NULL ? pParent->GetTemplateNode() : NULL;
+  CXFA_Node* pTemplateParent = pParent ? pParent->GetTemplateNode() : NULL;
   CXFA_Node* pNewFormItem = pTemplateParent->CloneTemplateToForm(FALSE);
-  if (pParent != NULL) {
+  if (pParent)
     pParent->InsertChild(pNewFormItem, pBefore);
-  }
   return pNewFormItem;
 }
 CXFA_Node* CXFA_FFWidgetHandler::CreateCopyNode(XFA_ELEMENT eElement,
                                                 CXFA_Node* pParent,
                                                 CXFA_Node* pBefore) const {
-  CXFA_Node* pTemplateParent =
-      pParent != NULL ? pParent->GetTemplateNode() : NULL;
+  CXFA_Node* pTemplateParent = pParent ? pParent->GetTemplateNode() : NULL;
   CXFA_Node* pNewNode =
       CreateTemplateNode(eElement, pTemplateParent,
                          pBefore ? pBefore->GetTemplateNode() : NULL)
           ->Clone(FALSE);
-  if (pParent != NULL) {
+  if (pParent)
     pParent->InsertChild(pNewNode, pBefore);
-  }
   return pNewNode;
 }
 CXFA_Node* CXFA_FFWidgetHandler::CreateTemplateNode(XFA_ELEMENT eElement,
@@ -525,9 +522,8 @@ CXFA_Node* CXFA_FFWidgetHandler::CreateTemplateNode(XFA_ELEMENT eElement,
   CXFA_Document* pXFADoc = GetXFADoc();
   CXFA_Node* pNewTemplateNode = pXFADoc->GetParser()->GetFactory()->CreateNode(
       XFA_XDPPACKET_Template, eElement);
-  if (pParent != NULL) {
+  if (pParent)
     pParent->InsertChild(pNewTemplateNode, pBefore);
-  }
   return pNewTemplateNode;
 }
 CXFA_Node* CXFA_FFWidgetHandler::CreateFontNode(CXFA_Node* pParent) const {
@@ -620,13 +616,10 @@ FX_BOOL CXFA_FFMenuHandler::Undo(IXFA_Widget* hWidget) {
 FX_BOOL CXFA_FFMenuHandler::Redo(IXFA_Widget* hWidget) {
   return static_cast<CXFA_FFWidget*>(hWidget)->Redo();
 }
-#define FX_EDIT_ISLATINWORD(u)                                     \
-  (u == 0x2D || (u <= 0x005A && u >= 0x0041) ||                    \
-   (u <= 0x007A && u >= 0x0061) || (u <= 0x02AF && u >= 0x00C0) || \
-   u == 0x0027)
-FX_BOOL CXFA_FFMenuHandler::GetSuggestWords(IXFA_Widget* hWidget,
-                                            CFX_PointF pointf,
-                                            CFX_ByteStringArray& sSuggest) {
+FX_BOOL CXFA_FFMenuHandler::GetSuggestWords(
+    IXFA_Widget* hWidget,
+    CFX_PointF pointf,
+    std::vector<CFX_ByteString>& sSuggest) {
   return static_cast<CXFA_FFWidget*>(hWidget)
       ->GetSuggestWords(pointf, sSuggest);
 }

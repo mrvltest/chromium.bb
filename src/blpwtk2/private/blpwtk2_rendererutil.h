@@ -46,9 +46,6 @@ struct RendererUtil
                                    Blob                       *blob,
                                    const WebView::DrawParams&  params);
 
-
-    static String getLayoutTreeAsText(int renderViewRoutingId, int flags);
-
     static void setLCDTextShouldBlendWithCSSBackgroundColor(int  renderViewRoutingId,
                                                             bool enable);
 };

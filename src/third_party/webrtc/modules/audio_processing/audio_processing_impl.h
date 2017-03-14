@@ -12,11 +12,11 @@
 #define WEBRTC_MODULES_AUDIO_PROCESSING_AUDIO_PROCESSING_IMPL_H_
 
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/audio_processing/audio_buffer.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
@@ -27,7 +27,7 @@
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
 #else
-#include "webrtc/audio_processing/debug.pb.h"
+#include "webrtc/modules/audio_processing/debug.pb.h"
 #endif
 #endif  // WEBRTC_AUDIOPROC_DEBUG_DUMP
 
@@ -57,8 +57,10 @@ class AudioProcessingImpl : public AudioProcessing {
   int Initialize(const ProcessingConfig& processing_config) override;
   void SetExtraOptions(const Config& config) override;
   void UpdateHistogramsOnCallEnd() override;
-  int StartDebugRecording(const char filename[kMaxFilenameSize]) override;
-  int StartDebugRecording(FILE* handle) override;
+  int StartDebugRecording(const char filename[kMaxFilenameSize],
+                          int64_t max_log_size_bytes) override;
+  int StartDebugRecording(FILE* handle, int64_t max_log_size_bytes) override;
+
   int StartDebugRecordingForPlatformFile(rtc::PlatformFile handle) override;
   int StopDebugRecording() override;
 
@@ -135,7 +137,7 @@ class AudioProcessingImpl : public AudioProcessing {
   // State for the debug dump.
   struct ApmDebugDumpThreadState {
     ApmDebugDumpThreadState() : event_msg(new audioproc::Event()) {}
-    rtc::scoped_ptr<audioproc::Event> event_msg;  // Protobuf message.
+    std::unique_ptr<audioproc::Event> event_msg;  // Protobuf message.
     std::string event_str;  // Memory for protobuf serialization.
 
     // Serialized string of last saved APM configuration.
@@ -144,7 +146,10 @@ class AudioProcessingImpl : public AudioProcessing {
 
   struct ApmDebugDumpState {
     ApmDebugDumpState() : debug_file(FileWrapper::Create()) {}
-    rtc::scoped_ptr<FileWrapper> debug_file;
+    // Number of bytes that can still be written to the log before the maximum
+    // size is reached. A value of <= 0 indicates that no limit is used.
+    int64_t num_bytes_left_for_log_ = -1;
+    std::unique_ptr<FileWrapper> debug_file;
     ApmDebugDumpThreadState render;
     ApmDebugDumpThreadState capture;
   };
@@ -222,6 +227,7 @@ class AudioProcessingImpl : public AudioProcessing {
   // TODO(andrew): make this more graceful. Ideally we would split this stuff
   // out into a separate class with an "enabled" and "disabled" implementation.
   static int WriteMessageToDebugFile(FileWrapper* debug_file,
+                                     int64_t* filesize_limit_bytes,
                                      rtc::CriticalSection* crit_debug,
                                      ApmDebugDumpThreadState* debug_state);
   int WriteInitMessage() EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
@@ -233,19 +239,19 @@ class AudioProcessingImpl : public AudioProcessing {
       EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
 
   // Critical section.
-  mutable rtc::CriticalSection crit_debug_;
+  rtc::CriticalSection crit_debug_;
 
   // Debug dump state.
   ApmDebugDumpState debug_dump_;
 #endif
 
   // Critical sections.
-  mutable rtc::CriticalSection crit_render_ ACQUIRED_BEFORE(crit_capture_);
-  mutable rtc::CriticalSection crit_capture_;
+  rtc::CriticalSection crit_render_ ACQUIRED_BEFORE(crit_capture_);
+  rtc::CriticalSection crit_capture_;
 
   // Structs containing the pointers to the submodules.
-  rtc::scoped_ptr<ApmPublicSubmodules> public_submodules_;
-  rtc::scoped_ptr<ApmPrivateSubmodules> private_submodules_
+  std::unique_ptr<ApmPublicSubmodules> public_submodules_;
+  std::unique_ptr<ApmPrivateSubmodules> private_submodules_
       GUARDED_BY(crit_capture_);
 
   // State that is written to while holding both the render and capture locks
@@ -268,14 +274,14 @@ class AudioProcessingImpl : public AudioProcessing {
   // APM constants.
   const struct ApmConstants {
     ApmConstants(int agc_startup_min_volume,
-                 bool use_new_agc,
+                 bool use_experimental_agc,
                  bool intelligibility_enabled)
         :  // Format of processing streams at input/output call sites.
           agc_startup_min_volume(agc_startup_min_volume),
-          use_new_agc(use_new_agc),
+          use_experimental_agc(use_experimental_agc),
           intelligibility_enabled(intelligibility_enabled) {}
     int agc_startup_min_volume;
-    bool use_new_agc;
+    bool use_experimental_agc;
     bool intelligibility_enabled;
   } constants_;
 
@@ -307,7 +313,7 @@ class AudioProcessingImpl : public AudioProcessing {
     bool transient_suppressor_enabled;
     std::vector<Point> array_geometry;
     SphericalPointf target_direction;
-    rtc::scoped_ptr<AudioBuffer> capture_audio;
+    std::unique_ptr<AudioBuffer> capture_audio;
     // Only the rate and samples fields of fwd_proc_format_ are used because the
     // forward processing number of channels is mutable and is tracked by the
     // capture_audio_.
@@ -331,8 +337,8 @@ class AudioProcessingImpl : public AudioProcessing {
   } capture_nonlocked_;
 
   struct ApmRenderState {
-    rtc::scoped_ptr<AudioConverter> render_converter;
-    rtc::scoped_ptr<AudioBuffer> render_audio;
+    std::unique_ptr<AudioConverter> render_converter;
+    std::unique_ptr<AudioBuffer> render_audio;
   } render_ GUARDED_BY(crit_render_);
 };
 

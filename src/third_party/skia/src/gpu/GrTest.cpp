@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -30,16 +29,22 @@ void SetupAlwaysEvictAtlas(GrContext* context) {
     GrBatchAtlasConfig configs[3];
     configs[kA8_GrMaskFormat].fWidth = dim;
     configs[kA8_GrMaskFormat].fHeight = dim;
+    configs[kA8_GrMaskFormat].fLog2Width = SkNextLog2(dim);
+    configs[kA8_GrMaskFormat].fLog2Height = SkNextLog2(dim);
     configs[kA8_GrMaskFormat].fPlotWidth = dim;
     configs[kA8_GrMaskFormat].fPlotHeight = dim;
 
     configs[kA565_GrMaskFormat].fWidth = dim;
     configs[kA565_GrMaskFormat].fHeight = dim;
+    configs[kA565_GrMaskFormat].fLog2Width = SkNextLog2(dim);
+    configs[kA565_GrMaskFormat].fLog2Height = SkNextLog2(dim);
     configs[kA565_GrMaskFormat].fPlotWidth = dim;
     configs[kA565_GrMaskFormat].fPlotHeight = dim;
 
     configs[kARGB_GrMaskFormat].fWidth = dim;
     configs[kARGB_GrMaskFormat].fHeight = dim;
+    configs[kARGB_GrMaskFormat].fLog2Width = SkNextLog2(dim);
+    configs[kARGB_GrMaskFormat].fLog2Height = SkNextLog2(dim);
     configs[kARGB_GrMaskFormat].fPlotWidth = dim;
     configs[kARGB_GrMaskFormat].fPlotHeight = dim;
 
@@ -69,8 +74,8 @@ void GrContext::getTestTarget(GrTestTarget* tar, GrRenderTarget* rt) {
         desc.fConfig = kRGBA_8888_GrPixelConfig;
         desc.fSampleCnt = 0;
 
-        SkAutoTUnref<GrTexture> texture(this->textureProvider()->createTexture(desc, false,
-                                                                               nullptr, 0));
+        SkAutoTUnref<GrTexture> texture(this->textureProvider()->createTexture(
+            desc, SkBudgeted::kNo, nullptr, 0));
         if (nullptr == texture) {
             return;
         }
@@ -297,7 +302,7 @@ public:
                              GrPixelConfig readConfig, DrawPreference*,
                              ReadPixelTempDrawInfo*) override { return false; }
 
-    bool onGetWritePixelsInfo(GrSurface* dstSurface, int width, int height, size_t rowBytes,
+    bool onGetWritePixelsInfo(GrSurface* dstSurface, int width, int height,
                               GrPixelConfig srcConfig, DrawPreference*,
                               WritePixelTempDrawInfo*) override { return false; }
 
@@ -337,6 +342,11 @@ private:
 
     GrRenderTarget* onWrapBackendRenderTarget(const GrBackendRenderTargetDesc&,
                                               GrWrapOwnership) override {
+        return nullptr;
+    }
+
+    GrRenderTarget* onWrapBackendTextureAsRenderTarget(const GrBackendTextureDesc&,
+                                                       GrWrapOwnership) override {
         return nullptr;
     }
 
@@ -385,11 +395,11 @@ private:
     void clearStencil(GrRenderTarget* target) override  {}
 
     GrBackendObject createTestingOnlyBackendTexture(void* pixels, int w, int h,
-                                                    GrPixelConfig config) const override {
-        return 0; 
+                                                    GrPixelConfig config) override {
+        return 0;
     }
     bool isTestingOnlyBackendTexture(GrBackendObject ) const override { return false; }
-    void deleteTestingOnlyBackendTexture(GrBackendObject, bool abandonTexture) const override {}
+    void deleteTestingOnlyBackendTexture(GrBackendObject, bool abandonTexture) override {}
 
     typedef GrGpu INHERITED;
 };

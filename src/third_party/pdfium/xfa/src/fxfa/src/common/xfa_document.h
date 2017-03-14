@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_DOCUMENT_H
-#define _XFA_DOCUMENT_H
+#ifndef XFA_SRC_FXFA_SRC_COMMON_XFA_DOCUMENT_H_
+#define XFA_SRC_FXFA_SRC_COMMON_XFA_DOCUMENT_H_
+
+#include "xfa/include/fxfa/fxfa.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
 
 class CXFA_Document;
 class CXFA_LayoutItem;
@@ -64,6 +68,7 @@ enum XFA_LAYOUTRESULT {
 };
 #define XFA_LAYOUTNOTIFY_StrictHeight 0x0001
 #define XFA_LAYOUTNOTIFY_NoParentBreak 0x0002
+
 class IXFA_Notify {
  public:
   virtual ~IXFA_Notify() {}
@@ -120,7 +125,7 @@ class IXFA_ObjFactory {
  public:
   virtual ~IXFA_ObjFactory() {}
   virtual CXFA_Node* CreateNode(FX_DWORD dwPacket, XFA_ELEMENT eElement) = 0;
-  virtual CXFA_Node* CreateNode(XFA_LPCPACKETINFO pPacket,
+  virtual CXFA_Node* CreateNode(const XFA_PACKETINFO* pPacket,
                                 XFA_ELEMENT eElement) = 0;
 };
 #define XFA_DOCFLAG_StrictScoping 0x0001
@@ -141,8 +146,8 @@ class CXFA_Document : public IXFA_ObjFactory {
   IXFA_DocParser* GetParser() const { return m_pParser; }
   IXFA_Notify* GetNotify() const;
   void SetRoot(CXFA_Node* pNewRoot);
-  CXFA_Object* GetXFANode(const CFX_WideStringC& wsNodeName);
-  CXFA_Object* GetXFANode(FX_DWORD wsNodeNameHash);
+  CXFA_Object* GetXFAObject(const CFX_WideStringC& wsNodeName);
+  CXFA_Object* GetXFAObject(FX_DWORD wsNodeNameHash);
   void AddPurgeNode(CXFA_Node* pNode);
   FX_BOOL RemovePurgeNode(CXFA_Node* pNode);
   void PurgeNodes();
@@ -153,7 +158,7 @@ class CXFA_Document : public IXFA_ObjFactory {
   XFA_VERSION RecognizeXFAVersionNumber(CFX_WideString& wsTemplateNS);
   CXFA_LocaleMgr* GetLocalMgr();
   virtual CXFA_Node* CreateNode(FX_DWORD dwPacket, XFA_ELEMENT eElement);
-  virtual CXFA_Node* CreateNode(XFA_LPCPACKETINFO pPacket,
+  virtual CXFA_Node* CreateNode(const XFA_PACKETINFO* pPacket,
                                 XFA_ELEMENT eElement);
   void DoProtoMerge();
   CXFA_Node* GetNodeByID(CXFA_Node* pRoot, const CFX_WideStringC& wsID);
@@ -193,4 +198,5 @@ class CXFA_Document : public IXFA_ObjFactory {
   FX_DWORD m_dwDocFlags;
   friend class CXFA_SimpleParser;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_XFA_DOCUMENT_H_

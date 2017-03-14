@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/flags.h"
 #include "src/utils.h"
 
 
@@ -108,7 +109,9 @@ void InitializeExternalStartupData(const char* directory_path) {
   char* natives;
   char* snapshot;
   LoadFromFiles(RelativePath(&natives, directory_path, BLPV8_NATIVES_BLOB_NAME),
-                RelativePath(&snapshot, directory_path, BLPV8_SNAPSHOT_BLOB_NAME));
+                RelativePath(&snapshot, directory_path,
+                             FLAG_ignition ? BLPV8_SNAPSHOT_BLOB_IGNITION_NAME
+                                           : BLPV8_SNAPSHOT_BLOB_NAME));
   free(natives);
   free(snapshot);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA

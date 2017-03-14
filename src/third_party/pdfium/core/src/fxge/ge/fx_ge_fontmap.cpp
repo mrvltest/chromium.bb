@@ -4,13 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include <algorithm>
 #include <limits>
 #include <vector>
 
 #include "core/include/fxge/fx_freetype.h"
 #include "core/include/fxge/fx_ge.h"
 #include "core/src/fxge/fontdata/chromefontdata/chromefontdata.h"
-#include "core/src/fxge/ge/text_int.h"
+#include "core/src/fxge/ge/fx_text_int.h"
 #include "third_party/base/stl_util.h"
 
 #define GET_TT_SHORT(w) (FX_WORD)(((w)[0] << 8) | (w)[1])
@@ -197,17 +198,17 @@ const struct FX_FontStyle {
     {"Bold", 4}, {"Italic", 6}, {"BoldItalic", 10}, {"Reg", 3}, {"Regular", 7},
 };
 
-const struct CHARSET_MAP {
-  uint8_t charset;
+const struct CODEPAGE_MAP {
   FX_WORD codepage;
+  uint8_t charset;
 } g_Codepage2CharsetTable[] = {
-    {1, 0},      {2, 42},     {254, 437},  {255, 850},  {222, 874},
-    {128, 932},  {134, 936},  {129, 949},  {136, 950},  {238, 1250},
-    {204, 1251}, {0, 1252},   {161, 1253}, {162, 1254}, {177, 1255},
-    {178, 1256}, {186, 1257}, {163, 1258}, {130, 1361}, {77, 10000},
-    {78, 10001}, {79, 10003}, {80, 10008}, {81, 10002}, {83, 10005},
-    {84, 10004}, {85, 10006}, {86, 10081}, {87, 10021}, {88, 10029},
-    {89, 10007},
+    {0, 1},      {42, 2},     {437, 254},  {850, 255},  {874, 222},
+    {932, 128},  {936, 134},  {949, 129},  {950, 136},  {1250, 238},
+    {1251, 204}, {1252, 0},   {1253, 161}, {1254, 162}, {1255, 177},
+    {1256, 178}, {1257, 186}, {1258, 163}, {1361, 130}, {10000, 77},
+    {10001, 78}, {10002, 81}, {10003, 79}, {10004, 84}, {10005, 83},
+    {10006, 85}, {10007, 89}, {10008, 80}, {10021, 87}, {10029, 88},
+    {10081, 86},
 };
 
 const FX_DWORD kTableNAME = FXDWORD_GET_MSBFIRST("name");
@@ -281,21 +282,15 @@ CFX_ByteString FPDF_LoadTableFromTT(FXSYS_FILE* pFile,
 }
 
 uint8_t GetCharsetFromCodePage(FX_WORD codepage) {
-  int32_t iEnd = sizeof(g_Codepage2CharsetTable) / sizeof(CHARSET_MAP) - 1;
-  FXSYS_assert(iEnd >= 0);
-  int32_t iStart = 0, iMid;
-  do {
-    iMid = (iStart + iEnd) / 2;
-    const CHARSET_MAP& cp = g_Codepage2CharsetTable[iMid];
-    if (codepage == cp.codepage) {
-      return cp.charset;
-    }
-    if (codepage < cp.codepage) {
-      iEnd = iMid - 1;
-    } else {
-      iStart = iMid + 1;
-    }
-  } while (iStart <= iEnd);
+  const CODEPAGE_MAP* pEnd =
+      g_Codepage2CharsetTable + FX_ArraySize(g_Codepage2CharsetTable);
+  const CODEPAGE_MAP* pCharmap =
+      std::lower_bound(g_Codepage2CharsetTable, pEnd, codepage,
+                       [](const CODEPAGE_MAP& charset, FX_WORD page) {
+                         return charset.codepage < page;
+                       });
+  if (pCharmap < pEnd && codepage == pCharmap->codepage)
+    return pCharmap->charset;
   return 1;
 }
 
@@ -724,7 +719,7 @@ void CFX_FontMapper::AddInstalledFont(const CFX_ByteString& name, int charset) {
   }
   if (m_CharsetArray.Find((FX_DWORD)charset) == -1) {
     m_CharsetArray.Add((FX_DWORD)charset);
-    m_FaceArray.Add(name);
+    m_FaceArray.push_back(name);
   }
   if (name == m_LastFamily) {
     return;
@@ -749,11 +744,11 @@ void CFX_FontMapper::AddInstalledFont(const CFX_ByteString& name, int charset) {
     CFX_ByteString new_name = GetPSNameFromTT(hFont);
     if (!new_name.IsEmpty()) {
       new_name.Insert(0, ' ');
-      m_InstalledTTFonts.Add(new_name);
+      m_InstalledTTFonts.push_back(new_name);
     }
     m_pFontInfo->DeleteFont(hFont);
   }
-  m_InstalledTTFonts.Add(name);
+  m_InstalledTTFonts.push_back(name);
   m_LastFamily = name;
 }
 void CFX_FontMapper::LoadInstalledFonts() {
@@ -773,7 +768,7 @@ CFX_ByteString CFX_FontMapper::MatchInstalledFonts(
     const CFX_ByteString& norm_name) {
   LoadInstalledFonts();
   int i;
-  for (i = m_InstalledTTFonts.GetSize() - 1; i >= 0; i--) {
+  for (i = pdfium::CollectionSize<int>(m_InstalledTTFonts) - 1; i >= 0; i--) {
     CFX_ByteString norm1 = TT_NormalizeName(m_InstalledTTFonts[i]);
     if (norm1 == norm_name) {
       break;
@@ -1288,6 +1283,10 @@ FXFT_Face CFX_FontMapper::FindSubstFontByUnicode(FX_DWORD dwUnicode,
 }
 #endif  // PDF_ENABLE_XFA
 
+int CFX_FontMapper::GetFaceSize() const {
+  return pdfium::CollectionSize<int>(m_FaceArray);
+}
+
 FX_BOOL CFX_FontMapper::IsBuiltinFace(const FXFT_Face face) const {
   for (int i = 0; i < MM_FACE_COUNT; ++i) {
     if (m_MMFaces[i] == face) {
@@ -1321,19 +1320,19 @@ CFX_FolderFontInfo::~CFX_FolderFontInfo() {
   }
 }
 void CFX_FolderFontInfo::AddPath(const CFX_ByteStringC& path) {
-  m_PathList.Add(path);
+  m_PathList.push_back(path);
 }
 void CFX_FolderFontInfo::Release() {
   delete this;
 }
 FX_BOOL CFX_FolderFontInfo::EnumFontList(CFX_FontMapper* pMapper) {
   m_pMapper = pMapper;
-  for (int i = 0; i < m_PathList.GetSize(); i++) {
-    ScanPath(m_PathList[i]);
+  for (const auto& path : m_PathList) {
+    ScanPath(path);
   }
   return TRUE;
 }
-void CFX_FolderFontInfo::ScanPath(CFX_ByteString& path) {
+void CFX_FolderFontInfo::ScanPath(const CFX_ByteString& path) {
   void* handle = FX_OpenFolder(path);
   if (!handle) {
     return;
@@ -1367,7 +1366,7 @@ void CFX_FolderFontInfo::ScanPath(CFX_ByteString& path) {
   }
   FX_CloseFolder(handle);
 }
-void CFX_FolderFontInfo::ScanFile(CFX_ByteString& path) {
+void CFX_FolderFontInfo::ScanFile(const CFX_ByteString& path) {
   FXSYS_FILE* pFile = FXSYS_fopen(path, "rb");
   if (!pFile) {
     return;
@@ -1406,7 +1405,7 @@ void CFX_FolderFontInfo::ScanFile(CFX_ByteString& path) {
   }
   FXSYS_fclose(pFile);
 }
-void CFX_FolderFontInfo::ReportFace(CFX_ByteString& path,
+void CFX_FolderFontInfo::ReportFace(const CFX_ByteString& path,
                                     FXSYS_FILE* pFile,
                                     FX_DWORD filesize,
                                     FX_DWORD offset) {

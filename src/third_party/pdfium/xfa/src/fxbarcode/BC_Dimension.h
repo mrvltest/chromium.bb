@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_DIMENSION_H_
-#define _BC_DIMENSION_H_
-class CBC_Dimension;
+#ifndef XFA_SRC_FXBARCODE_BC_DIMENSION_H_
+#define XFA_SRC_FXBARCODE_BC_DIMENSION_H_
+
+#include <cstdint>
+
+#include "core/include/fxcrt/fx_string.h"
+
 class CBC_Dimension {
  public:
   CBC_Dimension();
@@ -21,4 +25,5 @@ class CBC_Dimension {
   int32_t m_width;
   int32_t m_height;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_DIMENSION_H_

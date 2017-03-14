@@ -45,7 +45,8 @@ struct IDWriteFontCollection;
 SK_API SkFontMgr* SkFontMgr_New_GDI();
 SK_API void SkFontMgr_SetFontCollectionToUse(IDWriteFontCollection* fontCollection);
 SK_API HRESULT SkFontMgr_GetFontCollectionToUse(IDWriteFontCollection** fontCollection, IDWriteFactory* factory);
-SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory = NULL);
+SK_API SkFontMgr* SkFontMgr_New_DirectWrite(IDWriteFactory* factory = NULL,
+                                            IDWriteFontCollection* collection = NULL);
 
 /**
  *  Creates an SkFontMgr which renders using DirectWrite and obtains its data

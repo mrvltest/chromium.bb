@@ -14,14 +14,14 @@
 #include "SkMatrix.h"
 #include "SkPaint.h"
 
-bool SkOffsetImageFilter::onFilterImage(Proxy* proxy, const SkBitmap& source,
-                                        const Context& ctx,
-                                        SkBitmap* result,
-                                        SkIPoint* offset) const {
+bool SkOffsetImageFilter::onFilterImageDeprecated(Proxy* proxy, const SkBitmap& source,
+                                                  const Context& ctx,
+                                                  SkBitmap* result,
+                                                  SkIPoint* offset) const {
     SkBitmap src = source;
     SkIPoint srcOffset = SkIPoint::Make(0, 0);
     if (!cropRectIsSet()) {
-        if (!this->filterInput(0, proxy, source, ctx, &src, &srcOffset)) {
+        if (!this->filterInputDeprecated(0, proxy, source, ctx, &src, &srcOffset)) {
             return false;
         }
 
@@ -32,12 +32,14 @@ bool SkOffsetImageFilter::onFilterImage(Proxy* proxy, const SkBitmap& source,
         offset->fY = srcOffset.fY + SkScalarRoundToInt(vec.fY);
         *result = src;
     } else {
-        if (!this->filterInput(0, proxy, source, ctx, &src, &srcOffset)) {
+        if (!this->filterInputDeprecated(0, proxy, source, ctx, &src, &srcOffset)) {
             return false;
         }
 
         SkIRect bounds;
-        if (!this->applyCropRect(ctx, src, srcOffset, &bounds)) {
+        SkIRect srcBounds = src.bounds();
+        srcBounds.offset(srcOffset);
+        if (!this->applyCropRect(ctx, srcBounds, &bounds)) {
             return false;
         }
 
@@ -66,13 +68,7 @@ void SkOffsetImageFilter::computeFastBounds(const SkRect& src, SkRect* dst) cons
     } else {
         *dst = src;
     }
-#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
-    SkRect copy = *dst;
-#endif
     dst->offset(fOffset.fX, fOffset.fY);
-#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
-    dst->join(copy);
-#endif
 }
 
 void SkOffsetImageFilter::onFilterNodeBounds(const SkIRect& src, const SkMatrix& ctm,
@@ -85,9 +81,6 @@ void SkOffsetImageFilter::onFilterNodeBounds(const SkIRect& src, const SkMatrix&
 
     *dst = src;
     dst->offset(SkScalarCeilToInt(vec.fX), SkScalarCeilToInt(vec.fY));
-#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
-    dst->join(src);
-#endif
 }
 
 SkFlattenable* SkOffsetImageFilter::CreateProc(SkReadBuffer& buffer) {

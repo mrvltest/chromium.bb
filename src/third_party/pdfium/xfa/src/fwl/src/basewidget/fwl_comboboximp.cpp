@@ -4,20 +4,23 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_scrollbarimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_listboximp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_formproxyimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_comboboximp.h"
+
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/src/fdp/include/fde_tto.h"
+#include "xfa/src/foxitlib.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_formproxyimp.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_listboximp.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_scrollbarimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
 
 // static
 IFWL_ComboBox* IFWL_ComboBox::Create(
@@ -1324,7 +1327,7 @@ void CFWL_ComboBoxImp::DisForm_Layout() {
   FX_FLOAT borderWidth = 0;
   { borderWidth = FWL_PART_CMB_Border; }
   FX_FLOAT fBtn = *pFWidth;
-  if (!(this->GetStylesEx() & FWL_STYLEEXT_CMB_ReadOnly)) {
+  if (!(GetStylesEx() & FWL_STYLEEXT_CMB_ReadOnly)) {
     m_rtBtn.Set(m_rtClient.right() - fBtn, m_rtClient.top + borderWidth,
                 fBtn - borderWidth, m_rtClient.height - 2 * borderWidth);
   }
@@ -1786,15 +1789,7 @@ void CFWL_ComboProxyImpDelegate::OnLButtonDown(CFWL_MsgMouse* pMsg) {
     m_bLButtonDown = FALSE;
     pDriver->SetGrab(m_pForm, FALSE);
     m_pComboBox->ShowDropList(FALSE);
-    return;
   }
-  IFWL_AdapterNative* pNative = FWL_GetAdapterNative();
-  IFWL_AdapterCursorMgr* pCursorMgr = pNative->GetCursorMgr();
-  FWL_HCURSOR hCursor = pCursorMgr->GetSystemCursor(FWL_CURSORTYPE_SizeNS);
-  pCursorMgr->SetCursor(hCursor);
-  pCursorMgr->ShowCursor(TRUE);
-  m_pForm->TransformTo(NULL, pMsg->m_fx, pMsg->m_fy);
-  m_fStartPos = pMsg->m_fy;
 }
 void CFWL_ComboProxyImpDelegate::OnLButtonUp(CFWL_MsgMouse* pMsg) {
   m_bLButtonDown = FALSE;
@@ -1817,41 +1812,6 @@ void CFWL_ComboProxyImpDelegate::OnLButtonUp(CFWL_MsgMouse* pMsg) {
   }
 }
 void CFWL_ComboProxyImpDelegate::OnMouseMove(CFWL_MsgMouse* pMsg) {
-  IFWL_AdapterNative* pNative = FWL_GetAdapterNative();
-  IFWL_AdapterCursorMgr* pCursorMgr = pNative->GetCursorMgr();
-  FWL_CURSORTYPE cursorType = FWL_CURSORTYPE_Arrow;
-  if (m_pComboBox->m_rtHandler.Contains(pMsg->m_fx, pMsg->m_fy)) {
-    cursorType = FWL_CURSORTYPE_SizeNS;
-  }
-  FWL_HCURSOR hCursor = pCursorMgr->GetSystemCursor(cursorType);
-  pCursorMgr->SetCursor(hCursor);
-  pCursorMgr->ShowCursor(TRUE);
-  if (!m_bLButtonDown) {
-    return;
-  }
-  m_pForm->TransformTo(NULL, pMsg->m_fx, pMsg->m_fy);
-  FX_FLOAT fChanged = pMsg->m_fy - m_fStartPos;
-  if (m_pComboBox->m_bUpFormHandler) {
-    fChanged = m_fStartPos - pMsg->m_fy;
-  }
-  if (m_pComboBox->m_rtList.height + fChanged < m_pComboBox->m_fItemHeight) {
-    return;
-  }
-  m_pComboBox->m_rtList.height += fChanged;
-  m_pComboBox->m_rtProxy.height += fChanged;
-  if (m_pComboBox->m_bUpFormHandler) {
-    m_pComboBox->m_rtProxy.top -= fChanged;
-    m_pComboBox->m_rtHandler.Set(0, 0, m_pComboBox->m_rtList.width,
-                                 m_pComboBox->m_fComboFormHandler);
-  } else {
-    m_pComboBox->m_rtHandler.Set(0, m_pComboBox->m_rtList.height,
-                                 m_pComboBox->m_rtList.width,
-                                 m_pComboBox->m_fComboFormHandler);
-  }
-  m_pForm->SetWidgetRect(m_pComboBox->m_rtProxy);
-  m_pComboBox->m_pListBox->SetWidgetRect(m_pComboBox->m_rtList);
-  m_pComboBox->m_pListBox->Update();
-  m_fStartPos = pMsg->m_fy;
 }
 void CFWL_ComboProxyImpDelegate::OnDeactive(CFWL_MsgDeactivate* pMsg) {
   m_pComboBox->ShowDropList(FALSE);

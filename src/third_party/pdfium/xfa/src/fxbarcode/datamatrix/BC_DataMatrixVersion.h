@@ -4,10 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_DATAMATRIXVERSION_H_
-#define _BC_DATAMATRIXVERSION_H_
-class ECBlocks;
+#ifndef XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXVERSION_H_
+#define XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXVERSION_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_DataMatrixVersion;
+
 class ECB {
  public:
   ECB(int32_t count, int32_t dataCodewords) {
@@ -23,6 +26,7 @@ class ECB {
   int32_t m_count;
   int32_t m_dataCodewords;
 };
+
 class ECBlocks {
  public:
   ECBlocks(int32_t ecCodewords, ECB* ecBlocks) {
@@ -50,6 +54,7 @@ class ECBlocks {
   int32_t m_ecCodewords;
   CFX_PtrArray m_ecBlocks;
 };
+
 class CBC_DataMatrixVersion {
  public:
   CBC_DataMatrixVersion(int32_t versionNumber,
@@ -83,4 +88,5 @@ class CBC_DataMatrixVersion {
   int32_t m_totalCodewords;
   static CFX_PtrArray* VERSIONS;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_DATAMATRIX_BC_DATAMATRIXVERSION_H_

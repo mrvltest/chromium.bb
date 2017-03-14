@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_SCROLLBARTP_H
-#define _FWL_SCROLLBARTP_H
-class CFWL_WidgetTP;
-class CFWL_ScrollBarTP;
+#ifndef XFA_INCLUDE_FWL_THEME_SCROLLBARTP_H_
+#define XFA_INCLUDE_FWL_THEME_SCROLLBARTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_ScrollBarTP : public CFWL_WidgetTP {
  public:
   CFWL_ScrollBarTP();
@@ -52,4 +53,5 @@ class CFWL_ScrollBarTP : public CFWL_WidgetTP {
     FX_ARGB clrTrackBKEnd;
   } * m_pThemeData;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_SCROLLBARTP_H_

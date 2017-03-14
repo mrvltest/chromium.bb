@@ -35,7 +35,7 @@
 #include <base/strings/utf_string_conversions.h>
 #include <base/win/wrapped_window_proc.h>
 #include <components/printing/renderer/print_web_view_helper.h>
-#include <content/common/font_warmup_win.h>
+#include <content/child/font_warmup_win.h>
 #include <content/public/app/content_main_runner.h>
 #include <content/public/common/dwrite_font_platform_win.h>
 #include <content/renderer/render_frame_impl.h>
@@ -140,7 +140,6 @@ Toolkit* ToolkitFactory::create(const ToolkitCreateParams& params)
     Statics::inProcessResourceLoader = params.inProcessResourceLoader();
     Statics::isInProcessRendererDisabled = params.isInProcessRendererDisabled();
     Statics::channelErrorHandler = params.channelErrorHandler();
-    content::DisableDWriteFactoryPatching();
     Statics::userAgentFromEmbedder().assign(params.userAgent().data(), params.userAgent().length());
     Statics::inProcessResizeOptimizationDisabled = params.isInProcessResizeOptimizationDisabled();
 

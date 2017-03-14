@@ -4,15 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_fftext.h"
+
+#include "xfa/include/fwl/core/fwl_widgetdef.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_ffdraw.h"
-#include "xfa_fftext.h"
-#include "xfa_textlayout.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffdoc.h"
-#include "xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdraw.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+
 CXFA_FFText::CXFA_FFText(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFDraw(pPageView, pDataAcc) {}
 CXFA_FFText::~CXFA_FFText() {}
@@ -62,7 +64,7 @@ void CXFA_FFText::RenderWidget(CFX_Graphics* pGS,
 }
 FX_BOOL CXFA_FFText::IsLoaded() {
   CXFA_TextLayout* pTextLayout = m_pDataAcc->GetTextLayout();
-  return pTextLayout != NULL && !pTextLayout->m_bHasBlock;
+  return pTextLayout && !pTextLayout->m_bHasBlock;
 }
 FX_BOOL CXFA_FFText::PerformLayout() {
   CXFA_FFDraw::PerformLayout();
@@ -161,7 +163,7 @@ const FX_WCHAR* CXFA_FFText::GetLinkURLAtPoint(FX_FLOAT fx, FX_FLOAT fy) {
     CXFA_PieceLine* pPieceLine = pPieceLines->GetAt(i);
     int32_t iPieces = pPieceLine->m_textPieces.GetSize();
     for (int32_t j = 0; j < iPieces; j++) {
-      XFA_LPTEXTPIECE pPiece = pPieceLine->m_textPieces.GetAt(j);
+      XFA_TEXTPIECE* pPiece = pPieceLine->m_textPieces.GetAt(j);
       if (pPiece->pLinkData && pPiece->rtPiece.Contains(x, y)) {
         return pPiece->pLinkData->GetLinkURL();
       }

@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_COMMONECI_H_
-#define _BC_COMMONECI_H_
+#ifndef XFA_SRC_FXBARCODE_COMMON_BC_COMMONECI_H_
+#define XFA_SRC_FXBARCODE_COMMON_BC_COMMONECI_H_
+
+#include <stdint.h>
+
 class CBC_CommonECI {
  public:
   CBC_CommonECI(int32_t value);
@@ -17,4 +20,5 @@ class CBC_CommonECI {
  private:
   int32_t m_value;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_BC_COMMONECI_H_

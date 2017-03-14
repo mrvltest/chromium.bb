@@ -62,6 +62,7 @@ public:
     bool pathRenderingSupport() const { return fPathRenderingSupport; }
     bool dstReadInShaderSupport() const { return fDstReadInShaderSupport; }
     bool dualSourceBlendingSupport() const { return fDualSourceBlendingSupport; }
+    bool integerSupport() const { return fIntegerSupport; }
 
     /**
     * Get the precision info for a variable of type kFloat_GrSLType, kVec2f_GrSLType, etc in a
@@ -81,6 +82,24 @@ public:
     */
     bool floatPrecisionVaries() const { return fShaderPrecisionVaries; }
 
+    /**
+     * PLS storage size in bytes (0 when not supported). The PLS spec defines a minimum size of 16 
+     * bytes whenever PLS is supported.
+     */
+    int pixelLocalStorageSize() const { return fPixelLocalStorageSize; }
+
+    /**
+     * True if this context supports the necessary extensions and features to enable the PLS path
+     * renderer.
+     */
+    bool plsPathRenderingSupport() const { 
+#if GR_ENABLE_PLS_PATH_RENDERING
+        return fPLSPathRenderingSupport;
+#else
+        return false;
+#endif
+    }
+
 protected:
     /** Subclasses must call this after initialization in order to apply caps overrides requested by
         the client. Note that overrides will only reduce the caps never expand them. */
@@ -91,9 +110,12 @@ protected:
     bool fPathRenderingSupport : 1;
     bool fDstReadInShaderSupport : 1;
     bool fDualSourceBlendingSupport : 1;
+    bool fIntegerSupport : 1;
 
     bool fShaderPrecisionVaries;
     PrecisionInfo fFloatPrecisions[kGrShaderTypeCount][kGrSLPrecisionCount];
+    int fPixelLocalStorageSize;
+    bool fPLSPathRenderingSupport;
 
 private:
     virtual void onApplyOptionsOverrides(const GrContextOptions&) {};
@@ -122,11 +144,15 @@ public:
     bool compressedTexSubImageSupport() const { return fCompressedTexSubImageSupport; }
     bool oversizedStencilSupport() const { return fOversizedStencilSupport; }
     bool textureBarrierSupport() const { return fTextureBarrierSupport; }
-    bool mixedSamplesSupport() const { return fMixedSamplesSupport; }
+    bool usesMixedSamples() const { return fUsesMixedSamples; }
 
     bool useDrawInsteadOfClear() const { return fUseDrawInsteadOfClear; }
     bool useDrawInsteadOfPartialRenderTargetWrite() const {
         return fUseDrawInsteadOfPartialRenderTargetWrite;
+    }
+
+    bool useDrawInsteadOfAllRenderTargetWrites() const {
+        return fUseDrawInsteadOfAllRenderTargetWrites;
     }
 
     bool preferVRAMUseOverFlushes() const { return fPreferVRAMUseOverFlushes; }
@@ -188,7 +214,22 @@ public:
     int maxTileSize() const { SkASSERT(fMaxTileSize <= fMaxTextureSize); return fMaxTileSize; }
 
     // Will be 0 if MSAA is not supported
-    int maxSampleCount() const { return fMaxSampleCount; }
+    int maxColorSampleCount() const { return fMaxColorSampleCount; }
+    // Will be 0 if MSAA is not supported
+    int maxStencilSampleCount() const { return fMaxStencilSampleCount; }
+    // Will be 0 if raster multisample is not supported. Raster multisample is a special HW mode
+    // where the rasterizer runs with more samples than are in the target framebuffer.
+    int maxRasterSamples() const { return fMaxRasterSamples; }
+    // We require the sample count to be less than maxColorSampleCount and maxStencilSampleCount.
+    // If we are using mixed samples, we only care about stencil.
+    int maxSampleCount() const {
+        if (this->usesMixedSamples()) {
+            return this->maxStencilSampleCount();
+        } else {
+            return SkTMin(this->maxColorSampleCount(), this->maxStencilSampleCount());
+        }
+    }
+
 
     virtual bool isConfigTexturable(GrPixelConfig config) const = 0;
     virtual bool isConfigRenderable(GrPixelConfig config, bool withMSAA) const = 0;
@@ -235,7 +276,7 @@ protected:
     bool fCompressedTexSubImageSupport               : 1;
     bool fOversizedStencilSupport                    : 1;
     bool fTextureBarrierSupport                      : 1;
-    bool fMixedSamplesSupport                        : 1;
+    bool fUsesMixedSamples                           : 1;
     bool fSupportsInstancedDraws                     : 1;
     bool fFullClearIsFree                            : 1;
     bool fMustClearUploadedBufferData                : 1;
@@ -243,6 +284,7 @@ protected:
     // Driver workaround
     bool fUseDrawInsteadOfClear                      : 1;
     bool fUseDrawInsteadOfPartialRenderTargetWrite   : 1;
+    bool fUseDrawInsteadOfAllRenderTargetWrites      : 1;
 
     // ANGLE workaround
     bool fPreferVRAMUseOverFlushes                   : 1;
@@ -257,7 +299,9 @@ protected:
     int fMaxRenderTargetSize;
     int fMaxTextureSize;
     int fMaxTileSize;
-    int fMaxSampleCount;
+    int fMaxColorSampleCount;
+    int fMaxStencilSampleCount;
+    int fMaxRasterSamples;
 
 private:
     virtual void onApplyOptionsOverrides(const GrContextOptions&) {};

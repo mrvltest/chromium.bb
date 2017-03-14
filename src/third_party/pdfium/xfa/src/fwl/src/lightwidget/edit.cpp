@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/include/fwl/lightwidget/edit.h"
+
 #include <memory>
 
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
 #include "xfa/src/foxitlib.h"
 
 CFWL_Edit* CFWL_Edit::Create() {
@@ -102,11 +105,6 @@ FWL_ERR CFWL_Edit::SetAliasChar(FX_WCHAR wAlias) {
     return FWL_ERR_Indefinite;
   return static_cast<IFWL_Edit*>(m_pIface)->SetAliasChar(wAlias);
 }
-FWL_ERR CFWL_Edit::SetFormatString(const CFX_WideString& wsFormat) {
-  if (!m_pIface)
-    return FWL_ERR_Indefinite;
-  return static_cast<IFWL_Edit*>(m_pIface)->SetFormatString(wsFormat);
-}
 FWL_ERR CFWL_Edit::Insert(int32_t nStart,
                           const FX_WCHAR* lpText,
                           int32_t nLen) {
@@ -201,7 +199,7 @@ void CFWL_Edit::SetScrollOffset(FX_FLOAT fScrollOffset) {
   return static_cast<IFWL_Edit*>(m_pIface)->SetScrollOffset(fScrollOffset);
 }
 FX_BOOL CFWL_Edit::GetSuggestWords(CFX_PointF pointf,
-                                   CFX_ByteStringArray& sSuggest) {
+                                   std::vector<CFX_ByteString>& sSuggest) {
   return static_cast<IFWL_Edit*>(m_pIface)->GetSuggestWords(pointf, sSuggest);
 }
 FX_BOOL CFWL_Edit::ReplaceSpellCheckWord(CFX_PointF pointf,

@@ -4,10 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_CHECKSUM_IMP_H
-#define _FXFA_FORMFILLER_CHECKSUM_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_CHECKSUM_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_CHECKSUM_H_
+
+#include "xfa/include/fxfa/fxfa.h"
+#include "xfa/src/fgas/include/fx_sax.h"
+
 class CXFA_SAXReaderHandler;
 class CXFA_ChecksumContext;
+
 class CXFA_SAXContext {
  public:
   CXFA_SAXContext() : m_eNode(FX_SAXNODE_Unknown) {}
@@ -45,6 +50,7 @@ class CXFA_SAXReaderHandler : public IFX_SAXReaderHandler {
   CXFA_ChecksumContext* m_pContext;
   CXFA_SAXContext m_SAXContext;
 };
+
 class CXFA_ChecksumContext : public IXFA_ChecksumContext {
  public:
   CXFA_ChecksumContext();
@@ -63,4 +69,5 @@ class CXFA_ChecksumContext : public IXFA_ChecksumContext {
   uint8_t* m_pByteContext;
   CFX_ByteString m_bsChecksum;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_CHECKSUM_H_

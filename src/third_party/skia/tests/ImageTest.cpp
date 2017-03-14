@@ -5,6 +5,9 @@
  * found in the LICENSE file.
  */
 
+#include <functional>
+#include "DMGpuSupport.h"
+
 #include "SkBitmap.h"
 #include "SkCanvas.h"
 #include "SkData.h"
@@ -20,12 +23,6 @@
 #include "SkSurface.h"
 #include "SkUtils.h"
 #include "Test.h"
-
-#if SK_SUPPORT_GPU
-#include "GrContext.h"
-#include "gl/GrGLInterface.h"
-#include "gl/GrGLUtil.h"
-#endif
 
 static void assert_equal(skiatest::Reporter* reporter, SkImage* a, const SkIRect* subsetA,
                          SkImage* b) {
@@ -87,6 +84,15 @@ static SkImage* create_data_image() {
     SkAutoTUnref<SkData> data(create_image_data(&info));
     return SkImage::NewRasterData(info, data, info.minRowBytes());
 }
+#if SK_SUPPORT_GPU // not gpu-specific but currently only used in GPU tests
+static SkImage* create_picture_image() {
+    SkPictureRecorder recorder;
+    SkCanvas* canvas = recorder.beginRecording(10, 10);
+    canvas->clear(SK_ColorCYAN);
+    SkAutoTUnref<SkPicture> picture(recorder.endRecording());
+    return SkImage::NewFromPicture(picture, SkISize::Make(10, 10), nullptr, nullptr);
+};
+#endif
 // Want to ensure that our Release is called when the owning image is destroyed
 struct RasterDataHolder {
     RasterDataHolder() : fReleaseCount(0) {}
@@ -118,7 +124,7 @@ static SkImage* create_codec_image() {
 #if SK_SUPPORT_GPU
 static SkImage* create_gpu_image(GrContext* context) {
     const SkImageInfo info = SkImageInfo::MakeN32(20, 20, kOpaque_SkAlphaType);
-    SkAutoTUnref<SkSurface> surface(SkSurface::NewRenderTarget(context, SkSurface::kNo_Budgeted,
+    SkAutoTUnref<SkSurface> surface(SkSurface::NewRenderTarget(context, SkBudgeted::kNo,
                                                                info));
     draw_image_test_pattern(surface->getCanvas());
     return surface->newImageSnapshot();
@@ -374,6 +380,64 @@ DEF_GPUTEST_FOR_NATIVE_CONTEXT(SkImage_Gpu2Cpu, reporter, context) {
     {
         SkBitmap cachedBitmap;
         REPORTER_ASSERT(reporter, !SkBitmapCache::Find(uniqueID, &cachedBitmap));
+    }
+}
+
+DEF_GPUTEST_FOR_NATIVE_CONTEXT(SkImage_newTextureImage, reporter, context, glContext) {
+    GrContextFactory otherFactory;
+    GrContextFactory::ContextInfo otherContextInfo =
+        otherFactory.getContextInfo(GrContextFactory::kNative_GLContextType);
+    glContext->makeCurrent();
+
+    std::function<SkImage*()> imageFactories[] = {
+        create_image,
+        create_codec_image,
+        create_data_image,
+        // Create an image from a picture.
+        create_picture_image,
+        // Create a texture image.
+        [context] { return create_gpu_image(context); },
+        // Create a texture image in a another GrContext.
+        [glContext, otherContextInfo] {
+            otherContextInfo.fGLContext->makeCurrent();
+            SkImage* otherContextImage = create_gpu_image(otherContextInfo.fGrContext);
+            glContext->makeCurrent();
+            return otherContextImage;
+        }
+    };
+
+    for (auto factory : imageFactories) {
+        SkAutoTUnref<SkImage> image(factory());
+        if (!image) {
+            ERRORF(reporter, "Error creating image.");
+            continue;
+        }
+        GrTexture* origTexture = as_IB(image)->peekTexture();
+
+        SkAutoTUnref<SkImage> texImage(image->newTextureImage(context));
+        if (!texImage) {
+            // We execpt to fail if image comes from a different GrContext.
+            if (!origTexture || origTexture->getContext() == context) {
+                ERRORF(reporter, "newTextureImage failed.");
+            }
+            continue;
+        }
+        GrTexture* copyTexture = as_IB(texImage)->peekTexture();
+        if (!copyTexture) {
+            ERRORF(reporter, "newTextureImage returned non-texture image.");
+            continue;
+        }
+        if (origTexture) {
+            if (origTexture != copyTexture) {
+                ERRORF(reporter, "newTextureImage made unnecessary texture copy.");
+            }
+        }
+        if (image->width() != texImage->width() || image->height() != texImage->height()) {
+            ERRORF(reporter, "newTextureImage changed the image size.");
+        }
+        if (image->isOpaque() != texImage->isOpaque()) {
+            ERRORF(reporter, "newTextureImage changed image opaqueness.");
+        }
     }
 }
 #endif
@@ -632,7 +696,7 @@ DEF_GPUTEST_FOR_NATIVE_CONTEXT(SkImage_NewFromTexture, reporter, context) {
     desc.fHeight = h;
     desc.fConfig = kSkia8888_GrPixelConfig;
     desc.fSampleCnt = 0;
-    SkAutoTUnref<GrTexture> tex(provider->createTexture(desc, false, storage, w * 4));
+    SkAutoTUnref<GrTexture> tex(provider->createTexture(desc, SkBudgeted::kNo, storage, w * 4));
     if (!tex) {
         REPORTER_ASSERT(reporter, false);
         return;

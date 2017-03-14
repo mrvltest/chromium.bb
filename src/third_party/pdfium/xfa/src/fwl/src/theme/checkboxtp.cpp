@@ -4,7 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/include/fwl/theme/checkboxtp.h"
+
+#include "xfa/include/fwl/basewidget/fwl_checkbox.h"
+#include "xfa/include/fwl/core/fwl_widget.h"
+#include "xfa/src/fdp/include/fde_tto.h"
 #include "xfa/src/foxitlib.h"
+
 #define CHECKBOX_SIZE_SIGNMARGIN 3
 #define CHECKBOX_SIZE_SIGNBORDER 2
 #define CHECKBOX_SIZE_SIGNPATH 100
@@ -13,6 +19,7 @@
 #define CHECKBOX_COLOR_BOXRB1 (ArgbEncode(255, 241, 239, 226))
 #define CHECKBOX_COLOR_BOXRB2 (ArgbEncode(255, 255, 255, 255))
 #define CHECKBOX_FXGE_CoordinatesAdjust
+
 CFWL_CheckBoxTP::CFWL_CheckBoxTP() : m_pCheckPath(NULL) {
   m_pThemeData = new CKBThemeData;
   SetThemeData(0);
@@ -328,9 +335,8 @@ void CFWL_CheckBoxTP::DrawSignStar(CFX_Graphics* pGraphics,
   FX_FLOAT fBottom = pRtSign->bottom();
   FX_FLOAT fRadius =
       (pRtSign->top - fBottom) / (1 + (FX_FLOAT)cos(FX_PI / 5.0f));
-  CFX_PointF ptCenter;
-  ptCenter.Set((pRtSign->left + pRtSign->right()) / 2.0f,
-               (pRtSign->top + fBottom) / 2.0f);
+  CFX_PointF ptCenter((pRtSign->left + pRtSign->right()) / 2.0f,
+                      (pRtSign->top + fBottom) / 2.0f);
   FX_FLOAT px[5], py[5];
   FX_FLOAT fAngel = FX_PI / 10.0f;
   for (int32_t i = 0; i < 5; i++) {
@@ -460,42 +466,28 @@ void CFWL_CheckBoxTP::initCheckPath(FX_FLOAT fCheckLen) {
     FX_FLOAT fWidth = CHECKBOX_SIZE_SIGNPATH;
     FX_FLOAT fHeight = -CHECKBOX_SIZE_SIGNPATH;
     FX_FLOAT fBottom = CHECKBOX_SIZE_SIGNPATH;
-    FX_FLOAT px1, py1, px2, py2;
-    CFX_PointF pt1;
-    pt1.Set(fWidth / 15.0f, fBottom + fHeight * 2 / 5.0f);
-    CFX_PointF pt2;
-    pt2.Set(fWidth / 4.5f, fBottom + fHeight / 16.0f);
-    CFX_PointF pt3;
-    pt3.Set(fWidth / 3.0f, fBottom);
-    CFX_PointF pt4;
-    pt4.Set(fWidth * 14 / 15.0f, fBottom + fHeight * 15 / 16.0f);
-    CFX_PointF pt5;
-    pt5.Set(fWidth / 3.6f, fBottom + fHeight / 3.5f);
-    CFX_PointF pt12;
-    pt12.Set(fWidth / 7.0f, fBottom + fHeight * 2 / 7.0f);
-    CFX_PointF pt21;
-    pt21.Set(fWidth / 5.0f, fBottom + fHeight / 5.0f);
-    CFX_PointF pt23;
-    pt23.Set(fWidth / 4.4f, fBottom + fHeight * 0 / 16.0f);
-    CFX_PointF pt32;
-    pt32.Set(fWidth / 4.0f, fBottom);
-    CFX_PointF pt34;
-    pt34.Set(fWidth * (1 / 7.0f + 7 / 15.0f), fBottom + fHeight * 4 / 5.0f);
-    CFX_PointF pt43;
-    pt43.Set(fWidth * (1 / 7.0f + 7 / 15.0f), fBottom + fHeight * 4 / 5.0f);
-    CFX_PointF pt45;
-    pt45.Set(fWidth * 7 / 15.0f, fBottom + fHeight * 8 / 7.0f);
-    CFX_PointF pt54;
-    pt54.Set(fWidth / 3.4f, fBottom + fHeight / 3.5f);
-    CFX_PointF pt51;
-    pt51.Set(fWidth / 3.6f, fBottom + fHeight / 4.0f);
-    CFX_PointF pt15;
-    pt15.Set(fWidth / 3.5f, fBottom + fHeight * 3.5f / 5.0f);
+    CFX_PointF pt1(fWidth / 15.0f, fBottom + fHeight * 2 / 5.0f);
+    CFX_PointF pt2(fWidth / 4.5f, fBottom + fHeight / 16.0f);
+    CFX_PointF pt3(fWidth / 3.0f, fBottom);
+    CFX_PointF pt4(fWidth * 14 / 15.0f, fBottom + fHeight * 15 / 16.0f);
+    CFX_PointF pt5(fWidth / 3.6f, fBottom + fHeight / 3.5f);
+    CFX_PointF pt12(fWidth / 7.0f, fBottom + fHeight * 2 / 7.0f);
+    CFX_PointF pt21(fWidth / 5.0f, fBottom + fHeight / 5.0f);
+    CFX_PointF pt23(fWidth / 4.4f, fBottom + fHeight * 0 / 16.0f);
+    CFX_PointF pt32(fWidth / 4.0f, fBottom);
+    CFX_PointF pt34(fWidth * (1 / 7.0f + 7 / 15.0f),
+                    fBottom + fHeight * 4 / 5.0f);
+    CFX_PointF pt43(fWidth * (1 / 7.0f + 7 / 15.0f),
+                    fBottom + fHeight * 4 / 5.0f);
+    CFX_PointF pt45(fWidth * 7 / 15.0f, fBottom + fHeight * 8 / 7.0f);
+    CFX_PointF pt54(fWidth / 3.4f, fBottom + fHeight / 3.5f);
+    CFX_PointF pt51(fWidth / 3.6f, fBottom + fHeight / 4.0f);
+    CFX_PointF pt15(fWidth / 3.5f, fBottom + fHeight * 3.5f / 5.0f);
     m_pCheckPath->MoveTo(pt1.x, pt1.y);
-    px1 = pt12.x - pt1.x;
-    py1 = pt12.y - pt1.y;
-    px2 = pt21.x - pt2.x;
-    py2 = pt21.y - pt2.y;
+    FX_FLOAT px1 = pt12.x - pt1.x;
+    FX_FLOAT py1 = pt12.y - pt1.y;
+    FX_FLOAT px2 = pt21.x - pt2.x;
+    FX_FLOAT py2 = pt21.y - pt2.y;
     m_pCheckPath->BezierTo(pt1.x + px1 * FWLTHEME_BEZIER,
                            pt1.y + py1 * FWLTHEME_BEZIER,
                            pt2.x + px2 * FWLTHEME_BEZIER,

@@ -2,7 +2,7 @@
 <!-- {% block header_message %}
 
 Eclipse classpath. See instructions at
-https://code.google.com/p/chromium/wiki/AndroidEclipseDev for setting up Eclipse
+https://www.chromium.org/developers/android-eclipse-dev for setting up Eclipse
 for Chrome Android development.
 
 Obsolete entries can be found using:
@@ -50,6 +50,7 @@ to the classpath for downstream development. See "additional_entries" below.
     <classpathentry kind="src" path="components/web_contents_delegate_android/android/java/src"/>
     <classpathentry kind="src" path="content/public/android/java/src"/>
     <classpathentry kind="src" path="content/public/android/javatests/src"/>
+    <classpathentry kind="src" path="content/public/android/junit/src"/>
     <classpathentry kind="src" path="content/public/test/android/javatests/src"/>
     <classpathentry kind="src" path="content/shell/android/browsertests/src"/>
     <classpathentry kind="src" path="content/shell/android/browsertests_apk/src"/>
@@ -97,6 +98,7 @@ to the classpath for downstream development. See "additional_entries" below.
     <classpathentry kind="src" path="out/Debug/gen/enums/accessibility_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/activity_type_ids_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/android_resource_type_java"/>
+    <classpathentry kind="src" path="out/Debug/gen/enums/autocomplete_match_java/"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/autocomplete_match_type_java/"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/ax_enumerations_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/base_java_application_state"/>
@@ -114,7 +116,6 @@ to the classpath for downstream development. See "additional_entries" below.
     <classpathentry kind="src" path="out/Debug/gen/enums/content_setting_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/content_settings_type_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/cronet_url_request_java"/>
-    <classpathentry kind="src" path="out/Debug/gen/enums/enhanced_bookmarks_java_enums_srcjar"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/gesture_event_type_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/infobar_action_type_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/invalidate_types_java"/>
@@ -148,6 +149,7 @@ to the classpath for downstream development. See "additional_entries" below.
     <classpathentry kind="src" path="out/Debug/gen/enums/web_input_event_java"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/web_text_input_type"/>
     <classpathentry kind="src" path="out/Debug/gen/enums/window_open_disposition_java"/>
+    <classpathentry kind="src" path="out/Debug/gen/templates/base_build_config_gen"/>
     <classpathentry kind="src" path="out/Debug/gen/templates/base_native_libraries_gen"/>
     <classpathentry kind="src" path="out/Debug/gen/templates/chrome_version_java"/>
     <classpathentry kind="src" path="out/Debug/gen/templates/dom_distiller_core_font_family_java"/>

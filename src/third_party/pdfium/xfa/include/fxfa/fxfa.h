@@ -4,8 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef FXFA_H_
-#define FXFA_H_
+#ifndef XFA_INCLUDE_FXFA_FXFA_H_
+#define XFA_INCLUDE_FXFA_FXFA_H_
+
+#include <vector>
+
+#include "xfa/include/fxfa/fxfa_basic.h"
+#include "xfa/include/fxfa/fxfa_widget.h"
 
 class CFX_Graphics;
 class CPDF_Document;
@@ -45,8 +50,6 @@ class IXFA_Widget {
   IXFA_Widget() {}
 };
 
-#include "fxfa_basic.h"
-#include "fxfa_widget.h"
 #define XFA_MBICON_Error 0
 #define XFA_MBICON_Warning 1
 #define XFA_MBICON_Question 2
@@ -338,7 +341,7 @@ class IXFA_MenuHandler {
   virtual FX_BOOL Redo(IXFA_Widget* hWidget) = 0;
   virtual FX_BOOL GetSuggestWords(IXFA_Widget* hWidget,
                                   CFX_PointF pointf,
-                                  CFX_ByteStringArray& sSuggest) = 0;
+                                  std::vector<CFX_ByteString>& sSuggest) = 0;
   virtual FX_BOOL ReplaceSpellCheckWord(IXFA_Widget* hWidget,
                                         CFX_PointF pointf,
                                         const CFX_ByteStringC& bsReplace) = 0;
@@ -437,13 +440,12 @@ class IXFA_DocProvider {
   }
   virtual void GetURL(IXFA_Doc* hDoc, CFX_WideString& wsDocURL) = 0;
   virtual FX_ARGB GetHighlightColor(IXFA_Doc* hDoc) = 0;
-  virtual void AddDoRecord(IXFA_Widget* hWidget) = 0;
 
   virtual FX_BOOL SubmitData(IXFA_Doc* hDoc, CXFA_Submit submit) = 0;
   virtual FX_BOOL CheckWord(IXFA_Doc* hDoc, const CFX_ByteStringC& sWord) = 0;
   virtual FX_BOOL GetSuggestWords(IXFA_Doc* hDoc,
                                   const CFX_ByteStringC& sWord,
-                                  CFX_ByteStringArray& sSuggest) = 0;
+                                  std::vector<CFX_ByteString>& sSuggest) = 0;
   virtual FX_BOOL GetPDFScriptObject(IXFA_Doc* hDoc,
                                      const CFX_ByteStringC& utf8Name,
                                      FXJSE_HVALUE hValue) = 0;
@@ -842,4 +844,4 @@ class IXFA_ChecksumContext {
 };
 IXFA_ChecksumContext* XFA_Checksum_Create();
 
-#endif  // FXFA_H_
+#endif  // XFA_INCLUDE_FXFA_FXFA_H_

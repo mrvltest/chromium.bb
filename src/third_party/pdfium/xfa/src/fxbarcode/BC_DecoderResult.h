@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_DECODERRESULT_H_
-#define _BC_DECODERRESULT_H_
-class CBC_DecoderResult;
+#ifndef XFA_SRC_FXBARCODE_BC_DECODERRESULT_H_
+#define XFA_SRC_FXBARCODE_BC_DECODERRESULT_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_DecoderResult {
  public:
   CBC_DecoderResult(CFX_ByteArray* rawBytes,
@@ -31,4 +33,5 @@ class CBC_DecoderResult {
   int32_t m_erasures;
   void* m_other;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_DECODERRESULT_H_

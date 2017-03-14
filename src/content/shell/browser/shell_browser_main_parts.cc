@@ -20,12 +20,12 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
 #include "content/public/common/url_constants.h"
-#include "content/shell/browser/layout_test/layout_test_browser_context.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/browser/shell_browser_context.h"
 #include "content/shell/browser/shell_devtools_manager_delegate.h"
 #include "content/shell/browser/shell_net_log.h"
 #include "content/shell/common/shell_switches.h"
+#include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
 #include "net/grit/net_resources.h"
@@ -44,6 +44,12 @@
 #endif
 #if !defined(OS_CHROMEOS) && defined(USE_AURA) && defined(OS_LINUX)
 #include "ui/base/ime/input_method_initializer.h"
+#endif
+#if defined(OS_CHROMEOS)
+#include "chromeos/dbus/dbus_thread_manager.h"
+#include "device/bluetooth/dbus/bluez_dbus_manager.h"
+#elif defined(OS_LINUX)
+#include "device/bluetooth/dbus/dbus_bluez_manager_wrapper_linux.h"
 #endif
 
 namespace printing {
@@ -110,6 +116,16 @@ void ShellBrowserMainParts::PreMainMessageLoopStart() {
 void ShellBrowserMainParts::PostMainMessageLoopStart() {
 #if defined(OS_ANDROID)
   base::MessageLoopForUI::current()->Start();
+#endif
+
+#if defined(OS_CHROMEOS)
+  chromeos::DBusThreadManager::Initialize();
+  bluez::BluezDBusManager::Initialize(
+      chromeos::DBusThreadManager::Get()->GetSystemBus(),
+      chromeos::DBusThreadManager::Get()->IsUsingStub(
+          chromeos::DBusClientBundle::BLUETOOTH));
+#elif defined(OS_LINUX)
+  bluez::DBusBluezManagerWrapperLinux::Initialize();
 #endif
 }
 
@@ -179,6 +195,17 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
   delete printing::g_print_job_manager;
   browser_context_.reset();
   off_the_record_browser_context_.reset();
+}
+
+void ShellBrowserMainParts::PostDestroyThreads() {
+#if defined(OS_CHROMEOS)
+  device::BluetoothAdapterFactory::Shutdown();
+  bluez::BluezDBusManager::Shutdown();
+  chromeos::DBusThreadManager::Shutdown();
+#elif defined(OS_LINUX)
+  device::BluetoothAdapterFactory::Shutdown();
+  bluez::DBusBluezManagerWrapperLinux::Shutdown();
+#endif
 }
 
 }  // namespace

@@ -9,19 +9,19 @@
 #include "DMJsonWriter.h"
 #include "DMSrcSink.h"
 #include "DMSrcSinkAndroid.h"
-#include "OverwriteLine.h"
 #include "ProcStats.h"
+#include "Resources.h"
 #include "SkBBHFactory.h"
 #include "SkChecksum.h"
 #include "SkCodec.h"
 #include "SkCommonFlags.h"
 #include "SkCommonFlagsConfig.h"
 #include "SkFontMgr.h"
-#include "SkForceLinking.h"
 #include "SkGraphics.h"
 #include "SkMD5.h"
 #include "SkMutex.h"
 #include "SkOSFile.h"
+#include "SkSpinlock.h"
 #include "SkTHash.h"
 #include "SkTaskGroup.h"
 #include "SkThreadUtils.h"
@@ -64,63 +64,39 @@ DEFINE_string(uninterestingHashesFile, "",
 
 DEFINE_int32(shards, 1, "We're splitting source data into this many shards.");
 DEFINE_int32(shard,  0, "Which shard do I run?");
-DEFINE_bool2(pre_log, p, false, "Log before running each test. May be incomprehensible when threading");
+DEFINE_bool(simpleCodec, false, "Only decode images to native scale");
 
-__SK_FORCE_IMAGE_DECODER_LINKING;
 using namespace DM;
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-static double now_ms() { return SkTime::GetNSecs() * 1e-6; }
-
 SK_DECLARE_STATIC_MUTEX(gFailuresMutex);
 static SkTArray<SkString> gFailures;
 
-static void fail(ImplicitString err) {
+static void fail(const SkString& err) {
     SkAutoMutexAcquire lock(gFailuresMutex);
     SkDebugf("\n\nFAILURE: %s\n\n", err.c_str());
     gFailures.push_back(err);
 }
 
-static int32_t gPending = 0;  // Atomic.  Total number of running and queued tasks.
 
-SK_DECLARE_STATIC_MUTEX(gRunningAndTallyMutex);
-static SkTArray<SkString>        gRunning;
-static SkTHashMap<SkString, int> gNoteTally;
+// We use a spinlock to make locking this in a signal handler _somewhat_ safe.
+SK_DECLARE_STATIC_SPINLOCK(gMutex);
+static int32_t            gPending;
+static SkTArray<SkString> gRunning;
 
-static void done(double ms,
-                 ImplicitString config, ImplicitString src, ImplicitString srcOptions,
-                 ImplicitString name, ImplicitString note, ImplicitString log) {
-    SkString id = SkStringPrintf("%s %s %s %s", config.c_str(), src.c_str(),
-                                                srcOptions.c_str(), name.c_str());
+static void done(const char* config, const char* src, const char* srcOptions, const char* name) {
+    SkString id = SkStringPrintf("%s %s %s %s", config, src, srcOptions, name);
+    int pending;
     {
-        SkAutoMutexAcquire lock(gRunningAndTallyMutex);
+        SkAutoTAcquire<SkPODSpinlock> lock(gMutex);
         for (int i = 0; i < gRunning.count(); i++) {
             if (gRunning[i] == id) {
                 gRunning.removeShuffle(i);
                 break;
             }
         }
-        if (!note.isEmpty()) {
-            if (int* tally = gNoteTally.find(note)) {
-                *tally += 1;
-            } else {
-                gNoteTally.set(note, 1);
-            }
-        }
-    }
-    if (!log.isEmpty()) {
-        log.prepend("\n");
-    }
-    auto pending = sk_atomic_dec(&gPending)-1;
-    if (!FLAGS_quiet && note.isEmpty()) {
-        SkDebugf("%s(%4d/%-4dMB %6d) %s\t%s%s", FLAGS_verbose ? "\n" : kSkOverwriteLine
-                                           , sk_tools::getCurrResidentSetSizeMB()
-                                           , sk_tools::getMaxResidentSetSizeMB()
-                                           , pending
-                                           , HumanizeMs(ms).c_str()
-                                           , id.c_str()
-                                           , log.c_str());
+        pending = --gPending;
     }
     // We write our dm.json file every once in a while in case we crash.
     // Notice this also handles the final dm.json when pending == 0.
@@ -129,20 +105,53 @@ static void done(double ms,
     }
 }
 
-static void start(ImplicitString config, ImplicitString src,
-                  ImplicitString srcOptions, ImplicitString name) {
-    SkString id = SkStringPrintf("%s %s %s %s", config.c_str(), src.c_str(),
-                                                srcOptions.c_str(), name.c_str());
-    SkAutoMutexAcquire lock(gRunningAndTallyMutex);
+static void start(const char* config, const char* src, const char* srcOptions, const char* name) {
+    SkString id = SkStringPrintf("%s %s %s %s", config, src, srcOptions, name);
+    SkAutoTAcquire<SkPODSpinlock> lock(gMutex);
     gRunning.push_back(id);
 }
+
+static void print_status() {
+    static SkMSec start_ms = SkTime::GetMSecs();
+
+    int curr = sk_tools::getCurrResidentSetSizeMB(),
+        peak = sk_tools::getMaxResidentSetSizeMB();
+    SkString elapsed = HumanizeMs(SkTime::GetMSecs() - start_ms);
+
+    SkAutoTAcquire<SkPODSpinlock> lock(gMutex);
+    SkDebugf("\n%s elapsed, %d active, %d queued, %dMB RAM, %dMB peak\n",
+             elapsed.c_str(), gRunning.count(), gPending - gRunning.count(), curr, peak);
+    for (auto& task : gRunning) {
+        SkDebugf("\t%s\n", task.c_str());
+    }
+}
+
+#if defined(SK_BUILD_FOR_WIN32)
+    static void setup_crash_handler() {
+        // TODO: custom crash handler like below to print out what was running
+        SetupCrashHandler();
+    }
+
+#else
+    #include <signal.h>
+    static void setup_crash_handler() {
+        const int kSignals[] = { SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV };
+        for (int sig : kSignals) {
+            signal(sig, [](int sig) {
+                SkDebugf("\nCaught signal %d [%s].\n", sig, strsignal(sig));
+                print_status();
+            });
+        }
+    }
+#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 struct Gold : public SkString {
     Gold() : SkString("") {}
-    Gold(ImplicitString sink, ImplicitString src, ImplicitString srcOptions,
-         ImplicitString name, ImplicitString md5)
+    Gold(const SkString& sink, const SkString& src,
+         const SkString& srcOptions, const SkString& name,
+         const SkString& md5)
         : SkString("") {
         this->append(sink);
         this->append(src);
@@ -189,14 +198,16 @@ static void gather_uninteresting_hashes() {
         for (const SkString& hash : hashes) {
             gUninterestingHashes.add(hash);
         }
+        SkDebugf("FYI: loaded %d distinct uninteresting hashes from %d lines\n",
+                 gUninterestingHashes.count(), hashes.count());
     }
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 struct TaggedSrc : public SkAutoTDelete<Src> {
-    ImplicitString tag;
-    ImplicitString options;
+    SkString tag;
+    SkString options;
 };
 
 struct TaggedSink : public SkAutoTDelete<Sink> {
@@ -213,10 +224,10 @@ static bool in_shard() {
     return N++ % FLAGS_shards == FLAGS_shard;
 }
 
-static void push_src(ImplicitString tag, ImplicitString options, Src* s) {
+static void push_src(const char* tag, ImplicitString options, Src* s) {
     SkAutoTDelete<Src> src(s);
     if (in_shard() &&
-        FLAGS_src.contains(tag.c_str()) &&
+        FLAGS_src.contains(tag) &&
         !SkCommandLineFlags::ShouldSkip(FLAGS_match, src->name().c_str())) {
         TaggedSrc& s = gSrcs.push_back();
         s.reset(src.detach());
@@ -226,7 +237,13 @@ static void push_src(ImplicitString tag, ImplicitString options, Src* s) {
 }
 
 static void push_codec_src(Path path, CodecSrc::Mode mode, CodecSrc::DstColorType dstColorType,
-        float scale) {
+        SkAlphaType dstAlphaType, float scale) {
+    if (FLAGS_simpleCodec) {
+        if (mode != CodecSrc::kCodec_Mode || dstColorType != CodecSrc::kGetFromCanvas_DstColorType
+                || scale != 1.0f)
+            // Only decode in the simple case.
+            return;
+    }
     SkString folder;
     switch (mode) {
         case CodecSrc::kCodec_Mode:
@@ -241,8 +258,14 @@ static void push_codec_src(Path path, CodecSrc::Mode mode, CodecSrc::DstColorTyp
         case CodecSrc::kStripe_Mode:
             folder.append("stripe");
             break;
+        case CodecSrc::kCroppedScanline_Mode:
+            folder.append("crop");
+            break;
         case CodecSrc::kSubset_Mode:
             folder.append("codec_subset");
+            break;
+        case CodecSrc::kGen_Mode:
+            folder.append("gen");
             break;
     }
 
@@ -257,16 +280,30 @@ static void push_codec_src(Path path, CodecSrc::Mode mode, CodecSrc::DstColorTyp
             break;
     }
 
+    switch (dstAlphaType) {
+        case kOpaque_SkAlphaType:
+            folder.append("_opaque");
+            break;
+        case kPremul_SkAlphaType:
+            folder.append("_premul");
+            break;
+        case kUnpremul_SkAlphaType:
+            folder.append("_unpremul");
+            break;
+        default:
+            break;
+    }
+
     if (1.0f != scale) {
         folder.appendf("_%.3f", scale);
     }
 
-    CodecSrc* src = new CodecSrc(path, mode, dstColorType, scale);
+    CodecSrc* src = new CodecSrc(path, mode, dstColorType, dstAlphaType, scale);
     push_src("image", folder, src);
 }
 
 static void push_android_codec_src(Path path, AndroidCodecSrc::Mode mode,
-        CodecSrc::DstColorType dstColorType, int sampleSize) {
+        CodecSrc::DstColorType dstColorType, SkAlphaType dstAlphaType, int sampleSize) {
     SkString folder;
     switch (mode) {
         case AndroidCodecSrc::kFullImage_Mode:
@@ -288,11 +325,25 @@ static void push_android_codec_src(Path path, AndroidCodecSrc::Mode mode,
             break;
     }
 
+    switch (dstAlphaType) {
+        case kOpaque_SkAlphaType:
+            folder.append("_opaque");
+            break;
+        case kPremul_SkAlphaType:
+            folder.append("_premul");
+            break;
+        case kUnpremul_SkAlphaType:
+            folder.append("_unpremul");
+            break;
+        default:
+            break;
+    }
+
     if (1 != sampleSize) {
         folder.appendf("_%.3f", 1.0f / (float) sampleSize);
     }
 
-    AndroidCodecSrc* src = new AndroidCodecSrc(path, mode, dstColorType, sampleSize);
+    AndroidCodecSrc* src = new AndroidCodecSrc(path, mode, dstColorType, dstAlphaType, sampleSize);
     push_src("image", folder, src);
 }
 
@@ -309,44 +360,85 @@ static void push_codec_srcs(Path path) {
     }
 
     // Native Scales
-    // TODO (msarett): Implement scaling tests for SkImageDecoder in order to compare with these
-    //                 tests.  SkImageDecoder supports downscales by integer factors.
     // SkJpegCodec natively supports scaling to: 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875
     const float nativeScales[] = { 0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.750f, 0.875f, 1.0f };
 
-    const CodecSrc::Mode nativeModes[] = { CodecSrc::kCodec_Mode, CodecSrc::kCodecZeroInit_Mode,
-            CodecSrc::kScanline_Mode, CodecSrc::kStripe_Mode, CodecSrc::kSubset_Mode };
-
-    CodecSrc::DstColorType colorTypes[3];
-    uint32_t numColorTypes;
-    switch (codec->getInfo().colorType()) {
-        case kGray_8_SkColorType:
-            // FIXME: Is this a long term solution for testing wbmps decodes to kIndex8?
-            // Further discussion on this topic is at https://bug.skia.org/3683 .
-            // This causes us to try to convert grayscale jpegs to kIndex8.  We currently
-            // fail non-fatally in this case.
-            colorTypes[0] = CodecSrc::kGetFromCanvas_DstColorType;
-            colorTypes[1] = CodecSrc::kGrayscale_Always_DstColorType;
-            colorTypes[2] = CodecSrc::kIndex8_Always_DstColorType;
-            numColorTypes = 3;
+    SkTArray<CodecSrc::Mode> nativeModes;
+    nativeModes.push_back(CodecSrc::kCodec_Mode);
+    nativeModes.push_back(CodecSrc::kCodecZeroInit_Mode);
+    nativeModes.push_back(CodecSrc::kGen_Mode);
+    switch (codec->getEncodedFormat()) {
+        case SkEncodedFormat::kJPEG_SkEncodedFormat:
+            nativeModes.push_back(CodecSrc::kScanline_Mode);
+            nativeModes.push_back(CodecSrc::kStripe_Mode);
+            nativeModes.push_back(CodecSrc::kCroppedScanline_Mode);
             break;
-        case kIndex_8_SkColorType:
-            colorTypes[0] = CodecSrc::kGetFromCanvas_DstColorType;
-            colorTypes[1] = CodecSrc::kIndex8_Always_DstColorType;
-            numColorTypes = 2;
+        case SkEncodedFormat::kWEBP_SkEncodedFormat:
+            nativeModes.push_back(CodecSrc::kSubset_Mode);
+            break;
+        case SkEncodedFormat::kRAW_SkEncodedFormat:
             break;
         default:
-            colorTypes[0] = CodecSrc::kGetFromCanvas_DstColorType;
-            numColorTypes = 1;
+            nativeModes.push_back(CodecSrc::kScanline_Mode);
+            nativeModes.push_back(CodecSrc::kStripe_Mode);
             break;
     }
 
-    for (float scale : nativeScales) {
-        for (CodecSrc::Mode mode : nativeModes) {
-            for (uint32_t i = 0; i < numColorTypes; i++) {
-                push_codec_src(path, mode, colorTypes[i], scale);
+    SkTArray<CodecSrc::DstColorType> colorTypes;
+    colorTypes.push_back(CodecSrc::kGetFromCanvas_DstColorType);
+    switch (codec->getInfo().colorType()) {
+        case kGray_8_SkColorType:
+            colorTypes.push_back(CodecSrc::kGrayscale_Always_DstColorType);
+            if (kWBMP_SkEncodedFormat == codec->getEncodedFormat()) {
+                colorTypes.push_back(CodecSrc::kIndex8_Always_DstColorType);
+            }
+            break;
+        case kIndex_8_SkColorType:
+            colorTypes.push_back(CodecSrc::kIndex8_Always_DstColorType);
+            break;
+        default:
+            break;
+    }
+
+    SkTArray<SkAlphaType> alphaModes;
+    alphaModes.push_back(kPremul_SkAlphaType);
+    alphaModes.push_back(kUnpremul_SkAlphaType);
+    if (codec->getInfo().alphaType() == kOpaque_SkAlphaType) {
+        alphaModes.push_back(kOpaque_SkAlphaType);
+    }
+
+    for (CodecSrc::Mode mode : nativeModes) {
+        // SkCodecImageGenerator only runs for the default colorType
+        // recommended by SkCodec.  There is no need to generate multiple
+        // tests for different colorTypes.
+        // TODO (msarett): Add scaling support to SkCodecImageGenerator.
+        if (CodecSrc::kGen_Mode == mode) {
+            // FIXME: The gpu backend does not draw kGray sources correctly. (skbug.com/4822)
+            if (kGray_8_SkColorType != codec->getInfo().colorType()) {
+                push_codec_src(path, mode, CodecSrc::kGetFromCanvas_DstColorType,
+                               codec->getInfo().alphaType(), 1.0f);
+            }
+            continue;
+        }
+
+        for (float scale : nativeScales) {
+            for (CodecSrc::DstColorType colorType : colorTypes) {
+                for (SkAlphaType alphaType : alphaModes) {
+                    // Only test kCroppedScanline_Mode when the alpha type is opaque.  The test is
+                    // slow and won't be interestingly different with different alpha types.
+                    if (CodecSrc::kCroppedScanline_Mode == mode &&
+                            kOpaque_SkAlphaType != alphaType) {
+                        continue;
+                    }
+
+                    push_codec_src(path, mode, colorType, alphaType, scale);
+                }
             }
         }
+    }
+
+    if (FLAGS_simpleCodec) {
+        return;
     }
 
     // https://bug.skia.org/4428
@@ -367,12 +459,14 @@ static void push_codec_srcs(Path path) {
     const int sampleSizes[] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
     for (int sampleSize : sampleSizes) {
-        for (uint32_t i = 0; i < numColorTypes; i++) {
-            push_android_codec_src(path, AndroidCodecSrc::kFullImage_Mode, colorTypes[i],
-                    sampleSize);
-            if (subset) {
-                push_android_codec_src(path, AndroidCodecSrc::kDivisor_Mode, colorTypes[i],
-                        sampleSize);
+        for (CodecSrc::DstColorType colorType : colorTypes) {
+            for (SkAlphaType alphaType : alphaModes) {
+                push_android_codec_src(path, AndroidCodecSrc::kFullImage_Mode, colorType,
+                        alphaType, sampleSize);
+                if (subset) {
+                    push_android_codec_src(path, AndroidCodecSrc::kDivisor_Mode, colorType,
+                            alphaType, sampleSize);
+                }
             }
         }
     }
@@ -503,7 +597,7 @@ static bool brd_supported(const char* ext) {
     return false;
 }
 
-static void gather_srcs() {
+static bool gather_srcs() {
     for (const skiagm::GMRegistry* r = skiagm::GMRegistry::Head(); r; r = r->next()) {
         push_src("gm", "", new GMSrc(r->factory()));
     }
@@ -518,31 +612,25 @@ static void gather_srcs() {
             push_src("skp", "", new SKPSrc(path));
         }
     }
-    static const char* const exts[] = {
-        "bmp", "gif", "jpg", "jpeg", "png", "webp", "ktx", "astc", "wbmp", "ico",
-        "BMP", "GIF", "JPG", "JPEG", "PNG", "WEBP", "KTX", "ASTC", "WBMP", "ICO",
-    };
-    for (int i = 0; i < FLAGS_images.count(); i++) {
-        const char* flag = FLAGS_images[i];
-        if (sk_isdir(flag)) {
-            for (size_t j = 0; j < SK_ARRAY_COUNT(exts); j++) {
-                SkOSFile::Iter it(flag, exts[j]);
-                for (SkString file; it.next(&file); ) {
-                    SkString path = SkOSPath::Join(flag, file.c_str());
-                    push_src("image", "decode", new ImageSrc(path)); // Decode entire image
-                    push_codec_srcs(path);
-                    if (brd_supported(exts[j])) {
-                        push_brd_srcs(path);
-                    }
-                }
-            }
-        } else if (sk_exists(flag)) {
-            // assume that FLAGS_images[i] is a valid image if it is a file.
-            push_src("image", "decode", new ImageSrc(flag)); // Decode entire image.
-            push_codec_srcs(flag);
-            push_brd_srcs(flag);
+
+    SkTArray<SkString> images;
+    if (!CollectImages(&images)) {
+        return false;
+    }
+
+    for (auto image : images) {
+        push_codec_srcs(image);
+        if (FLAGS_simpleCodec) {
+            continue;
+        }
+
+        const char* ext = strrchr(image.c_str(), '.');
+        if (ext && brd_supported(ext+1)) {
+            push_brd_srcs(image);
         }
     }
+
+    return true;
 }
 
 static void push_sink(const SkCommandLineConfig& config, Sink* s) {
@@ -634,6 +722,7 @@ static Sink* create_via(const SkString& tag, Sink* wrapped) {
     VIA("tiles_rt",  ViaTiles, 256, 256, new SkRTreeFactory, wrapped);
     VIA("remote",       ViaRemote, false, wrapped);
     VIA("remote_cache", ViaRemote, true,  wrapped);
+    VIA("mojo",      ViaMojo,             wrapped);
 
     if (FLAGS_matrix.count() == 4) {
         SkMatrix m;
@@ -764,19 +853,17 @@ static bool match(const char* needle, const char* haystack) {
     return 0 == strcmp("_", needle) || nullptr != strstr(haystack, needle);
 }
 
-static ImplicitString is_blacklisted(const char* sink, const char* src,
-                                     const char* srcOptions, const char* name) {
+static bool is_blacklisted(const char* sink, const char* src,
+                           const char* srcOptions, const char* name) {
     for (int i = 0; i < FLAGS_blacklist.count() - 3; i += 4) {
         if (match(FLAGS_blacklist[i+0], sink) &&
             match(FLAGS_blacklist[i+1], src) &&
             match(FLAGS_blacklist[i+2], srcOptions) &&
             match(FLAGS_blacklist[i+3], name)) {
-            return SkStringPrintf("%s %s %s %s",
-                                  FLAGS_blacklist[i+0], FLAGS_blacklist[i+1],
-                                  FLAGS_blacklist[i+2], FLAGS_blacklist[i+3]);
+            return true;
         }
     }
-    return "";
+    return false;
 }
 
 // Even when a Task Sink reports to be non-threadsafe (e.g. GPU), we know things like
@@ -790,45 +877,29 @@ struct Task {
     const TaggedSrc&  src;
     const TaggedSink& sink;
 
-    static void Run(Task* task) {
-        SkString name = task->src->name();
-
-        // We'll skip drawing this Src/Sink pair if:
-        //   - the Src vetoes the Sink;
-        //   - this Src / Sink combination is on the blacklist;
-        //   - it's a dry run.
-        SkString note(task->src->veto(task->sink->flags()) ? " (veto)" : "");
-        SkString whyBlacklisted = is_blacklisted(task->sink.tag.c_str(), task->src.tag.c_str(),
-                                                 task->src.options.c_str(), name.c_str());
-        if (!whyBlacklisted.isEmpty()) {
-            note.appendf(" (--blacklist %s)", whyBlacklisted.c_str());
-        }
+    static void Run(const Task& task) {
+        SkString name = task.src->name();
 
         SkString log;
-        auto timerStart = now_ms();
-        if (!FLAGS_dryRun && note.isEmpty()) {
+        if (!FLAGS_dryRun) {
             SkBitmap bitmap;
             SkDynamicMemoryWStream stream;
-            if (FLAGS_pre_log) {
-                SkDebugf("\nRunning %s->%s", name.c_str(), task->sink.tag.c_str());
-            }
-            start(task->sink.tag.c_str(), task->src.tag, task->src.options, name.c_str());
-            Error err = task->sink->draw(*task->src, &bitmap, &stream, &log);
+            start(task.sink.tag.c_str(), task.src.tag.c_str(),
+                  task.src.options.c_str(), name.c_str());
+            Error err = task.sink->draw(*task.src, &bitmap, &stream, &log);
             if (!err.isEmpty()) {
-                auto elapsed = now_ms() - timerStart;
                 if (err.isFatal()) {
                     fail(SkStringPrintf("%s %s %s %s: %s",
-                                        task->sink.tag.c_str(),
-                                        task->src.tag.c_str(),
-                                        task->src.options.c_str(),
+                                        task.sink.tag.c_str(),
+                                        task.src.tag.c_str(),
+                                        task.src.options.c_str(),
                                         name.c_str(),
                                         err.c_str()));
                 } else {
-                    note.appendf(" (skipped: %s)", err.c_str());
+                    done(task.sink.tag.c_str(), task.src.tag.c_str(),
+                         task.src.options.c_str(), name.c_str());
+                    return;
                 }
-                done(elapsed, task->sink.tag.c_str(), task->src.tag, task->src.options,
-                     name, note, log);
-                return;
             }
 
             // We're likely switching threads here, so we must capture by value, [=] or [foo,bar].
@@ -866,30 +937,29 @@ struct Task {
                 }
 
                 if (!FLAGS_readPath.isEmpty() &&
-                    !gGold.contains(Gold(task->sink.tag.c_str(), task->src.tag.c_str(),
-                                         task->src.options.c_str(), name, md5))) {
+                    !gGold.contains(Gold(task.sink.tag, task.src.tag,
+                                         task.src.options, name, md5))) {
                     fail(SkStringPrintf("%s not found for %s %s %s %s in %s",
                                         md5.c_str(),
-                                        task->sink.tag.c_str(),
-                                        task->src.tag.c_str(),
-                                        task->src.options.c_str(),
+                                        task.sink.tag.c_str(),
+                                        task.src.tag.c_str(),
+                                        task.src.options.c_str(),
                                         name.c_str(),
                                         FLAGS_readPath[0]));
                 }
 
                 if (!FLAGS_writePath.isEmpty()) {
-                    const char* ext = task->sink->fileExtension();
+                    const char* ext = task.sink->fileExtension();
                     if (data->getLength()) {
-                        WriteToDisk(*task, md5, ext, data, data->getLength(), nullptr);
+                        WriteToDisk(task, md5, ext, data, data->getLength(), nullptr);
                         SkASSERT(bitmap.drawsNothing());
                     } else if (!bitmap.drawsNothing()) {
-                        WriteToDisk(*task, md5, ext, nullptr, 0, &bitmap);
+                        WriteToDisk(task, md5, ext, nullptr, 0, &bitmap);
                     }
                 }
             });
         }
-        done(now_ms()-timerStart, task->sink.tag.c_str(), task->src.tag.c_str(), task->src.options.c_str(),
-             name, note, log);
+        done(task.sink.tag.c_str(), task.src.tag.c_str(), task.src.options.c_str(), name.c_str());
     }
 
     static void WriteToDisk(const Task& task,
@@ -899,7 +969,7 @@ struct Task {
                             const SkBitmap* bitmap) {
         JsonWriter::BitmapResult result;
         result.name          = task.src->name();
-        result.config        = task.sink.tag.c_str();
+        result.config        = task.sink.tag;
         result.sourceType    = task.src.tag;
         result.sourceOptions = task.src.options;
         result.ext           = ext;
@@ -959,19 +1029,11 @@ struct Task {
     }
 };
 
-// Run all tasks in the same enclave serially on the same thread.
-// They can't possibly run concurrently with each other.
-static void run_enclave(SkTArray<Task>* tasks) {
-    for (int i = 0; i < tasks->count(); i++) {
-        Task::Run(tasks->begin() + i);
-    }
-}
-
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 // Unit tests don't fit so well into the Src/Sink model, so we give them special treatment.
 
-static SkTDArray<skiatest::Test> gThreadedTests, gGPUTests;
+static SkTDArray<skiatest::Test> gParallelTests, gSerialTests;
 
 static void gather_tests() {
     if (!FLAGS_src.contains("tests")) {
@@ -988,14 +1050,14 @@ static void gather_tests() {
             continue;
         }
         if (test.needsGpu && gpu_supported()) {
-            (FLAGS_gpu_threading ? gThreadedTests : gGPUTests).push(test);
+            (FLAGS_gpu_threading ? gParallelTests : gSerialTests).push(test);
         } else if (!test.needsGpu && FLAGS_cpu) {
-            gThreadedTests.push(test);
+            gParallelTests.push(test);
         }
     }
 }
 
-static void run_test(skiatest::Test* test) {
+static void run_test(skiatest::Test test) {
     struct : public skiatest::Reporter {
         void reportFailed(const skiatest::Failure& failure) override {
             fail(failure.toString());
@@ -1007,59 +1069,31 @@ static void run_test(skiatest::Test* test) {
         bool verbose() const override { return FLAGS_veryVerbose; }
     } reporter;
 
-    SkString note;
-    SkString whyBlacklisted = is_blacklisted("_", "tests", "_", test->name);
-    if (!whyBlacklisted.isEmpty()) {
-        note.appendf(" (--blacklist %s)", whyBlacklisted.c_str());
-    }
-
-    auto timerStart = now_ms();
-    if (!FLAGS_dryRun && whyBlacklisted.isEmpty()) {
-        start("unit", "test", "", test->name);
+    if (!FLAGS_dryRun && !is_blacklisted("_", "tests", "_", test.name)) {
+        start("unit", "test", "", test.name);
         GrContextFactory factory;
-        if (FLAGS_pre_log) {
-            SkDebugf("\nRunning test %s", test->name);
-        }
-        test->proc(&reporter, &factory);
+        test.proc(&reporter, &factory);
     }
-    done(now_ms()-timerStart, "unit", "test", "", test->name, note, "");
+    done("unit", "test", "", test.name);
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-// If we're isolating all GPU-bound work to one thread (the default), this function runs all that.
-static void run_enclave_and_gpu_tests(SkTArray<Task>* tasks) {
-    run_enclave(tasks);
-    for (int i = 0; i < gGPUTests.count(); i++) {
-        run_test(&gGPUTests[i]);
-    }
-}
+DEFINE_int32(status_sec, 15, "Print status this often (and if we crash).");
 
-// Some runs (mostly, Valgrind) are so slow that the bot framework thinks we've hung.
-// This prints something every once in a while so that it knows we're still working.
-static void start_keepalive() {
-    struct Loop {
-        static void forever(void*) {
-            for (;;) {
-                static const int kSec = 300;
-            #if defined(SK_BUILD_FOR_WIN)
-                Sleep(kSec * 1000);
-            #else
-                sleep(kSec);
-            #endif
-                SkString running;
-                {
-                    SkAutoMutexAcquire lock(gRunningAndTallyMutex);
-                    for (int i = 0; i < gRunning.count(); i++) {
-                        running.appendf("\n\t%s", gRunning[i].c_str());
-                    }
-                }
-                SkDebugf("\nCurrently running:%s\n", running.c_str());
-            }
+SkThread* start_status_thread() {
+    auto thread = new SkThread([] (void*) {
+        for (;;) {
+            print_status();
+        #if defined(SK_BUILD_FOR_WIN)
+            Sleep(FLAGS_status_sec * 1000);
+        #else
+            sleep(FLAGS_status_sec);
+        #endif
         }
-    };
-    static SkThread* intentionallyLeaked = new SkThread(Loop::forever);
-    intentionallyLeaked->start();
+    });
+    thread->start();
+    return thread;
 }
 
 #define PORTABLE_FONT_PREFIX "Toy Liberation "
@@ -1078,66 +1112,73 @@ extern SkTypeface* (*gCreateTypefaceDelegate)(const char [], SkTypeface::Style )
 
 int dm_main();
 int dm_main() {
-    SetupCrashHandler();
+    setup_crash_handler();
+
+    JsonWriter::DumpJson();  // It's handy for the bots to assume this is ~never missing.
     SkAutoGraphics ag;
     SkTaskGroup::Enabler enabled(FLAGS_threads);
     gCreateTypefaceDelegate = &create_from_name;
 
-    start_keepalive();
-
+    {
+        SkString testResourcePath = GetResourcePath("color_wheel.png");
+        SkFILEStream testResource(testResourcePath.c_str());
+        if (!testResource.isValid()) {
+            SkDebugf("Some resources are missing.  Do you need to set --resourcePath?\n");
+        }
+    }
     gather_gold();
     gather_uninteresting_hashes();
 
-    gather_srcs();
+    if (!gather_srcs()) {
+        return 1;
+    }
     gather_sinks();
     gather_tests();
 
-    gPending = gSrcs.count() * gSinks.count() + gThreadedTests.count() + gGPUTests.count();
-    SkDebugf("%d srcs * %d sinks + %d tests == %d tasks\n",
-             gSrcs.count(), gSinks.count(), gThreadedTests.count() + gGPUTests.count(), gPending);
+    gPending = gSrcs.count() * gSinks.count() + gParallelTests.count() + gSerialTests.count();
+    SkDebugf("%d srcs * %d sinks + %d tests == %d tasks",
+             gSrcs.count(), gSinks.count(), gParallelTests.count() + gSerialTests.count(), gPending);
+    SkAutoTDelete<SkThread> statusThread(start_status_thread());
 
-    // We try to exploit as much parallelism as is safe.  Most Src/Sink pairs run on any thread,
-    // but Sinks that identify as part of a particular enclave run serially on a single thread.
-    // CPU tests run on any thread.  GPU tests depend on --gpu_threading.
-    SkTArray<Task> enclaves[kNumEnclaves];
-    for (int j = 0; j < gSinks.count(); j++) {
-        SkTArray<Task>& tasks = enclaves[gSinks[j]->enclave()];
-        for (int i = 0; i < gSrcs.count(); i++) {
-            tasks.push_back(Task(gSrcs[i], gSinks[j]));
+    // Kick off as much parallel work as we can, making note of any serial work we'll need to do.
+    SkTaskGroup parallel;
+    SkTArray<Task> serial;
+
+    for (auto& sink : gSinks)
+    for (auto&  src : gSrcs) {
+        if (src->veto(sink->flags()) ||
+            is_blacklisted(sink.tag.c_str(), src.tag.c_str(),
+                           src.options.c_str(), src->name().c_str())) {
+            SkAutoTAcquire<SkPODSpinlock> lock(gMutex);
+            gPending--;
+            continue;
+        }
+
+        Task task(src, sink);
+        if (src->serial() || sink->serial()) {
+            serial.push_back(task);
+        } else {
+            parallel.add([task] { Task::Run(task); });
         }
     }
-
-    SkTaskGroup tg;
-    tg.batch(gThreadedTests.count(), [](int i){ run_test(&gThreadedTests[i]); });
-    for (int i = 0; i < kNumEnclaves; i++) {
-        SkTArray<Task>* currentEnclave = &enclaves[i];
-        switch(i) {
-            case kAnyThread_Enclave:
-                tg.batch(currentEnclave->count(),
-                         [currentEnclave](int j) { Task::Run(&(*currentEnclave)[j]); });
-                break;
-            case kGPU_Enclave:
-                tg.add([currentEnclave](){ run_enclave_and_gpu_tests(currentEnclave); });
-                break;
-            default:
-                tg.add([currentEnclave](){ run_enclave(currentEnclave); });
-                break;
-        }
+    for (auto test : gParallelTests) {
+        parallel.add([test] { run_test(test); });
     }
-    tg.wait();
+
+    // With the parallel work running, run serial tasks and tests here on main thread.
+    for (auto task : serial) { Task::Run(task); }
+    for (auto test : gSerialTests) { run_test(test); }
+
+    // Wait for any remaining parallel work to complete (including any spun off of serial tasks).
+    parallel.wait();
     gDefinitelyThreadSafeWork.wait();
+
+    // We'd better have run everything.
+    SkASSERT(gPending == 0);
 
     // At this point we're back in single-threaded land.
     sk_tool_utils::release_portable_typefaces();
 
-    if (FLAGS_verbose && gNoteTally.count() > 0) {
-        SkDebugf("\nNote tally:\n");
-        gNoteTally.foreach([](const SkString& note, int* tally) {
-            SkDebugf("%dx\t%s\n", *tally, note.c_str());
-        });
-    }
-
-    SkDebugf("\n");
     if (gFailures.count() > 0) {
         SkDebugf("Failures:\n");
         for (int i = 0; i < gFailures.count(); i++) {
@@ -1146,13 +1187,13 @@ int dm_main() {
         SkDebugf("%d failures\n", gFailures.count());
         return 1;
     }
-    if (gPending > 0) {
-        SkDebugf("Hrm, we didn't seem to run everything we intended to!  Please file a bug.\n");
-        return 1;
-    }
-    #ifdef SK_PDF_IMAGE_STATS
+
+#ifdef SK_PDF_IMAGE_STATS
     SkPDFImageDumpStats();
-    #endif  // SK_PDF_IMAGE_STATS
+#endif  // SK_PDF_IMAGE_STATS
+
+    print_status();
+    SkDebugf("Finished!\n");
     return 0;
 }
 
@@ -1194,7 +1235,8 @@ void RunWithGPUTestContexts(T test, GPUTestContexts testContexts, Reporter* repo
         GrContextFactory::kANGLE_GL_GLContextType,
 #endif
 #if SK_COMMAND_BUFFER
-        GrContextFactory::kCommandBuffer_GLContextType,
+        GrContextFactory::kCommandBufferES2_GLContextType,
+        GrContextFactory::kCommandBufferES3_GLContextType,
 #endif
 #if SK_MESA
         GrContextFactory::kMESA_GLContextType,

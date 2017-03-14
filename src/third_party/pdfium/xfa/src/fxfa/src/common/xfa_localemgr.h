@@ -4,12 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_LOCALEMGR_H
-#define _FXFA_LOCALEMGR_H
+#ifndef XFA_SRC_FXFA_SRC_COMMON_XFA_LOCALEMGR_H_
+#define XFA_SRC_FXFA_SRC_COMMON_XFA_LOCALEMGR_H_
+
+#include "xfa/include/fxfa/fxfa_objectacc.h"
+#include "xfa/src/fgas/include/fx_datetime.h"
+#include "xfa/src/fgas/include/fx_locale.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+
 class CXFA_Node;
 class IFX_Locale;
-class IFX_LocaleMgr;
-class CXFA_LocaleMgr;
+
 #define XFA_LANGID_zh_CN 0x0804
 #define XFA_LANGID_zh_TW 0x0404
 #define XFA_LANGID_zh_HK 0x0c04
@@ -25,6 +30,7 @@ class CXFA_LocaleMgr;
 #define XFA_LANGID_pt_BR 0x0416
 #define XFA_LANGID_nl_NL 0x0413
 #define XFA_LANGID_ru_RU 0x0419
+
 class CXFA_LocaleMgr : public IFX_LocaleMgr {
  public:
   CXFA_LocaleMgr(CXFA_Node* pLocaleSet, CFX_WideString wsDeflcid);
@@ -45,6 +51,7 @@ class CXFA_LocaleMgr : public IFX_LocaleMgr {
   FX_WORD m_dwDeflcid;
   FX_WORD m_dwLocaleFlags;
 };
+
 class IXFA_TimeZoneProvider {
  public:
   static IXFA_TimeZoneProvider* Create();
@@ -67,4 +74,5 @@ class CXFA_TimeZoneProvider : public IXFA_TimeZoneProvider {
  private:
   FX_TIMEZONE m_tz;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_XFA_LOCALEMGR_H_

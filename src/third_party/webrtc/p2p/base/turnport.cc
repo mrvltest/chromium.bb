@@ -433,6 +433,7 @@ void TurnPort::OnAllocateMismatch() {
   }
   socket_ = NULL;
 
+  ResetNonce();
   PrepareAddress();
   ++allocate_mismatch_retries_;
 }
@@ -552,6 +553,12 @@ void TurnPort::OnReadPacket(
   // The message must be at least the size of a channel header.
   if (size < TURN_CHANNEL_HEADER_SIZE) {
     LOG_J(LS_WARNING, this) << "Received TURN message that was too short";
+    return;
+  }
+
+  if (state_ == STATE_DISCONNECTED) {
+    LOG_J(LS_WARNING, this)
+        << "Received TURN message while the Turn port is disconnected";
     return;
   }
 
@@ -925,6 +932,12 @@ bool TurnPort::UpdateNonce(StunMessage* response) {
   }
   set_nonce(nonce_attr->GetString());
   return true;
+}
+
+void TurnPort::ResetNonce() {
+  hash_.clear();
+  nonce_.clear();
+  realm_.clear();
 }
 
 static bool MatchesIP(TurnEntry* e, rtc::IPAddress ipaddr) {

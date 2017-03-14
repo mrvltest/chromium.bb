@@ -4,18 +4,22 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_FORM_IMP_H
-#define _FWL_FORM_IMP_H
+#ifndef XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_FORMIMP_H_
+#define XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_FORMIMP_H_
+
+#include "xfa/include/fwl/core/fwl_form.h"
+#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_NoteLoop;
-class CFWL_PanelImp;
 class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
 class CFWL_MsgMouse;
 class IFWL_Widget;
 class IFWL_ThemeProvider;
 class CFWL_SysBtn;
 class CFWL_FormImp;
 class CFWL_FormImpDelegate;
+
 #define FWL_SYSBUTTONSTATE_Hover 0x0001
 #define FWL_SYSBUTTONSTATE_Pressed 0x0002
 #define FWL_SYSBUTTONSTATE_Disabled 0x0010
@@ -185,4 +189,5 @@ class CFWL_FormImpDelegate : public CFWL_WidgetImpDelegate {
   void OnClose(CFWL_MsgClose* pMsg);
   CFWL_FormImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_FORMIMP_H_

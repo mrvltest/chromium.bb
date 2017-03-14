@@ -4,12 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_DETECTOR_H_
-#define _BC_DETECTOR_H_
+#ifndef XFA_SRC_FXBARCODE_PDF417_BC_PDF417DETECTOR_H_
+#define XFA_SRC_FXBARCODE_PDF417_BC_PDF417DETECTOR_H_
+
 class CBC_PDF417DetectorResult;
 class CBC_BinaryBitmap;
 class CBC_CommonBitMatrix;
 class CBC_CommonBitArray;
+
 class CBC_Detector {
  public:
   CBC_Detector();
@@ -63,4 +65,5 @@ class CBC_Detector {
                                       int32_t* pattern,
                                       int32_t maxIndividualVariance);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_PDF417_BC_PDF417DETECTOR_H_

@@ -334,7 +334,7 @@ void ContextMenuClientImpl::showContextMenu(const ContextMenu* defaultMenu, bool
     if (ds)
         data.securityInfo = ds->response().securityInfo();
 
-    data.referrerPolicy = static_cast<WebReferrerPolicy>(selectedFrame->document()->referrerPolicy());
+    data.referrerPolicy = static_cast<WebReferrerPolicy>(selectedFrame->document()->getReferrerPolicy());
 
     // Filter out custom menu elements and add them into the data.
     populateCustomMenuItems(defaultMenu, &data);
@@ -489,7 +489,7 @@ static bool fireBbContextMenuEvent(LocalFrame* frame, WebContextMenuData& data, 
     exposeString(isolate, detailObj, "srcURL", data.srcURL.string().utf8());
     exposeBool(isolate, detailObj, "fromContextMenuKey", fromContextMenuKey);
 
-    RefPtr<CustomEvent> event = CustomEvent::create();
+    RefPtrWillBeRawPtr<CustomEvent> event = CustomEvent::create();
     TrackExceptionState exceptionState;
     RefPtr<SerializedScriptValue> detailScriptValue = SerializedScriptValueFactory::instance().create(v8::Isolate::GetCurrent(), detailObj, 0, 0, 0, exceptionState);
     if (exceptionState.hadException()) {

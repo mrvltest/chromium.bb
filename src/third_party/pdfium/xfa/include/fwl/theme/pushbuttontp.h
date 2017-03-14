@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_PUSHBUTTONTP_H
-#define _FWL_PUSHBUTTONTP_H
-class CFWL_WidgetTP;
-class CFWL_PushButtonTP;
+#ifndef XFA_INCLUDE_FWL_THEME_PUSHBUTTONTP_H_
+#define XFA_INCLUDE_FWL_THEME_PUSHBUTTONTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_PushButtonTP : public CFWL_WidgetTP {
  public:
   CFWL_PushButtonTP();
@@ -39,4 +40,5 @@ class CFWL_PushButtonTP : public CFWL_WidgetTP {
     FX_ARGB clrFill[5];
   } * m_pThemeData;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_PUSHBUTTONTP_H_

@@ -80,24 +80,29 @@ int vp9_mv_bit_cost(const MV *mv, const MV *ref,
   return ROUND_POWER_OF_TWO(mv_cost(&diff, mvjcost, mvcost) * weight, 7);
 }
 
-static int mv_err_cost(const MV *mv, const MV *ref,
-                       const int *mvjcost, int *mvcost[2],
-                       int error_per_bit) {
+#define PIXEL_TRANSFORM_ERROR_SCALE 4
+static int mv_err_cost(const MV *mv, const MV *ref, const int *mvjcost,
+                       int *mvcost[2], int error_per_bit) {
   if (mvcost) {
-    const MV diff = { mv->row - ref->row,
-                      mv->col - ref->col };
-    return ROUND_POWER_OF_TWO(mv_cost(&diff, mvjcost, mvcost) *
-                                  error_per_bit, 13);
+    const MV diff = {mv->row - ref->row, mv->col - ref->col};
+    // This product sits at a 32-bit ceiling right now and any additional
+    // accuracy in either bit cost or error cost will cause it to overflow.
+    return ROUND_POWER_OF_TWO(
+        (unsigned)mv_cost(&diff, mvjcost, mvcost) * error_per_bit,
+        RDDIV_BITS + VP9_PROB_COST_SHIFT - RD_EPB_SHIFT +
+            PIXEL_TRANSFORM_ERROR_SCALE);
   }
   return 0;
 }
 
 static int mvsad_err_cost(const MACROBLOCK *x, const MV *mv, const MV *ref,
-                          int error_per_bit) {
+                          int sad_per_bit) {
   const MV diff = { mv->row - ref->row,
                     mv->col - ref->col };
-  return ROUND_POWER_OF_TWO(mv_cost(&diff, x->nmvjointsadcost,
-                                    x->nmvsadcost) * error_per_bit, 8);
+  return ROUND_POWER_OF_TWO(
+      (unsigned)mv_cost(&diff, x->nmvjointsadcost, x->nmvsadcost) *
+          sad_per_bit,
+      VP9_PROB_COST_SHIFT);
 }
 
 void vp9_init_dsmotion_compensation(search_site_config *cfg, int stride) {
@@ -149,12 +154,13 @@ void vp9_init3smotion_compensation(search_site_config *cfg, int stride) {
  * could reduce the area.
  */
 
-/* estimated cost of a motion vector (r,c) */
-#define MVC(r, c)                                       \
-    (mvcost ?                                           \
-     ((mvjcost[((r) != rr) * 2 + ((c) != rc)] +         \
-       mvcost[0][((r) - rr)] + mvcost[1][((c) - rc)]) * \
-      error_per_bit + 4096) >> 13 : 0)
+/* Estimated (square) error cost of a motion vector (r,c). The 14 scale comes
+ * from the same math as in mv_err_cost(). */
+#define MVC(r, c)                                              \
+    (mvcost ?                                                  \
+     ((unsigned)(mvjcost[((r) != rr) * 2 + ((c) != rc)] +      \
+       mvcost[0][((r) - rr)] + mvcost[1][((c) - rc)]) *        \
+      error_per_bit + 8192) >> 14 : 0)
 
 
 // convert motion vector component to offset for sv[a]f calc
@@ -439,7 +445,7 @@ int vp9_find_best_sub_pixel_tree_pruned_evenmore(
   tr = br;
   tc = bc;
 
-  if (allow_hp && vp9_use_mv_hp(ref_mv) && forced_stop == 0) {
+  if (allow_hp && use_mv_hp(ref_mv) && forced_stop == 0) {
     hstep >>= 1;
     FIRST_LEVEL_CHECKS;
     if (eighthiters > 1) {
@@ -507,7 +513,7 @@ int vp9_find_best_sub_pixel_tree_pruned_more(const MACROBLOCK *x,
     }
   }
 
-  if (allow_hp && vp9_use_mv_hp(ref_mv) && forced_stop == 0) {
+  if (allow_hp && use_mv_hp(ref_mv) && forced_stop == 0) {
     tr = br;
     tc = bc;
     hstep >>= 1;
@@ -602,7 +608,7 @@ int vp9_find_best_sub_pixel_tree_pruned(const MACROBLOCK *x,
     tc = bc;
   }
 
-  if (allow_hp && vp9_use_mv_hp(ref_mv) && forced_stop == 0) {
+  if (allow_hp && use_mv_hp(ref_mv) && forced_stop == 0) {
     hstep >>= 1;
     FIRST_LEVEL_CHECKS;
     if (eighthiters > 1) {
@@ -674,7 +680,7 @@ int vp9_find_best_sub_pixel_tree(const MACROBLOCK *x,
   unsigned int cost_array[5];
   int kr, kc;
 
-  if (!(allow_hp && vp9_use_mv_hp(ref_mv)))
+  if (!(allow_hp && use_mv_hp(ref_mv)))
     if (round == 3)
       round = 2;
 
@@ -846,9 +852,9 @@ static INLINE void calc_int_cost_list(const MACROBLOCK *x,
       cost_list[i + 1] = fn_ptr->vf(what->buf, what->stride,
                                     get_buf_from_mv(in_what, &this_mv),
                                     in_what->stride, &sse) +
-          // mvsad_err_cost(x, &this_mv, &fcenter_mv, sadpb);
-          mv_err_cost(&this_mv, &fcenter_mv, x->nmvjointcost, x->mvcost,
-                      x->errorperbit);
+                                    mv_err_cost(&this_mv, &fcenter_mv,
+                                                x->nmvjointcost, x->mvcost,
+                                                x->errorperbit);
     }
   } else {
     for (i = 0; i < 4; i++) {
@@ -860,9 +866,9 @@ static INLINE void calc_int_cost_list(const MACROBLOCK *x,
         cost_list[i + 1] = fn_ptr->vf(what->buf, what->stride,
                                       get_buf_from_mv(in_what, &this_mv),
                                       in_what->stride, &sse) +
-            // mvsad_err_cost(x, &this_mv, &fcenter_mv, sadpb);
-            mv_err_cost(&this_mv, &fcenter_mv, x->nmvjointcost, x->mvcost,
-                        x->errorperbit);
+                                      mv_err_cost(&this_mv, &fcenter_mv,
+                                                  x->nmvjointcost, x->mvcost,
+                                                  x->errorperbit);
     }
   }
 }
@@ -1825,7 +1831,7 @@ unsigned int vp9_int_pro_motion_estimation(const VP9_COMP *cpi, MACROBLOCK *x,
                                            BLOCK_SIZE bsize,
                                            int mi_row, int mi_col) {
   MACROBLOCKD *xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = &xd->mi[0]->mbmi;
+  MODE_INFO *mi = xd->mi[0];
   struct buf_2d backup_yv12[MAX_MB_PLANE] = {{0, 0}};
   DECLARE_ALIGNED(16, int16_t, hbuf[128]);
   DECLARE_ALIGNED(16, int16_t, vbuf[128]);
@@ -1839,12 +1845,12 @@ unsigned int vp9_int_pro_motion_estimation(const VP9_COMP *cpi, MACROBLOCK *x,
   const int src_stride = x->plane[0].src.stride;
   const int ref_stride = xd->plane[0].pre[0].stride;
   uint8_t const *ref_buf, *src_buf;
-  MV *tmp_mv = &xd->mi[0]->mbmi.mv[0].as_mv;
+  MV *tmp_mv = &xd->mi[0]->mv[0].as_mv;
   unsigned int best_sad, tmp_sad, this_sad[4];
   MV this_mv;
   const int norm_factor = 3 + (bw >> 5);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
-      vp9_get_scaled_ref_frame(cpi, mbmi->ref_frame[0]);
+      vp9_get_scaled_ref_frame(cpi, mi->ref_frame[0]);
 
   if (scaled_ref_frame) {
     int i;

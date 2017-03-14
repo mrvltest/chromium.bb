@@ -20,13 +20,12 @@
  * limitations under the License.
  */
 
-#include "BC_OneDimWriter.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDimWriter.h"
 
 #include <algorithm>
 #include <memory>
 
 #include "xfa/src/fxbarcode/BC_Writer.h"
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
 
 CBC_OneDimWriter::CBC_OneDimWriter() {
@@ -36,7 +35,6 @@ CBC_OneDimWriter::CBC_OneDimWriter() {
   m_bCalcChecksum = FALSE;
   m_pFont = NULL;
   m_fFontSize = 10;
-  ;
   m_iFontStyle = 0;
   m_fontColor = 0xff000000;
   m_iContentLen = 0;
@@ -45,10 +43,7 @@ CBC_OneDimWriter::CBC_OneDimWriter() {
   m_output = NULL;
 }
 CBC_OneDimWriter::~CBC_OneDimWriter() {
-  if (m_output != NULL) {
-    delete m_output;
-    m_output = NULL;
-  }
+  delete m_output;
 }
 void CBC_OneDimWriter::SetPrintChecksum(FX_BOOL checksum) {
   m_bPrintChecksum = checksum;
@@ -198,7 +193,7 @@ void CBC_OneDimWriter::ShowDeviceChars(CFX_RenderDevice* device,
   device->FillRect(&re, m_backgroundColor);
   CFX_Matrix affine_matrix(1.0, 0.0, 0.0, -1.0, (FX_FLOAT)locX,
                            (FX_FLOAT)(locY + iFontSize));
-  if (matrix != NULL) {
+  if (matrix) {
     affine_matrix.Concat(*matrix);
   }
   device->DrawNormalText(str.GetLength(), pCharPos, m_pFont,
@@ -286,7 +281,7 @@ void CBC_OneDimWriter::ShowChars(const CFX_WideStringC& contents,
       geWidth = (FX_FLOAT)barWidth;
       break;
   }
-  if (device != NULL) {
+  if (device) {
     ShowDeviceChars(device, matrix, str, geWidth, pCharPos, (FX_FLOAT)locX,
                     (FX_FLOAT)locY, barWidth);
   } else {

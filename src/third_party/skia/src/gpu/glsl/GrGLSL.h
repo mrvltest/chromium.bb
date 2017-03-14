@@ -37,9 +37,17 @@ enum GrGLSLGeneration {
      */
     k330_GrGLSLGeneration,
     /**
+     * Desktop GLSL 4.00
+     */
+    k400_GrGLSLGeneration,
+    /**
      * ES GLSL 3.10 only TODO Make GLSLCap objects to make this more granular
      */
     k310es_GrGLSLGeneration,
+    /**
+     * ES GLSL 3.20
+     */
+    k320es_GrGLSLGeneration,
 };
 
 bool GrGLSLSupportsNamedFragmentShaderOutputs(GrGLSLGeneration);
@@ -100,6 +108,12 @@ static inline const char* GrGLSLTypeString(GrSLType t) {
             return "samplerExternalOES";
         case kSampler2DRect_GrSLType:
             return "sampler2DRect";
+        case kBool_GrSLType:
+            return "bool";
+        case kInt_GrSLType:
+            return "int";
+        case kUint_GrSLType:
+            return "uint";
         default:
             SkFAIL("Unknown shader var type.");
             return ""; // suppress warning

@@ -152,10 +152,8 @@ const GrFragmentProcessor* GrFragmentProcessor::MulOutputByInputUnpremulColor(
         GrGLSLFragmentProcessor* onCreateGLSLInstance() const override {
             class GLFP : public GrGLSLFragmentProcessor {
             public:
-                GLFP() {}
-
                 void emitCode(EmitArgs& args) override {
-                    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+                    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
                     this->emitChild(0, nullptr, args);
                     fragBuilder->codeAppendf("%s.rgb *= %s.rgb;", args.fOutputColor,
                                                                 args.fInputColor);
@@ -228,10 +226,10 @@ const GrFragmentProcessor* GrFragmentProcessor::OverrideInput(const GrFragmentPr
                 GLFP() : fHaveSetColor(false) {}
                 void emitCode(EmitArgs& args) override {
                     const char* colorName;
-                    fColorUni = args.fUniformHandler->addUniform(
-                                                         GrGLSLUniformHandler::kFragment_Visibility,
-                                                         kVec4f_GrSLType, kDefault_GrSLPrecision,
-                                                         "Color", &colorName);
+                    fColorUni = args.fUniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                                 kVec4f_GrSLType,
+                                                                 kDefault_GrSLPrecision,
+                                                                 "Color", &colorName);
                     this->emitChild(0, colorName, args);
                 }
 
@@ -304,7 +302,6 @@ const GrFragmentProcessor* GrFragmentProcessor::RunInSeries(const GrFragmentProc
         GrGLSLFragmentProcessor* onCreateGLSLInstance() const override {
             class GLFP : public GrGLSLFragmentProcessor {
             public:
-                GLFP() {}
                 void emitCode(EmitArgs& args) override {
                     SkString input(args.fInputColor);
                     for (int i = 0; i < this->numChildProcessors() - 1; ++i) {

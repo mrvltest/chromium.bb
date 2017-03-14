@@ -4,8 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _XFA_UTILS_H_
-#define _XFA_UTILS_H_
+#ifndef XFA_SRC_FXFA_SRC_COMMON_XFA_UTILS_H_
+#define XFA_SRC_FXFA_SRC_COMMON_XFA_UTILS_H_
+
+#include "xfa/include/fxfa/fxfa_basic.h"
+
+class CXFA_LocaleValue;
+
 FX_BOOL XFA_FDEExtension_ResolveNamespaceQualifier(
     IFDE_XMLElement* pNode,
     const CFX_WideStringC& wsQualifier,
@@ -103,7 +108,7 @@ class CXFA_NodeIteratorTemplate {
     NodeType** ppNode = NULL;
     NodeType* pCurrent = GetCurrent();
     while (m_NodeStack.GetSize() > 0) {
-      while ((ppNode = m_NodeStack.GetTopElement()) != NULL) {
+      while ((ppNode = m_NodeStack.GetTopElement())) {
         if (pCurrent != *ppNode) {
           return *ppNode;
         }
@@ -113,7 +118,7 @@ class CXFA_NodeIteratorTemplate {
         }
         m_NodeStack.Push(pChild);
       }
-      while ((ppNode = m_NodeStack.GetTopElement()) != NULL) {
+      while ((ppNode = m_NodeStack.GetTopElement())) {
         NodeType* pNext = TraverseStrategy::GetNextSibling(*ppNode);
         m_NodeStack.Pop();
         if (m_NodeStack.GetSize() == 0) {
@@ -129,7 +134,7 @@ class CXFA_NodeIteratorTemplate {
   }
   NodeType* SkipChildrenAndMoveToNext() {
     NodeType** ppNode = NULL;
-    while ((ppNode = m_NodeStack.GetTopElement()) != NULL) {
+    while ((ppNode = m_NodeStack.GetTopElement())) {
       NodeType* pNext = TraverseStrategy::GetNextSibling(*ppNode);
       m_NodeStack.Pop();
       if (m_NodeStack.GetSize() == 0) {
@@ -184,7 +189,7 @@ class CXFA_PtrSetTemplate : private CFX_MapPtrToPtr {
 };
 class CXFA_Node;
 class CXFA_WidgetData;
-#include "fxfa_localevalue.h"
+
 CXFA_Node* XFA_CreateUIChild(CXFA_Node* pNode, XFA_ELEMENT& eWidgetType);
 CXFA_LocaleValue XFA_GetLocaleValue(CXFA_WidgetData* pWidgetData);
 CFX_WideString XFA_NumericLimit(const CFX_WideString& wsValue,
@@ -211,4 +216,5 @@ void XFA_DataExporter_RegenerateFormFile(CXFA_Node* pNode,
                                          IFX_Stream* pStream,
                                          const FX_CHAR* pChecksum = NULL,
                                          FX_BOOL bSaveXML = FALSE);
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_XFA_UTILS_H_

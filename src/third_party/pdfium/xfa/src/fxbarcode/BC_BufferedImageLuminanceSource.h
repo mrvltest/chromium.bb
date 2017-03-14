@@ -4,10 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_BUFFEREDIMAGELUMINANCESOURCE_H_
-#define _BC_BUFFEREDIMAGELUMINANCESOURCE_H_
-class CBC_LuminanceSource;
-class CBC_BufferedImageLuminanceSource;
+#ifndef XFA_SRC_FXBARCODE_BC_BUFFEREDIMAGELUMINANCESOURCE_H_
+#define XFA_SRC_FXBARCODE_BC_BUFFEREDIMAGELUMINANCESOURCE_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "core/include/fxcrt/fx_string.h"
+#include "core/include/fxge/fx_dib.h"
+#include "xfa/src/fxbarcode/BC_LuminanceSource.h"
+
 class CBC_BufferedImageLuminanceSource : public CBC_LuminanceSource {
  public:
   explicit CBC_BufferedImageLuminanceSource(const CFX_WideString& filename);
@@ -26,4 +30,5 @@ class CBC_BufferedImageLuminanceSource : public CBC_LuminanceSource {
   CFX_DIBitmap* m_pBitmap;
   const CFX_WideString m_filename;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_BUFFEREDIMAGELUMINANCESOURCE_H_

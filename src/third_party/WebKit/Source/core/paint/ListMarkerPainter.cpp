@@ -54,9 +54,6 @@ void ListMarkerPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& pai
 
     LayoutPoint boxOrigin(paintOffset + m_layoutListMarker.location());
     LayoutRect overflowRect(m_layoutListMarker.visualOverflowRect());
-    if (!RuntimeEnabledFeatures::selectionPaintingWithoutSelectionGapsEnabled()
-        && m_layoutListMarker.selectionState() != SelectionNone)
-        overflowRect.unite(m_layoutListMarker.localSelectionRect());
     overflowRect.moveBy(boxOrigin);
 
     IntRect pixelSnappedOverflowRect = pixelSnappedIntRect(overflowRect);
@@ -76,13 +73,6 @@ void ListMarkerPainter::paint(const PaintInfo& paintInfo, const LayoutPoint& pai
         context.drawImage(m_layoutListMarker.image()->image(
             &m_layoutListMarker, marker.size(), m_layoutListMarker.styleRef().effectiveZoom()).get(), marker);
         return;
-    }
-
-    if (!RuntimeEnabledFeatures::selectionPaintingWithoutSelectionGapsEnabled()
-        && m_layoutListMarker.selectionState() != SelectionNone) {
-        LayoutRect selRect = m_layoutListMarker.localSelectionRect();
-        selRect.moveBy(boxOrigin);
-        context.fillRect(pixelSnappedIntRect(selRect), m_layoutListMarker.listItem()->selectionBackgroundColor());
     }
 
     LayoutListMarker::ListStyleCategory styleCategory = m_layoutListMarker.listStyleCategory();

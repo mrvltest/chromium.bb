@@ -20,10 +20,12 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
+#include "core/include/fxcrt/fx_basic.h"
+#include "xfa/src/fxbarcode/common/BC_CommonDecoderResult.h"
 #include "xfa/src/fxbarcode/pdf417/BC_PDF417ResultMetadata.h"
-#include "BC_CommonDecoderResult.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_CommonDecoderResult::CBC_CommonDecoderResult() {}
 void CBC_CommonDecoderResult::Init(const CFX_ByteArray& rawBytes,
                                    const CFX_ByteString& text,
@@ -59,9 +61,7 @@ void CBC_CommonDecoderResult::setOther(CBC_PDF417ResultMetadata* other) {
   m_other = other;
 }
 CBC_CommonDecoderResult::~CBC_CommonDecoderResult() {
-  if (m_other != NULL) {
-    delete m_other;
-  }
+  delete m_other;
 }
 const CFX_ByteArray& CBC_CommonDecoderResult::GetRawBytes() {
   return m_rawBytes;
