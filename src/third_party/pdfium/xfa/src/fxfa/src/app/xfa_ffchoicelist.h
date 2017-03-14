@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_FORMFILLER_CHOICELIST_IMP_H
-#define _FXFA_FORMFILLER_CHOICELIST_IMP_H
+#ifndef XFA_SRC_FXFA_SRC_APP_XFA_FFCHOICELIST_H_
+#define XFA_SRC_FXFA_SRC_APP_XFA_FFCHOICELIST_H_
+
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+
 class CXFA_FFListBox : public CXFA_FFField {
  public:
   CXFA_FFListBox(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc);
@@ -77,7 +81,6 @@ class CXFA_FFComboBox : public CXFA_FFField {
                        FX_BOOL bLButtonUp);
   void OnPreOpen(IFWL_Widget* pWidget);
   void OnPostOpen(IFWL_Widget* pWidget);
-  void OnAddDoRecord(IFWL_Widget* pWidget);
   void SetItemState(int32_t nIndex, FX_BOOL bSelected);
   void InsertItem(const CFX_WideStringC& wsLabel, int32_t nIndex = -1);
   void DeleteItem(int32_t nIndex);
@@ -89,4 +92,5 @@ class CXFA_FFComboBox : public CXFA_FFField {
  protected:
   IFWL_WidgetDelegate* m_pOldDelegate;
 };
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_APP_XFA_FFCHOICELIST_H_

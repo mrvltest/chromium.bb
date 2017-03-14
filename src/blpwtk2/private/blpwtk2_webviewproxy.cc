@@ -292,16 +292,6 @@ static inline SkScalar distance(SkScalar x, SkScalar y)
     return sqrt(x*x + y*y);
 }
 
-String WebViewProxy::getLayoutTreeAsText(int flags) const
-{
-    DCHECK(Statics::isRendererMainThreadMode());
-    DCHECK(d_isMainFrameAccessible)
-        << "You should wait for didFinishLoad";
-    DCHECK(d_gotRenderViewInfo);
-
-    return RendererUtil::getLayoutTreeAsText(d_renderViewRoutingId, flags);
-}
-
 int WebViewProxy::getRoutingId() const
 {
     return d_routingId;
@@ -320,7 +310,8 @@ void WebViewProxy::setBackgroundColor(NativeColor color)
     Send(new BlpWebViewHostMsg_SetBackgroundColor(d_routingId, color));
 
     content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-    rv->GetWebView()->setBaseBackgroundColor(
+    blink::WebFrameWidget* frameWidget = rv->GetWebFrameWidget();
+    frameWidget->setBaseBackgroundColor(
         SkColorSetARGB(
             GetAValue(color),
             GetRValue(color),

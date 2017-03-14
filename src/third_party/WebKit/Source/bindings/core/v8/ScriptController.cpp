@@ -34,7 +34,7 @@
 
 #include "bindings/core/v8/BindingSecurity.h"
 #include "bindings/core/v8/NPV8Object.h"
-#include "bindings/core/v8/ScriptCallStackFactory.h"
+#include "bindings/core/v8/ScriptCallStack.h"
 #include "bindings/core/v8/ScriptSourceCode.h"
 #include "bindings/core/v8/ScriptValue.h"
 #include "bindings/core/v8/V8Binding.h"
@@ -61,17 +61,18 @@
 #include "core/inspector/ConsoleMessage.h"
 #include "core/inspector/InspectorInstrumentation.h"
 #include "core/inspector/InspectorTraceEvents.h"
-#include "core/inspector/ScriptCallStack.h"
 #include "core/loader/DocumentLoader.h"
 #include "core/loader/FrameLoader.h"
 #include "core/loader/FrameLoaderClient.h"
 #include "core/loader/NavigationScheduler.h"
 #include "core/loader/ProgressTracker.h"
 #include "core/plugins/PluginView.h"
+#include "platform/Histogram.h"
 #include "platform/NotImplemented.h"
 #include "platform/TraceEvent.h"
 #include "platform/UserGestureIndicator.h"
 #include "platform/Widget.h"
+#include "platform/v8_inspector/public/V8StackTrace.h"
 #include "platform/weborigin/SecurityOrigin.h"
 #include "public/platform/Platform.h"
 #include "wtf/CurrentTime.h"
@@ -86,11 +87,10 @@ namespace blink {
 static bool s_enabledStackCaptureInConstructor = false;
 bool ScriptController::s_stackCaptureControlledByInspector = true;
 
-bool ScriptController::canAccessFromCurrentOrigin(LocalFrame *frame)
+bool ScriptController::canAccessFromCurrentOrigin(v8::Isolate* isolate, Frame* frame)
 {
     if (!frame)
         return false;
-    v8::Isolate* isolate = toIsolate(frame);
     return !isolate->InContext() || BindingSecurity::shouldAllowAccessToFrame(isolate, callingDOMWindow(isolate), frame, ReportSecurityError);
 }
 
@@ -143,7 +143,9 @@ void ScriptController::clearForClose()
 {
     double start = currentTime();
     m_windowProxyManager->clearForClose();
-    Platform::current()->histogramCustomCounts("WebCore.ScriptController.clearForClose", (currentTime() - start) * 1000, 0, 10000, 50);
+    double end = currentTime();
+    DEFINE_STATIC_LOCAL(CustomCountHistogram, clearForCloseHistogram, ("WebCore.ScriptController.clearForClose", 0, 10000, 50));
+    clearForCloseHistogram.count((end - start) * 1000);
 }
 
 void ScriptController::updateSecurityOrigin(SecurityOrigin* origin)
@@ -419,13 +421,15 @@ void ScriptController::clearWindowProxy()
     clearScriptObjects();
 
     m_windowProxyManager->clearForNavigation();
-    Platform::current()->histogramCustomCounts("WebCore.ScriptController.clearWindowProxy", (currentTime() - start) * 1000, 0, 10000, 50);
+    double end = currentTime();
+    DEFINE_STATIC_LOCAL(CustomCountHistogram, clearWindowProxyHistogram, ("WebCore.ScriptController.clearWindowProxy", 0, 10000, 50));
+    clearWindowProxyHistogram.count((end - start) * 1000);
 }
 
 // SHEZ: Renamed this function to prevent new upstream code from calling this.
 void ScriptController::setCaptureCallStackForUncaughtExceptions_bb(v8::Isolate* isolate, bool value)
 {
-    isolate->SetCaptureStackTraceForUncaughtExceptions(value, ScriptCallStack::maxCallStackSizeToCapture, stackTraceOptions);
+    isolate->SetCaptureStackTraceForUncaughtExceptions(value, V8StackTrace::maxCallStackSizeToCapture, stackTraceOptions);
 }
 
 void ScriptController::collectIsolatedContexts(Vector<std::pair<ScriptState*, SecurityOrigin*>>& result)

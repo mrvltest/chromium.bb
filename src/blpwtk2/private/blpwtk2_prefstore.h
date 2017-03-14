@@ -25,9 +25,9 @@
 
 #include <blpwtk2_config.h>
 
-#include <base/prefs/persistent_pref_store.h>
-#include <base/prefs/pref_value_map.h>
 #include <base/observer_list.h>
+#include <components/prefs/persistent_pref_store.h>
+#include <components/prefs/pref_value_map.h>
 
 namespace blpwtk2 {
 
@@ -60,6 +60,7 @@ class PrefStore : public PersistentPrefStore {
     void ReadPrefsAsync(ReadErrorDelegate* delegate) override;
     void CommitPendingWrite() override;
     void SchedulePendingLossyWrites() override;
+    void ClearMutableValues() override;
     void ReportValueChanged(const std::string& key, uint32_t flags) override;
 
 private:

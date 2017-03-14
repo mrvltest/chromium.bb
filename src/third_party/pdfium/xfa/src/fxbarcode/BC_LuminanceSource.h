@@ -4,9 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_LUMINANCESOURCE_H
-#define _BC_LUMINANCESOURCE_H
-class CBC_LuminanceSource;
+#ifndef XFA_SRC_FXBARCODE_BC_LUMINANCESOURCE_H_
+#define XFA_SRC_FXBARCODE_BC_LUMINANCESOURCE_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_LuminanceSource {
  public:
   CBC_LuminanceSource(int32_t width, int32_t height);
@@ -21,4 +23,5 @@ class CBC_LuminanceSource {
   int32_t m_width;
   int32_t m_height;
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_LUMINANCESOURCE_H_

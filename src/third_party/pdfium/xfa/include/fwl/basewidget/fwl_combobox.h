@@ -4,13 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_COMBOBOX_H
-#define _FWL_COMBOBOX_H
+#ifndef XFA_INCLUDE_FWL_BASEWIDGET_FWL_COMBOBOX_H_
+#define XFA_INCLUDE_FWL_BASEWIDGET_FWL_COMBOBOX_H_
+
+#include "xfa/include/fwl/basewidget/fwl_listbox.h"
+
 class CFWL_WidgetImpProperties;
-class IFWL_Widget;
-class IFWL_ListBox;
 class IFWL_ComboBoxDP;
 class IFWL_ComboBox;
+
 #define FWL_CLASS_ComboBox L"FWL_COMBOBOX"
 #define FWL_CLASSHASH_ComboBox 602353697
 #define FWL_STYLEEXT_CMB_DropList (0L << 0)
@@ -136,4 +138,5 @@ class IFWL_ComboBox : public IFWL_Widget {
  protected:
   IFWL_ComboBox();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_BASEWIDGET_FWL_COMBOBOX_H_

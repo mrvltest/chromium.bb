@@ -13,6 +13,7 @@
 #include "base/debug/alias.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/debug/stack_trace.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/memory/shared_memory.h"
 #include "base/message_loop/message_loop.h"
@@ -34,11 +35,11 @@
 #include "content/public/child/request_peer.h"
 #include "content/public/child/resource_dispatcher_delegate.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/resource_response.h"
 #include "content/public/common/resource_type.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_response_headers.h"
 
@@ -158,11 +159,11 @@ void ResourceDispatcher::OnReceivedResponse(
   request_info->response_start = ConsumeIOTimestamp();
 
   if (delegate_) {
-    RequestPeer* new_peer =
-        delegate_->OnReceivedResponse(
-            request_info->peer, response_head.mime_type, request_info->url);
-    if (new_peer)
-      request_info->peer = new_peer;
+    scoped_ptr<RequestPeer> new_peer = delegate_->OnReceivedResponse(
+        std::move(request_info->peer), response_head.mime_type,
+        request_info->url);
+    DCHECK(new_peer);
+    request_info->peer = std::move(new_peer);
   }
 
   ResourceResponseInfo renderer_response_info;
@@ -222,13 +223,34 @@ void ResourceDispatcher::OnSetDataBuffer(int request_id,
   request_info->buffer_size = shm_size;
 }
 
-void ResourceDispatcher::OnReceivedDataDebug(int request_id, int data_offset) {
+void ResourceDispatcher::OnReceivedInlinedDataChunk(
+    int request_id,
+    const std::vector<char>& data,
+    int encoded_data_length) {
+  TRACE_EVENT0("loader", "ResourceDispatcher::OnReceivedInlinedDataChunk");
+  DCHECK(!data.empty());
+  DCHECK(base::FeatureList::IsEnabled(features::kOptimizeIPCForSmallResource));
+
   PendingRequestInfo* request_info = GetPendingRequestInfo(request_id);
-  if (request_info) {
-    CHECK_GE(data_offset, 0);
-    CHECK_LE(data_offset, 512 * 1024);
-    request_info->data_offset = data_offset;
+  if (!request_info || data.empty())
+    return;
+
+  // Check whether this response data is compliant with our cross-site
+  // document blocking policy. We only do this for the first chunk of data.
+  if (request_info->site_isolation_metadata.get()) {
+    SiteIsolationStatsGatherer::OnReceivedFirstChunk(
+        request_info->site_isolation_metadata, data.data(), data.size());
+    request_info->site_isolation_metadata.reset();
   }
+
+  // ThreadedDataProvider should not be attached at this point since |buffer|
+  // is not yet set up here.
+  DCHECK(!request_info->buffer.get());
+  CHECK(!request_info->threaded_data_provider);
+
+  scoped_ptr<RequestPeer::ReceivedData> received_data(
+      new content::FixedReceivedData(data, encoded_data_length));
+  request_info->peer->OnReceivedData(std::move(received_data));
 }
 
 void ResourceDispatcher::OnReceivedData(int request_id,
@@ -241,26 +263,7 @@ void ResourceDispatcher::OnReceivedData(int request_id,
   bool send_ack = true;
   if (request_info && data_length > 0) {
     CHECK(base::SharedMemory::IsHandleValid(request_info->buffer->handle()));
-
-    // TODO(erikchen): Temporary debugging. http://crbug.com/527588.
-    CHECK_GE(request_info->buffer_size, 0);
-    CHECK_LE(request_info->buffer_size, 512 * 1024);
-    CHECK_GE(data_length, 0);
-    CHECK_LE(data_length, 512 * 1024);
-
-    if (data_offset > 512 * 1024) {
-      int cached_data_offset = request_info->data_offset;
-      base::debug::Alias(&cached_data_offset);
-      CHECK(false);
-    }
-
     CHECK_GE(request_info->buffer_size, data_offset + data_length);
-
-    // Ensure that the SHM buffer remains valid for the duration of this scope.
-    // It is possible for Cancel() to be called before we exit this scope.
-    // SharedMemoryReceivedDataFactory stores the SHM buffer inside it.
-    scoped_refptr<SharedMemoryReceivedDataFactory> factory(
-        request_info->received_data_factory);
 
     base::TimeTicks time_start = base::TimeTicks::Now();
 
@@ -285,7 +288,8 @@ void ResourceDispatcher::OnReceivedData(int request_id,
           data_ptr, data_length, encoded_data_length);
     } else {
       scoped_ptr<RequestPeer::ReceivedData> data =
-          factory->Create(data_offset, data_length, encoded_data_length);
+          request_info->received_data_factory->Create(
+              data_offset, data_length, encoded_data_length);
       // |data| takes care of ACKing.
       send_ack = false;
       request_info->peer->OnReceivedData(std::move(data));
@@ -368,15 +372,14 @@ void ResourceDispatcher::OnRequestComplete(
   request_info->received_data_factory = nullptr;
   request_info->buffer_size = 0;
 
-  RequestPeer* peer = request_info->peer;
+  RequestPeer* peer = request_info->peer.get();
 
   if (delegate_) {
-    RequestPeer* new_peer =
-        delegate_->OnRequestComplete(
-            request_info->peer, request_info->resource_type,
-            request_complete_data.error_code);
-    if (new_peer)
-      request_info->peer = new_peer;
+    scoped_ptr<RequestPeer> new_peer = delegate_->OnRequestComplete(
+        std::move(request_info->peer), request_info->resource_type,
+        request_complete_data.error_code);
+    DCHECK(new_peer);
+    request_info->peer = std::move(new_peer);
   }
 
   base::TimeTicks renderer_completion_time = ToRendererCompletionTime(
@@ -395,6 +398,9 @@ void ResourceDispatcher::OnRequestComplete(
   // The request ID will be removed from our pending list in the destructor.
   // Normally, dispatching this message causes the reference-counted request to
   // die immediately.
+  // TODO(kinuko): Revisit here. This probably needs to call request_info->peer
+  // but the past attempt to change it seems to have caused crashes.
+  // (crbug.com/547047)
   peer->OnCompletedRequest(request_complete_data.error_code,
                            request_complete_data.was_ignored_by_handler,
                            request_complete_data.exists_in_cache,
@@ -411,13 +417,12 @@ void ResourceDispatcher::CompletedRequestAfterBackgroundThreadFlush(
   if (!request_info)
     return;
 
-  RequestPeer* peer = request_info->peer;
-  peer->OnCompletedRequest(request_complete_data.error_code,
-                           request_complete_data.was_ignored_by_handler,
-                           request_complete_data.exists_in_cache,
-                           request_complete_data.security_info,
-                           renderer_completion_time,
-                           request_complete_data.encoded_data_length);
+  request_info->peer->OnCompletedRequest(
+      request_complete_data.error_code,
+      request_complete_data.was_ignored_by_handler,
+      request_complete_data.exists_in_cache,
+      request_complete_data.security_info, renderer_completion_time,
+      request_complete_data.encoded_data_length);
 }
 
 bool ResourceDispatcher::RemovePendingRequest(int request_id) {
@@ -430,8 +435,15 @@ bool ResourceDispatcher::RemovePendingRequest(int request_id) {
   bool release_downloaded_file = request_info->download_to_file;
 
   ReleaseResourcesInMessageQueue(&request_info->deferred_message_queue);
+
   if (it->second.get()->bridge)
     delete it->second.get()->bridge;
+
+  // Always delete the pending_request asyncly so that cancelling the request
+  // doesn't delete the request context info while its response is still being
+  // handled.
+  main_thread_task_runner_->DeleteSoon(FROM_HERE, it->second.release());
+
   pending_requests_.erase(it);
 
   if (release_downloaded_file) {
@@ -455,14 +467,15 @@ void ResourceDispatcher::Cancel(int request_id) {
   // |completion_time.is_null()| is a proxy for OnRequestComplete never being
   // called.
   // TODO(csharrison): Remove this code when crbug.com/557430 is resolved.
-  // ~250,000 ERR_ABORTED coming into canary with |request_time| < 100ms. Sample
-  // by .01% to get something reasonable.
+  // Sample this enough that this won't dump much more than a hundred times a
+  // day even without the static guard. The guard ensures this dumps much less
+  // frequently, because these aborts frequently come in quick succession.
   const PendingRequestInfo& info = *it->second;
   int64_t request_time =
       (base::TimeTicks::Now() - info.request_start).InMilliseconds();
   if (info.resource_type == ResourceType::RESOURCE_TYPE_MAIN_FRAME &&
       info.completion_time.is_null() && request_time < 100 &&
-      base::RandDouble() < .0001) {
+      base::RandDouble() < .000001) {
     static bool should_dump = true;
     if (should_dump) {
       char url_copy[256] = {0};
@@ -532,14 +545,14 @@ bool ResourceDispatcher::AttachThreadedDataReceiver(
 }
 
 ResourceDispatcher::PendingRequestInfo::PendingRequestInfo(
-    RequestPeer* peer,
+    scoped_ptr<RequestPeer> peer,
     ResourceLoaderBridge* bridge,
     ResourceType resource_type,
     int origin_pid,
     const GURL& frame_origin,
     const GURL& request_url,
     bool download_to_file)
-    : peer(peer),
+    : peer(std::move(peer)),
       bridge(bridge),
       resource_type(resource_type),
       origin_pid(origin_pid),
@@ -563,7 +576,8 @@ void ResourceDispatcher::DispatchMessage(const IPC::Message& message) {
                         OnReceivedCachedMetadata)
     IPC_MESSAGE_HANDLER(ResourceMsg_ReceivedRedirect, OnReceivedRedirect)
     IPC_MESSAGE_HANDLER(ResourceMsg_SetDataBuffer, OnSetDataBuffer)
-    IPC_MESSAGE_HANDLER(ResourceMsg_DataReceivedDebug, OnReceivedDataDebug)
+    IPC_MESSAGE_HANDLER(ResourceMsg_InlinedDataChunkReceived,
+                        OnReceivedInlinedDataChunk)
     IPC_MESSAGE_HANDLER(ResourceMsg_DataReceived, OnReceivedData)
     IPC_MESSAGE_HANDLER(ResourceMsg_DataDownloaded, OnDownloadedData)
     IPC_MESSAGE_HANDLER(ResourceMsg_RequestComplete, OnRequestComplete)
@@ -642,7 +656,7 @@ void ResourceDispatcher::StartSync(const RequestInfo& request_info,
 
 int ResourceDispatcher::StartAsync(const RequestInfo& request_info,
                                    ResourceRequestBody* request_body,
-                                   RequestPeer* peer) {
+                                   scoped_ptr<RequestPeer> peer) {
   // Compute a unique request_id for this renderer process.
   int request_id = MakeRequestID();
 
@@ -658,9 +672,9 @@ int ResourceDispatcher::StartAsync(const RequestInfo& request_info,
       else
         extra_data = &kEmptyData;
 
-      bridge->Start(peer);
+      bridge->Start(peer.get());
       pending_requests_[request_id] =
-          make_scoped_ptr(new PendingRequestInfo(peer,
+          make_scoped_ptr(new PendingRequestInfo(std::move(peer),
                              bridge.release(),
                              request_info.request_type,
                              request_info.requestor_pid,
@@ -674,14 +688,9 @@ int ResourceDispatcher::StartAsync(const RequestInfo& request_info,
   scoped_ptr<ResourceHostMsg_Request> request =
       CreateRequest(request_info, request_body, &frame_origin);
 
-  pending_requests_[request_id] =
-      make_scoped_ptr(new PendingRequestInfo(peer,
-                         nullptr,
-                         request->resource_type,
-                         request->origin_pid,
-                         frame_origin,
-                         request->url,
-                         request_info.download_to_file));
+  pending_requests_[request_id] = make_scoped_ptr(new PendingRequestInfo(
+      std::move(peer), nullptr, request->resource_type, request->origin_pid,
+      frame_origin, request->url, request_info.download_to_file));
 
   if (resource_scheduling_filter_.get() &&
       request_info.loading_web_task_runner) {
@@ -783,6 +792,8 @@ bool ResourceDispatcher::IsResourceDispatcherMessage(
     case ResourceMsg_ReceivedRedirect::ID:
     case ResourceMsg_SetDataBuffer::ID:
     case ResourceMsg_DataReceivedDebug::ID:
+    case ResourceMsg_DataReceivedDebug2::ID:
+    case ResourceMsg_InlinedDataChunkReceived::ID:
     case ResourceMsg_DataReceived::ID:
     case ResourceMsg_DataDownloaded::ID:
     case ResourceMsg_RequestComplete::ID:
@@ -892,8 +903,11 @@ scoped_ptr<ResourceHostMsg_Request> ResourceDispatcher::CreateRequest(
       extra_data->transferred_request_request_id();
   request->service_worker_provider_id =
       extra_data->service_worker_provider_id();
+  request->originated_from_service_worker =
+      extra_data->originated_from_service_worker();
   request->lofi_state = extra_data->lofi_state();
   request->request_body = request_body;
+  request->resource_body_stream_url = request_info.resource_body_stream_url;
   if (frame_origin)
     *frame_origin = extra_data->frame_origin();
   return request;

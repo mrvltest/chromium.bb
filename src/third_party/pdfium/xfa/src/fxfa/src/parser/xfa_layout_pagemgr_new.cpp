@@ -5,20 +5,20 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_document_datamerger_imp.h"
-#include "xfa_document_layout_imp.h"
-#include "xfa_layout_itemlayout.h"
-#include "xfa_layout_pagemgr_new.h"
-#include "xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_datamerger_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_appadapter.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_itemlayout.h"
+#include "xfa/src/fxfa/src/parser/xfa_layout_pagemgr_new.h"
 CXFA_LayoutPageMgr::CXFA_LayoutPageMgr(CXFA_LayoutProcessor* pLayoutProcessor)
     : m_pLayoutProcessor(pLayoutProcessor),
       m_pTemplatePageSetRoot(nullptr),
@@ -175,7 +175,7 @@ FX_BOOL CXFA_LayoutPageMgr::AppendNewPage(FX_BOOL bFirstTemPage) {
   if (bFirstTemPage && m_pCurrentContainerRecord == NULL) {
     m_pCurrentContainerRecord = m_rgProposedContainerRecord.GetHeadPosition();
   }
-  return !bFirstTemPage || m_pCurrentContainerRecord != NULL;
+  return !bFirstTemPage || m_pCurrentContainerRecord;
 }
 static void XFA_LayoutItemMgr_ReorderLayoutItemToTail(
     CXFA_ContainerLayoutItem* pLayoutItem) {
@@ -251,19 +251,19 @@ void CXFA_LayoutPageMgr::SubmitContentItem(
   }
 }
 FX_FLOAT CXFA_LayoutPageMgr::GetAvailHeight() {
+  CXFA_ContainerLayoutItem* pLayoutItem =
+      GetCurrentContainerRecord()->pCurContentArea;
+  if (!pLayoutItem || !pLayoutItem->m_pFormNode)
+    return 0.0f;
   FX_FLOAT fAvailHeight =
-      GetCurrentContainerRecord()
-          ->pCurContentArea->m_pFormNode->GetMeasure(XFA_ATTRIBUTE_H)
-          .ToUnit(XFA_UNIT_Pt);
-  if (fAvailHeight < XFA_LAYOUT_FLOAT_PERCISION) {
-    if (m_pCurrentContainerRecord ==
-        m_rgProposedContainerRecord.GetHeadPosition()) {
-      fAvailHeight = 0;
-    } else {
-      fAvailHeight = XFA_LAYOUT_FLOAT_MAX;
-    }
+      pLayoutItem->m_pFormNode->GetMeasure(XFA_ATTRIBUTE_H).ToUnit(XFA_UNIT_Pt);
+  if (fAvailHeight >= XFA_LAYOUT_FLOAT_PERCISION)
+    return fAvailHeight;
+  if (m_pCurrentContainerRecord ==
+      m_rgProposedContainerRecord.GetHeadPosition()) {
+    return 0.0f;
   }
-  return fAvailHeight;
+  return XFA_LAYOUT_FLOAT_MAX;
 }
 static CXFA_Node* XFA_ResolveBreakTarget(CXFA_Node* pPageSetRoot,
                                          FX_BOOL bNewExprStyle,
@@ -293,7 +293,7 @@ static CXFA_Node* XFA_ResolveBreakTarget(CXFA_Node* pPageSetRoot,
     bTargetAllFind = FALSE;
     if (wsTargetExpr.GetAt(0) == '#') {
       CXFA_Node* pNode = pDocument->GetNodeByID(
-          (CXFA_Node*)pDocument->GetXFANode(XFA_HASHCODE_Template),
+          ToNode(pDocument->GetXFAObject(XFA_HASHCODE_Template)),
           wsTargetExpr.Mid(1));
       if (pNode) {
         return pNode;
@@ -311,7 +311,7 @@ static CXFA_Node* XFA_ResolveBreakTarget(CXFA_Node* pPageSetRoot,
               XFA_RESOLVENODE_Attributes | XFA_RESOLVENODE_Siblings |
               XFA_RESOLVENODE_Parent);
       if (iCount > 0 && rs.nodes[0]->IsNode()) {
-        return (CXFA_Node*)rs.nodes[0];
+        return rs.nodes[0]->AsNode();
       }
     }
     iSpliteIndex = iSpliteNextIndex;
@@ -521,7 +521,6 @@ void CXFA_LayoutPageMgr::FinishPaginatedPageSets() {
               CXFA_ContainerRecord* pRecord = CreateContainerRecord();
               AddPageAreaLayoutItem(pRecord, pNode);
               break;
-              ;
             }
           }
           FX_BOOL bUsable = TRUE;
@@ -670,7 +669,6 @@ FX_BOOL CXFA_LayoutPageMgr::RunBreak(XFA_ELEMENT eBreakType,
     case XFA_ATTRIBUTEENUM_Auto:
     default:
       break;
-      ;
   }
   return bRet;
 }
@@ -828,8 +826,8 @@ CXFA_Node* CXFA_LayoutPageMgr::BreakOverflow(CXFA_Node* pOverflowNode,
         !wsOverflowTarget.IsEmpty()) {
       if (!wsOverflowTarget.IsEmpty() && bCreatePage &&
           !m_bCreateOverFlowPage) {
-        CXFA_Node* pTarget = XFA_ResolveBreakTarget(
-            this->m_pTemplatePageSetRoot, TRUE, wsOverflowTarget);
+        CXFA_Node* pTarget = XFA_ResolveBreakTarget(m_pTemplatePageSetRoot,
+                                                    TRUE, wsOverflowTarget);
         if (pTarget) {
           m_bCreateOverFlowPage = TRUE;
           switch (pTarget->GetClassID()) {
@@ -861,8 +859,8 @@ CXFA_Node* CXFA_LayoutPageMgr::BreakOverflow(CXFA_Node* pOverflowNode,
     pOverflowNode->TryCData(XFA_ATTRIBUTE_Trailer, wsOverflowTrailer);
     pOverflowNode->TryCData(XFA_ATTRIBUTE_Target, wsOverflowTarget);
     if (!wsOverflowTarget.IsEmpty() && bCreatePage && !m_bCreateOverFlowPage) {
-      CXFA_Node* pTarget = XFA_ResolveBreakTarget(this->m_pTemplatePageSetRoot,
-                                                  TRUE, wsOverflowTarget);
+      CXFA_Node* pTarget = XFA_ResolveBreakTarget(m_pTemplatePageSetRoot, TRUE,
+                                                  wsOverflowTarget);
       if (pTarget) {
         m_bCreateOverFlowPage = TRUE;
         switch (pTarget->GetClassID()) {
@@ -1629,7 +1627,7 @@ void CXFA_LayoutPageMgr::MergePageSetContents() {
   CXFA_Document* pDocument = m_pTemplatePageSetRoot->GetDocument();
   IXFA_Notify* pNotify = pDocument->GetParser()->GetNotify();
   IXFA_DocLayout* pDocLayout = pDocument->GetDocLayout();
-  CXFA_ContainerLayoutItem* pRootLayout = this->GetRootLayoutItem();
+  CXFA_ContainerLayoutItem* pRootLayout = GetRootLayoutItem();
   {
     for (int32_t iIndex = 0; iIndex < pDocument->m_pPendingPageSet.GetSize();
          iIndex++) {
@@ -1713,7 +1711,7 @@ void CXFA_LayoutPageMgr::MergePageSetContents() {
           }
           if (bIsExistForm) {
             CXFA_Node* pNewSubform = pFormLayout->m_pFormNode;
-            if (pContainerItem->m_pOldSubform != NULL &&
+            if (pContainerItem->m_pOldSubform &&
                 pContainerItem->m_pOldSubform != pNewSubform) {
               CXFA_Node* pExistingNode = XFA_DataMerge_FindFormDOMInstance(
                   pDocument, pContainerItem->m_pFormNode->GetClassID(),
@@ -1739,7 +1737,7 @@ void CXFA_LayoutPageMgr::MergePageSetContents() {
           }
           pContainerItem->m_pFormNode = pDocument->DataMerge_CopyContainer(
               pContainerItem->m_pFormNode, pParentNode,
-              (CXFA_Node*)pDocument->GetXFANode(XFA_HASHCODE_Record), TRUE);
+              ToNode(pDocument->GetXFAObject(XFA_HASHCODE_Record)), TRUE);
         } break;
         case XFA_ELEMENT_ContentArea: {
           CXFA_Node* pParentNode = pContainerItem->m_pParent->m_pFormNode;
@@ -1760,7 +1758,8 @@ void CXFA_LayoutPageMgr::MergePageSetContents() {
     }
     if (!pPendingPageSet->GetNodeItem(XFA_NODEITEM_Parent)) {
       CXFA_Node* pFormToplevelSubform =
-          ((CXFA_Node*)pDocument->GetXFANode(XFA_HASHCODE_Form))
+          pDocument->GetXFAObject(XFA_HASHCODE_Form)
+              ->AsNode()
               ->GetFirstChildByClass(XFA_ELEMENT_Subform);
       pFormToplevelSubform->InsertChild(pPendingPageSet);
     }
@@ -1816,7 +1815,7 @@ void CXFA_LayoutPageMgr::MergePageSetContents() {
   }
 }
 void CXFA_LayoutPageMgr::LayoutPageSetContents() {
-  CXFA_ContainerLayoutItem* pRootLayoutItem = this->GetRootLayoutItem();
+  CXFA_ContainerLayoutItem* pRootLayoutItem = GetRootLayoutItem();
   for (; pRootLayoutItem;
        pRootLayoutItem =
            (CXFA_ContainerLayoutItem*)pRootLayoutItem->m_pNextSibling) {
@@ -1876,7 +1875,7 @@ void CXFA_LayoutPageMgr::SyncLayoutData() {
   IXFA_Notify* pNotify =
       m_pTemplatePageSetRoot->GetDocument()->GetParser()->GetNotify();
   int32_t nPageIdx = -1;
-  CXFA_ContainerLayoutItem* pRootLayoutItem = this->GetRootLayoutItem();
+  CXFA_ContainerLayoutItem* pRootLayoutItem = GetRootLayoutItem();
   for (; pRootLayoutItem;
        pRootLayoutItem =
            (CXFA_ContainerLayoutItem*)pRootLayoutItem->m_pNextSibling) {

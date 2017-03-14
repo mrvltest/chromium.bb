@@ -93,7 +93,6 @@ bool TooltipWin::EnsureTooltipWindow() {
 }
 
 void TooltipWin::PositionTooltip() {
-  // This code only runs for non-metro, so GetNativeScreen() is fine.
   gfx::Point screen_point = gfx::win::DIPToScreenPoint(location_);
   const int cursoroffset = GetCurrentCursorVisibleHeight();
   screen_point.Offset(0, cursoroffset);
@@ -103,7 +102,7 @@ void TooltipWin::PositionTooltip() {
   const gfx::Size size(LOWORD(tooltip_size), HIWORD(tooltip_size));
 
   const gfx::Display display(
-      gfx::Screen::GetNativeScreen()->GetDisplayNearestPoint(screen_point));
+      gfx::Screen::GetScreen()->GetDisplayNearestPoint(screen_point));
 
   gfx::Rect tooltip_bounds(screen_point, size);
   tooltip_bounds.AdjustToFit(gfx::win::DIPToScreenRect(display.work_area()));
@@ -111,12 +110,10 @@ void TooltipWin::PositionTooltip() {
                0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-int TooltipWin::GetMaxWidth(const gfx::Point& location,
-                            aura::Window* context) const {
-  // This code only runs for non-metro, so GetNativeScreen() is fine.
+int TooltipWin::GetMaxWidth(const gfx::Point& location) const {
   const gfx::Point screen_point = gfx::win::DIPToScreenPoint(location);
   gfx::Display display(
-      gfx::Screen::GetNativeScreen()->GetDisplayNearestPoint(screen_point));
+      gfx::Screen::GetScreen()->GetDisplayNearestPoint(screen_point));
   const gfx::Rect monitor_bounds = display.bounds();
   return std::min(800, (monitor_bounds.width() + 1) / 2);
 }
@@ -142,7 +139,7 @@ void TooltipWin::SetText(aura::Window* window,
   SendMessage(tooltip_hwnd_, TTM_SETTOOLINFO, 0,
               reinterpret_cast<LPARAM>(&toolinfo_));
 
-  int max_width = GetMaxWidth(location_, window);
+  int max_width = GetMaxWidth(location_);
   SendMessage(tooltip_hwnd_, TTM_SETMAXTIPWIDTH, 0, max_width);
 }
 

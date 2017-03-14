@@ -4,12 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "fpdfsdk/include/fsdk_define.h"
-#include "fpdfsdk/include/fsdk_mgr.h"
+#include "fpdfsdk/include/fpdfxfa/fpdfxfa_app.h"
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_doc.h"
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_util.h"
+#include "fpdfsdk/include/fsdk_define.h"
+#include "fpdfsdk/include/fsdk_mgr.h"
 #include "fpdfsdk/include/javascript/IJavaScript.h"
-#include "fpdfsdk/include/fpdfxfa/fpdfxfa_app.h"
 #include "public/fpdf_formfill.h"
 
 CPDFXFA_App* CPDFXFA_App::g_pApp = NULL;
@@ -31,7 +31,8 @@ CPDFXFA_App::CPDFXFA_App()
       m_pXFAApp(NULL),
       m_pFontMgr(NULL),
       m_hJSERuntime(NULL),
-      m_csAppType(JS_STR_VIEWERTYPE_STANDARD) {
+      m_csAppType(JS_STR_VIEWERTYPE_STANDARD),
+      m_bOwnedRuntime(false) {
   m_pEnvList.RemoveAll();
 }
 
@@ -43,7 +44,7 @@ CPDFXFA_App::~CPDFXFA_App() {
   m_pXFAApp = NULL;
 
 #ifdef PDF_ENABLE_XFA
-  FXJSE_Runtime_Release(m_hJSERuntime);
+  FXJSE_Runtime_Release(m_hJSERuntime, m_bOwnedRuntime);
   m_hJSERuntime = NULL;
 
   FXJSE_Finalize();
@@ -51,12 +52,13 @@ CPDFXFA_App::~CPDFXFA_App() {
 #endif
 }
 
-FX_BOOL CPDFXFA_App::Initialize() {
+FX_BOOL CPDFXFA_App::Initialize(FXJSE_HRUNTIME hRuntime) {
 #ifdef PDF_ENABLE_XFA
   BC_Library_Init();
   FXJSE_Initialize();
 
-  m_hJSERuntime = FXJSE_Runtime_Create();
+  m_bOwnedRuntime = !hRuntime;
+  m_hJSERuntime = hRuntime ? hRuntime : FXJSE_Runtime_Create();
   if (!m_hJSERuntime)
     return FALSE;
 

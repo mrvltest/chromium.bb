@@ -4,7 +4,7 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "pageint.h"
+#include "core/src/fpdfapi/fpdf_page/pageint.h"
 
 #include "core/include/fdrm/fx_crypt.h"
 #include "core/include/fpdfapi/fpdf_module.h"
@@ -261,12 +261,12 @@ CPDF_Font* CPDF_DocPageData::GetStandardFont(const CFX_ByteStringC& fontName,
       continue;
     if (pFont->IsEmbedded())
       continue;
-    if (pFont->GetFontType() != PDFFONT_TYPE1)
+    if (!pFont->IsType1Font())
       continue;
     if (pFont->GetFontDict()->KeyExist("Widths"))
       continue;
 
-    CPDF_Type1Font* pT1Font = pFont->GetType1Font();
+    CPDF_Type1Font* pT1Font = pFont->AsType1Font();
     if (pEncoding && !pT1Font->GetEncoding()->IsIdentical(pEncoding))
       continue;
 
@@ -317,7 +317,7 @@ CPDF_ColorSpace* CPDF_DocPageData::GetColorSpace(
     CFX_ByteString name = pCSObj->GetConstString();
     CPDF_ColorSpace* pCS = _CSFromName(name);
     if (!pCS && pResources) {
-      CPDF_Dictionary* pList = pResources->GetDict("ColorSpace");
+      CPDF_Dictionary* pList = pResources->GetDictBy("ColorSpace");
       if (pList) {
         pCSObj = pList->GetElementValue(name);
         return GetColorSpace(pCSObj, nullptr);
@@ -326,7 +326,7 @@ CPDF_ColorSpace* CPDF_DocPageData::GetColorSpace(
     if (!pCS || !pResources)
       return pCS;
 
-    CPDF_Dictionary* pColorSpaces = pResources->GetDict("ColorSpace");
+    CPDF_Dictionary* pColorSpaces = pResources->GetDictBy("ColorSpace");
     if (!pColorSpaces)
       return pCS;
 
@@ -423,7 +423,7 @@ CPDF_Pattern* CPDF_DocPageData::GetPattern(CPDF_Object* pPatternObj,
   } else {
     CPDF_Dictionary* pDict = pPatternObj ? pPatternObj->GetDict() : nullptr;
     if (pDict) {
-      int type = pDict->GetInteger("PatternType");
+      int type = pDict->GetIntegerBy("PatternType");
       if (type == 1) {
         pPattern = new CPDF_TilingPattern(m_pPDFDoc, pPatternObj, matrix);
       } else if (type == 2) {
@@ -553,9 +553,9 @@ CPDF_StreamAcc* CPDF_DocPageData::GetFontFileStreamAcc(
     return it->second->AddRef();
 
   CPDF_Dictionary* pFontDict = pFontStream->GetDict();
-  int32_t org_size = pFontDict->GetInteger("Length1") +
-                     pFontDict->GetInteger("Length2") +
-                     pFontDict->GetInteger("Length3");
+  int32_t org_size = pFontDict->GetIntegerBy("Length1") +
+                     pFontDict->GetIntegerBy("Length2") +
+                     pFontDict->GetIntegerBy("Length3");
   if (org_size < 0)
     org_size = 0;
 

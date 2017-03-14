@@ -14,18 +14,18 @@
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "content/public/browser/background_sync_controller.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/browser/shell_download_manager_delegate.h"
 #include "content/shell/browser/shell_permission_manager.h"
 #include "content/shell/common/shell_switches.h"
+#include "content/test/mock_background_sync_controller.h"
 
-#include "base/prefs/json_pref_store.h"
-#include "base/prefs/pref_registry_simple.h"
-#include "base/prefs/pref_service_factory.h"
-#include "base/prefs/pref_service.h"
+#include "components/prefs/json_pref_store.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/pref_service_factory.h"
+#include "components/prefs/pref_service.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/user_prefs/user_prefs.h"
 
@@ -116,7 +116,7 @@ void ShellBrowserContext::InitWhileIOAllowed() {
   pref_registry_->RegisterBooleanPref("spellcheck.use_spelling_service", true);
   pref_registry_->RegisterBooleanPref("browser.enable_autospellcorrect", false);
   pref_registry_->RegisterBooleanPref("printing.enabled", true);
-  base::PrefServiceFactory factory;
+  PrefServiceFactory factory;
   factory.SetUserPrefsFile(pref_file, JsonPrefStore::GetTaskRunnerForFile(pref_file, BrowserThread::GetBlockingPool()));
   pref_service_ = factory.Create(pref_registry_.get());
   user_prefs::UserPrefs::Set(this, pref_service_.get());
@@ -157,8 +157,8 @@ ShellBrowserContext::CreateURLRequestContextGetter(
     URLRequestInterceptorScopedVector request_interceptors) {
   return new ShellURLRequestContextGetter(
       ignore_certificate_errors_, GetPath(),
-      BrowserThread::UnsafeGetMessageLoopForThread(BrowserThread::IO),
-      BrowserThread::UnsafeGetMessageLoopForThread(BrowserThread::FILE),
+      BrowserThread::GetMessageLoopProxyForThread(BrowserThread::IO),
+      BrowserThread::GetMessageLoopProxyForThread(BrowserThread::FILE),
       protocol_handlers, std::move(request_interceptors), net_log_);
 }
 

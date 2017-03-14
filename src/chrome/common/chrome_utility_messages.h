@@ -21,14 +21,11 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/ipc/gfx_param_traits.h"
 
-// SHEZ: Remove safe-browsing code
-#if 0
 #if defined(FULL_SAFE_BROWSING)
 #include "chrome/common/safe_browsing/zip_analyzer_results.h"
 #include "chrome/common/safe_browsing/ipc_protobuf_message_macros.h"
 #include "chrome/common/safe_browsing/protobuf_message_param_traits.h"
 #include "chrome/common/safe_browsing/zip_analyzer_results.h"
-#endif
 #endif
 
 // Singly-included section for typedefs.
@@ -46,8 +43,6 @@ typedef std::vector<base::Tuple<base::string16, base::string16>>
 
 #define IPC_MESSAGE_START ChromeUtilityMsgStart
 
-// SHEZ: Remove safe-browsing code
-#if 0
 #if defined(FULL_SAFE_BROWSING)
 IPC_ENUM_TRAITS_VALIDATE(
     safe_browsing::ClientDownloadRequest_DownloadType,
@@ -129,7 +124,6 @@ IPC_STRUCT_TRAITS_BEGIN(safe_browsing::zip_analyzer::Results)
   IPC_STRUCT_TRAITS_MEMBER(archived_archive_filenames)
 IPC_STRUCT_TRAITS_END()
 #endif  // FULL_SAFE_BROWSING
-#endif
 
 #if defined(OS_WIN)
 IPC_STRUCT_BEGIN(ChromeUtilityMsg_GetSaveFileName_Params)
@@ -266,8 +260,6 @@ IPC_MESSAGE_CONTROL0(ChromeUtilityHostMsg_CreateZipFile_Failed)
 // Reply when the utility process has started.
 IPC_MESSAGE_CONTROL0(ChromeUtilityHostMsg_ProcessStarted)
 
-// SHEZ: Remove safe-browsing code
-#if 0
 #if defined(FULL_SAFE_BROWSING)
 // Reply when a zip file has been analyzed for malicious download protection.
 IPC_MESSAGE_CONTROL1(
@@ -281,7 +273,6 @@ IPC_MESSAGE_CONTROL1(
     safe_browsing::zip_analyzer::Results)
 #endif  // defined(OS_MACOSX)
 #endif  // defined(FULL_SAFE_BROWSING)
-#endif
 
 #if defined(OS_WIN)
 IPC_MESSAGE_CONTROL0(ChromeUtilityHostMsg_GetOpenFileName_Failed)

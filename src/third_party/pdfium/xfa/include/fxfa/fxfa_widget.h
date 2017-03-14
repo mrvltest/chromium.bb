@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_WIDGET_H
-#define _FXFA_WIDGET_H
+#ifndef XFA_INCLUDE_FXFA_FXFA_WIDGET_H_
+#define XFA_INCLUDE_FXFA_FXFA_WIDGET_H_
+
+#include "xfa/include/fxfa/fxfa_objectacc.h"
+
 class CXFA_Node;
 class CXFA_FFDocView;
 class CXFA_FFDoc;
@@ -17,8 +20,8 @@ class CXFA_TextLayout;
 class CXFA_TextProvider;
 class CXFA_WidgetLayoutData;
 class IFX_Font;
-class CXFA_WidgetAcc;
-#include "fxfa_objectacc.h"
+class IXFA_AppProvider;
+
 class CXFA_WidgetAcc : public CXFA_WidgetData {
  public:
   CXFA_WidgetAcc(CXFA_FFDocView* pDocView, CXFA_Node* pNode);
@@ -115,4 +118,5 @@ class CXFA_WidgetAcc : public CXFA_WidgetData {
   CXFA_WidgetLayoutData* m_pLayoutData;
   uint32_t m_nRecursionDepth;
 };
-#endif
+
+#endif  // XFA_INCLUDE_FXFA_FXFA_WIDGET_H_

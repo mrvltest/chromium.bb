@@ -25,13 +25,17 @@ class MockVoEChannelProxy : public voe::ChannelProxy {
   MOCK_METHOD1(SetRTCP_CNAME, void(const std::string& c_name));
   MOCK_METHOD2(SetSendAbsoluteSenderTimeStatus, void(bool enable, int id));
   MOCK_METHOD2(SetSendAudioLevelIndicationStatus, void(bool enable, int id));
-  MOCK_METHOD1(EnableSendTransportSequenceNumber, void(int id));
   MOCK_METHOD2(SetReceiveAbsoluteSenderTimeStatus, void(bool enable, int id));
   MOCK_METHOD2(SetReceiveAudioLevelIndicationStatus, void(bool enable, int id));
-  MOCK_METHOD3(SetCongestionControlObjects,
+  MOCK_METHOD1(EnableSendTransportSequenceNumber, void(int id));
+  MOCK_METHOD1(EnableReceiveTransportSequenceNumber, void(int id));
+  MOCK_METHOD3(RegisterSenderCongestionControlObjects,
                void(RtpPacketSender* rtp_packet_sender,
                     TransportFeedbackObserver* transport_feedback_observer,
-                    PacketRouter* seq_num_allocator));
+                    PacketRouter* packet_router));
+  MOCK_METHOD1(RegisterReceiverCongestionControlObjects,
+               void(PacketRouter* packet_router));
+  MOCK_METHOD0(ResetCongestionControlObjects, void());
   MOCK_CONST_METHOD0(GetRTCPStatistics, CallStatistics());
   MOCK_CONST_METHOD0(GetRemoteRTCPReportBlocks, std::vector<ReportBlock>());
   MOCK_CONST_METHOD0(GetNetworkStatistics, NetworkStatistics());

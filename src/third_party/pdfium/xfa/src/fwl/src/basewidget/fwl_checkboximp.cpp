@@ -4,14 +4,18 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fwl/src/basewidget/include/fwl_checkboximp.h"
+
 #include <algorithm>
 
+#include "xfa/include/fwl/basewidget/fwl_checkbox.h"
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/src/fdp/include/fde_tto.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_checkboximp.h"
 #define FWL_CKB_CaptionMargin 5
 
 // static

@@ -4,10 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRALIGNMENTPATTERNFINDER_H_
-#define _BC_QRALIGNMENTPATTERNFINDER_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRALIGNMENTPATTERNFINDER_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRALIGNMENTPATTERNFINDER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 class CBC_CommonBitMatrix;
 class CBC_QRAlignmentPattern;
+
 class CBC_QRAlignmentPatternFinder {
  private:
   CBC_CommonBitMatrix* m_image;
@@ -38,4 +43,5 @@ class CBC_QRAlignmentPatternFinder {
                                                int32_t j);
   static FX_FLOAT CenterFromEnd(const CFX_Int32Array& stateCount, int32_t end);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRALIGNMENTPATTERNFINDER_H_

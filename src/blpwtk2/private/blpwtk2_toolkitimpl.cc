@@ -59,8 +59,8 @@
 #include <content/public/browser/render_process_host.h>
 #include <content/public/common/content_switches.h>
 #include <sandbox/win/src/win_utils.h>
+#include <third_party/WebKit/public/platform/WebSecurityOrigin.h>
 #include <third_party/WebKit/public/web/WebKit.h>
-#include <third_party/WebKit/public/web/WebSecurityOrigin.h>
 #include <third_party/WebKit/public/web/WebSecurityPolicy.h>
 #include <third_party/WebKit/public/web/WebScriptBindings.h>
 #include <third_party/WebKit/public/web/WebScriptController.h>

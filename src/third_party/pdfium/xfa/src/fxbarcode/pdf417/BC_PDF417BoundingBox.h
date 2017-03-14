@@ -4,10 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_BOUNDINGBOX_H_
-#define _BC_BOUNDINGBOX_H_
+#ifndef XFA_SRC_FXBARCODE_PDF417_BC_PDF417BOUNDINGBOX_H_
+#define XFA_SRC_FXBARCODE_PDF417_BC_PDF417BOUNDINGBOX_H_
+
+#include "core/include/fxcrt/fx_system.h"
+
 class CBC_CommonBitMatrix;
 class CBC_ResultPoint;
+
 class CBC_BoundingBox {
  public:
   CBC_BoundingBox(CBC_CommonBitMatrix* image,
@@ -53,4 +57,5 @@ class CBC_BoundingBox {
             CBC_ResultPoint* bottomRight);
   void calculateMinMaxValues();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_PDF417_BC_PDF417BOUNDINGBOX_H_

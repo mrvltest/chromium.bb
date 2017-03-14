@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -647,6 +646,7 @@ public:
 
     const SkRect& getRect() const { return fRect; }
     float getSigma() const { return fSigma; }
+    GrSLPrecision precision() const { return fPrecision; }
 
 private:
     GrRectBlurEffect(const SkRect& rect, float sigma, GrTexture *blurProfile,
@@ -674,12 +674,9 @@ private:
 
 class GrGLRectBlurEffect : public GrGLSLFragmentProcessor {
 public:
-    GrGLRectBlurEffect(const GrProcessor&, GrSLPrecision precision) 
-    : fPrecision(precision) {
-    }
     void emitCode(EmitArgs&) override;
 
-    static void GenKey(GrSLPrecision precision, GrProcessorKeyBuilder* b);
+    static void GenKey(const GrProcessor&, const GrGLSLCaps&, GrProcessorKeyBuilder* b);
 
 protected:
     void onSetData(const GrGLSLProgramDataManager&, const GrProcessor&) override;
@@ -689,12 +686,11 @@ private:
 
     UniformHandle       fProxyRectUniform;
     UniformHandle       fProfileSizeUniform;
-    GrSLPrecision       fPrecision;
 
     typedef GrGLSLFragmentProcessor INHERITED;
 };
 
-void OutputRectBlurProfileLookup(GrGLSLFragmentBuilder* fragBuilder,
+void OutputRectBlurProfileLookup(GrGLSLFPFragmentBuilder* fragBuilder,
                                  const GrGLSLTextureSampler& sampler,
                                  const char *output,
                                  const char *profileSize, const char *loc,
@@ -711,30 +707,35 @@ void OutputRectBlurProfileLookup(GrGLSLFragmentBuilder* fragBuilder,
 }
 
 
-void GrGLRectBlurEffect::GenKey(GrSLPrecision precision, GrProcessorKeyBuilder* b) {
-    b->add32(precision);
+void GrGLRectBlurEffect::GenKey(const GrProcessor& proc, const GrGLSLCaps&,
+                                GrProcessorKeyBuilder* b) {
+    const GrRectBlurEffect& rbe = proc.cast<GrRectBlurEffect>();
+
+    b->add32(rbe.precision());
 }
 
 
 void GrGLRectBlurEffect::emitCode(EmitArgs& args) {
+    const GrRectBlurEffect& rbe = args.fFp.cast<GrRectBlurEffect>();
+
     GrGLSLUniformHandler* uniformHandler = args.fUniformHandler;
 
     const char *rectName;
     const char *profileSizeName;
 
-    const char* precisionString = GrGLSLShaderVar::PrecisionString(args.fGLSLCaps, fPrecision);
-    fProxyRectUniform = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    const char* precisionString = GrGLSLShaderVar::PrecisionString(args.fGLSLCaps, rbe.precision());
+    fProxyRectUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                    kVec4f_GrSLType,
-                                                   fPrecision,
+                                                   rbe.precision(),
                                                    "proxyRect",
                                                    &rectName);
-    fProfileSizeUniform = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fProfileSizeUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                      kFloat_GrSLType,
                                                      kDefault_GrSLPrecision,
                                                      "profileSize",
                                                      &profileSizeName);
 
-    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
     const char *fragmentPos = fragBuilder->fragmentPosition();
 
     if (args.fInputColor) {
@@ -793,7 +794,7 @@ GrTexture* GrRectBlurEffect::CreateBlurProfileTexture(GrTextureProvider* texture
     if (!blurProfile) {
         SkAutoTDeleteArray<uint8_t> profile(SkBlurMask::ComputeBlurProfile(sigma));
 
-        blurProfile = textureProvider->createTexture(texDesc, true, profile.get(), 0);
+        blurProfile = textureProvider->createTexture(texDesc, SkBudgeted::kYes, profile.get(), 0);
         if (blurProfile) {
             textureProvider->assignUniqueKeyToTexture(key, blurProfile);
         }
@@ -815,11 +816,11 @@ GrRectBlurEffect::GrRectBlurEffect(const SkRect& rect, float sigma, GrTexture *b
 
 void GrRectBlurEffect::onGetGLSLProcessorKey(const GrGLSLCaps& caps,
                                              GrProcessorKeyBuilder* b) const {
-    GrGLRectBlurEffect::GenKey(fPrecision, b);
+    GrGLRectBlurEffect::GenKey(*this, caps, b);
 }
 
 GrGLSLFragmentProcessor* GrRectBlurEffect::onCreateGLSLInstance() const {
-    return new GrGLRectBlurEffect(*this, fPrecision);
+    return new GrGLRectBlurEffect;
 }
 
 bool GrRectBlurEffect::onIsEqual(const GrFragmentProcessor& sBase) const {
@@ -998,7 +999,7 @@ const GrFragmentProcessor* GrRRectBlurEffect::Create(GrTextureProvider* texProvi
         texDesc.fConfig = kAlpha_8_GrPixelConfig;
 
         blurNinePatchTexture.reset(
-            texProvider->createTexture(texDesc, true, blurredMask.fImage, 0));
+            texProvider->createTexture(texDesc, SkBudgeted::kYes , blurredMask.fImage, 0));
         SkMask::FreeImage(blurredMask.fImage);
         if (!blurNinePatchTexture) {
             return nullptr;
@@ -1044,9 +1045,7 @@ const GrFragmentProcessor* GrRRectBlurEffect::TestCreate(GrProcessorTestData* d)
 
 class GrGLRRectBlurEffect : public GrGLSLFragmentProcessor {
 public:
-    GrGLRRectBlurEffect(const GrProcessor&) {}
-
-    virtual void emitCode(EmitArgs&) override;
+    void emitCode(EmitArgs&) override;
 
 protected:
     void onSetData(const GrGLSLProgramDataManager&, const GrProcessor&) override;
@@ -1067,23 +1066,23 @@ void GrGLRRectBlurEffect::emitCode(EmitArgs& args) {
     // The proxy rect has left, top, right, and bottom edges correspond to
     // components x, y, z, and w, respectively.
 
-    fProxyRectUniform = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fProxyRectUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                    kVec4f_GrSLType,
                                                    kDefault_GrSLPrecision,
                                                    "proxyRect",
                                                    &rectName);
-    fCornerRadiusUniform = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fCornerRadiusUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                       kFloat_GrSLType,
                                                       kDefault_GrSLPrecision,
                                                       "cornerRadius",
                                                       &cornerRadiusName);
-    fBlurRadiusUniform = uniformHandler->addUniform(GrGLSLUniformHandler::kFragment_Visibility,
+    fBlurRadiusUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
                                                     kFloat_GrSLType,
                                                     kDefault_GrSLPrecision,
                                                     "blurRadius",
                                                     &blurRadiusName);
 
-    GrGLSLFragmentBuilder* fragBuilder = args.fFragBuilder;
+    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
     const char* fragmentPos = fragBuilder->fragmentPosition();
 
     // warp the fragment position to the appropriate part of the 9patch blur texture
@@ -1139,7 +1138,7 @@ void GrRRectBlurEffect::onGetGLSLProcessorKey(const GrGLSLCaps& caps,
 }
 
 GrGLSLFragmentProcessor* GrRRectBlurEffect::onCreateGLSLInstance() const {
-    return new GrGLRRectBlurEffect(*this);
+    return new GrGLRRectBlurEffect;
 }
 
 bool SkBlurMaskFilterImpl::directFilterRRectMaskGPU(GrTextureProvider* texProvider,

@@ -38,8 +38,8 @@
 #include "core/dom/ExceptionCode.h"
 #include "core/dom/NodeTraversal.h"
 #include "core/dom/Text.h"
-#include "core/dom/shadow/ComposedTreeTraversal.h"
 #include "core/dom/shadow/ElementShadow.h"
+#include "core/dom/shadow/FlatTreeTraversal.h"
 #include "core/dom/shadow/ShadowRoot.h"
 #include "core/editing/serializers/Serialization.h"
 #include "core/editing/spellcheck/SpellChecker.h"
@@ -210,10 +210,14 @@ void HTMLElement::collectStyleForPresentationAttribute(const QualifiedName& name
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitUserModify, CSSValueReadWrite);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWordWrap, CSSValueBreakWord);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitLineBreak, CSSValueAfterWhiteSpace);
+            UseCounter::count(document(), UseCounter::ContentEditableTrue);
+            if (hasTagName(htmlTag))
+                UseCounter::count(document(), UseCounter::ContentEditableTrueOnHTML);
         } else if (equalIgnoringCase(value, "plaintext-only")) {
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitUserModify, CSSValueReadWritePlaintextOnly);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWordWrap, CSSValueBreakWord);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitLineBreak, CSSValueAfterWhiteSpace);
+            UseCounter::count(document(), UseCounter::ContentEditablePlainTextOnly);
         } else if (equalIgnoringCase(value, "false")) {
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitUserModify, CSSValueReadOnly);
         }
@@ -738,12 +742,12 @@ TextDirection HTMLElement::directionality(Node** strongDirectionalityTextNode) c
         return textDirection;
     }
 
-    Node* node = ComposedTreeTraversal::firstChild(*this);
+    Node* node = FlatTreeTraversal::firstChild(*this);
     while (node) {
         // Skip bdi, script, style and text form controls.
         if (equalIgnoringCase(node->nodeName(), "bdi") || isHTMLScriptElement(*node) || isHTMLStyleElement(*node)
             || (node->isElementNode() && toElement(node)->isTextFormControl())) {
-            node = ComposedTreeTraversal::nextSkippingChildren(*node, this);
+            node = FlatTreeTraversal::nextSkippingChildren(*node, this);
             continue;
         }
 
@@ -751,7 +755,7 @@ TextDirection HTMLElement::directionality(Node** strongDirectionalityTextNode) c
         if (node->isElementNode()) {
             AtomicString dirAttributeValue = toElement(node)->fastGetAttribute(dirAttr);
             if (isValidDirAttribute(dirAttributeValue)) {
-                node = ComposedTreeTraversal::nextSkippingChildren(*node, this);
+                node = FlatTreeTraversal::nextSkippingChildren(*node, this);
                 continue;
             }
         }
@@ -765,7 +769,7 @@ TextDirection HTMLElement::directionality(Node** strongDirectionalityTextNode) c
                 return textDirection;
             }
         }
-        node = ComposedTreeTraversal::next(*node, this);
+        node = FlatTreeTraversal::next(*node, this);
     }
     if (strongDirectionalityTextNode)
         *strongDirectionalityTextNode = 0;
@@ -782,7 +786,7 @@ void HTMLElement::dirAttributeChanged(const AtomicString& value)
     // If an ancestor has dir=auto, and this node has the first character,
     // changes to dir attribute may affect the ancestor.
     updateDistribution();
-    Element* parent = ComposedTreeTraversal::parentElement(*this);
+    Element* parent = FlatTreeTraversal::parentElement(*this);
     if (parent && parent->isHTMLElement() && toHTMLElement(parent)->selfOrAncestorHasDirAutoAttribute())
         toHTMLElement(parent)->adjustDirectionalityIfNeededAfterChildAttributeChanged(this);
 
@@ -796,7 +800,7 @@ void HTMLElement::adjustDirectionalityIfNeededAfterChildAttributeChanged(Element
     TextDirection textDirection = directionality();
     if (layoutObject() && layoutObject()->style() && layoutObject()->style()->direction() != textDirection) {
         Element* elementToAdjust = this;
-        for (; elementToAdjust; elementToAdjust = ComposedTreeTraversal::parentElement(*elementToAdjust)) {
+        for (; elementToAdjust; elementToAdjust = FlatTreeTraversal::parentElement(*elementToAdjust)) {
             if (elementAffectsDirectionality(elementToAdjust)) {
                 elementToAdjust->setNeedsStyleRecalc(SubtreeStyleChange, StyleChangeReasonForTracing::create(StyleChangeReason::WritingModeChange));
                 return;
@@ -819,7 +823,7 @@ void HTMLElement::adjustDirectionalityIfNeededAfterChildrenChanged(const Childre
 
     updateDistribution();
 
-    for (Element* elementToAdjust = this; elementToAdjust; elementToAdjust = ComposedTreeTraversal::parentElement(*elementToAdjust)) {
+    for (Element* elementToAdjust = this; elementToAdjust; elementToAdjust = FlatTreeTraversal::parentElement(*elementToAdjust)) {
         if (elementAffectsDirectionality(elementToAdjust)) {
             toHTMLElement(elementToAdjust)->calculateAndAdjustDirectionality();
             return;

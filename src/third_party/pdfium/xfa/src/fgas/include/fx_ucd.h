@@ -4,20 +4,22 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FGAS_UNICODE_
-#define _FGAS_UNICODE_
+#ifndef XFA_SRC_FGAS_INCLUDE_FX_UCD_H_
+#define XFA_SRC_FGAS_INCLUDE_FX_UCD_H_
+
 #define FX_JAPCHARPROPERTYEX_Left 0x01
 #define FX_JAPCHARPROPERTYEX_Center 0x02
 #define FX_JAPCHARPROPERTYEX_Right 0x03
 #define FX_JAPCHARPROPERTYEX_Top 0x10
 #define FX_JAPCHARPROPERTYEX_Middle 0x20
 #define FX_JAPCHARPROPERTYEX_Bottom 0x30
-typedef struct _FX_JAPCHARPROPERTYEX {
+
+struct FX_JAPCHARPROPERTYEX {
   FX_WCHAR wChar;
   uint8_t uAlign;
-} FX_JAPCHARPROPERTYEX, *FX_LPJAPCHARPROPERTYEX;
-typedef FX_JAPCHARPROPERTYEX const* FX_LPCJAPCHARPROPERTYEX;
-FX_LPCJAPCHARPROPERTYEX FX_GetJapCharPropertyEx(FX_WCHAR wch);
+};
+
+const FX_JAPCHARPROPERTYEX* FX_GetJapCharPropertyEx(FX_WCHAR wch);
 typedef FX_BOOL (*FX_AdjustCharDisplayPos)(FX_WCHAR wch,
                                            FX_BOOL bMBCSCode,
                                            IFX_Font* pFont,
@@ -30,4 +32,5 @@ FX_BOOL FX_AdjustJapCharDisplayPos(FX_WCHAR wch,
                                    FX_FLOAT fFontSize,
                                    FX_BOOL bVertical,
                                    CFX_PointF& ptOffset);
-#endif
+
+#endif  // XFA_SRC_FGAS_INCLUDE_FX_UCD_H_

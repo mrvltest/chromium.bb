@@ -32,38 +32,17 @@
 #include <string.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 
 typedef uint8_t u8;
 typedef uint64_t u64;
 typedef int64_t s64;
-typedef __uint128_t uint128_t;
-typedef __int128_t int128_t;
 
 /* The underlying field. P256 operates over GF(2^256-2^224+2^192+2^96-1). We
  * can serialise an element of this field into 32 bytes. We call this an
  * felem_bytearray. */
 typedef u8 felem_bytearray[32];
-
-/* These are the parameters of P256, taken from FIPS 186-3, page 86. These
- * values are big-endian. */
-static const felem_bytearray nistp256_curve_params[5] = {
-    {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, /* p */
-     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-    {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, /* a = -3 */
-     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xfc}, /* b */
-    {0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, 0xb3, 0xeb, 0xbd, 0x55,
-     0x76, 0x98, 0x86, 0xbc, 0x65, 0x1d, 0x06, 0xb0, 0xcc, 0x53, 0xb0, 0xf6,
-     0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b},
-    {0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, /* x */
-     0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81,
-     0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96},
-    {0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, /* y */
-     0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57,
-     0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5}};
 
 /* The representation of field elements.
  * ------------------------------------
@@ -99,10 +78,10 @@ static const u64 bottom63bits = 0x7ffffffffffffffful;
 /* bin32_to_felem takes a little-endian byte array and converts it into felem
  * form. This assumes that the CPU is little-endian. */
 static void bin32_to_felem(felem out, const u8 in[32]) {
-  out[0] = *((u64 *)&in[0]);
-  out[1] = *((u64 *)&in[8]);
-  out[2] = *((u64 *)&in[16]);
-  out[3] = *((u64 *)&in[24]);
+  out[0] = *((const u64 *)&in[0]);
+  out[1] = *((const u64 *)&in[8]);
+  out[2] = *((const u64 *)&in[16]);
+  out[3] = *((const u64 *)&in[24]);
 }
 
 /* smallfelem_to_bin32 takes a smallfelem and serialises into a little endian,
@@ -1476,7 +1455,7 @@ static void select_point(const u64 idx, unsigned int size,
   memset(outlimbs, 0, 3 * sizeof(smallfelem));
 
   for (i = 0; i < size; i++) {
-    const u64 *inlimbs = (u64 *)&pre_comp[i][0][0];
+    const u64 *inlimbs = (const u64 *)&pre_comp[i][0][0];
     u64 mask = i ^ idx;
     mask |= mask >> 4;
     mask |= mask >> 2;
@@ -1601,47 +1580,6 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
 /*
  * OPENSSL EC_METHOD FUNCTIONS
  */
-
-int ec_GFp_nistp256_group_init(EC_GROUP *group) {
-  int ret = ec_GFp_simple_group_init(group);
-  group->a_is_minus3 = 1;
-  return ret;
-}
-
-int ec_GFp_nistp256_group_set_curve(EC_GROUP *group, const BIGNUM *p,
-                                    const BIGNUM *a, const BIGNUM *b,
-                                    BN_CTX *ctx) {
-  int ret = 0;
-  BN_CTX *new_ctx = NULL;
-  BIGNUM *curve_p, *curve_a, *curve_b;
-
-  if (ctx == NULL) {
-    if ((ctx = new_ctx = BN_CTX_new()) == NULL) {
-      return 0;
-    }
-  }
-  BN_CTX_start(ctx);
-  if (((curve_p = BN_CTX_get(ctx)) == NULL) ||
-      ((curve_a = BN_CTX_get(ctx)) == NULL) ||
-      ((curve_b = BN_CTX_get(ctx)) == NULL)) {
-    goto err;
-  }
-  BN_bin2bn(nistp256_curve_params[0], sizeof(felem_bytearray), curve_p);
-  BN_bin2bn(nistp256_curve_params[1], sizeof(felem_bytearray), curve_a);
-  BN_bin2bn(nistp256_curve_params[2], sizeof(felem_bytearray), curve_b);
-  if (BN_cmp(curve_p, p) ||
-      BN_cmp(curve_a, a) ||
-      BN_cmp(curve_b, b)) {
-    OPENSSL_PUT_ERROR(EC, EC_R_WRONG_CURVE_PARAMETERS);
-    goto err;
-  }
-  ret = ec_GFp_simple_group_set_curve(group, p, a, b, ctx);
-
-err:
-  BN_CTX_end(ctx);
-  BN_CTX_free(new_ctx);
-  return ret;
-}
 
 /* Takes the Jacobian coordinates (X, Y, Z) of a point and returns (X', Y') =
  * (X/Z^2, Y/Z^3). */
@@ -1861,10 +1799,10 @@ err:
 
 const EC_METHOD *EC_GFp_nistp256_method(void) {
   static const EC_METHOD ret = {
-      ec_GFp_nistp256_group_init,
+      ec_GFp_simple_group_init,
       ec_GFp_simple_group_finish,
-      ec_GFp_simple_group_clear_finish,
-      ec_GFp_simple_group_copy, ec_GFp_nistp256_group_set_curve,
+      ec_GFp_simple_group_copy,
+      ec_GFp_simple_group_set_curve,
       ec_GFp_nistp256_point_get_affine_coordinates,
       ec_GFp_nistp256_points_mul,
       0 /* check_pub_key_order */,

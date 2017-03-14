@@ -14,5 +14,4 @@ dictionary KeyboardEventInit : EventModifierInit {
 
     // Non-standard APIs
     DOMString keyIdentifier = "";
-    [ImplementedAs=location, DeprecateAs=KeyboardEventKeyLocation] unsigned long keyLocation = 0;
 };

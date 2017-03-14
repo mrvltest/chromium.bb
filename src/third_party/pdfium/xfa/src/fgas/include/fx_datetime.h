@@ -4,8 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_DATETIME_H_
-#define _FX_DATETIME_H_
+#ifndef XFA_SRC_FGAS_INCLUDE_FX_DATETIME_H_
+#define XFA_SRC_FGAS_INCLUDE_FX_DATETIME_H_
+
+#include "core/include/fxcrt/fx_system.h"
+
 class CFX_Unitime;
 class CFX_DateTime;
 typedef int64_t FX_UNITIME;
@@ -160,25 +163,25 @@ class CFX_Unitime {
 #if _FX_OS_ != _FX_ANDROID_
 #pragma pack(push, 1)
 #endif
-typedef struct _FX_DATE {
+struct FX_DATE {
   int32_t year;
   uint8_t month;
   uint8_t day;
-} FX_DATE, *FX_LPDATE;
-typedef FX_DATE const* FX_LPCDATE;
-typedef struct _FX_TIME {
+};
+
+struct FX_TIME {
   uint8_t hour;
   uint8_t minute;
   uint8_t second;
   FX_WORD millisecond;
-} FX_TIME, *FX_LPTIME;
-typedef FX_TIME const* FX_LPCTIME;
-typedef struct _FX_TIMEZONE {
+};
+
+struct FX_TIMEZONE {
   int8_t tzHour;
   uint8_t tzMinute;
-} FX_TIMEZONE, *FX_LPTIMEZONE;
-typedef FX_TIMEZONE const* FX_LPCTIMEZONE;
-typedef struct _FX_DATETIME {
+};
+
+struct FX_DATETIME {
   union {
     struct {
       int32_t year;
@@ -196,9 +199,9 @@ typedef struct _FX_DATETIME {
     } sTime;
     FX_TIME aTime;
   } Time;
-} FX_DATETIME, *FX_LPDATETIME;
-typedef FX_DATETIME const* FX_LPCDATETIME;
-typedef struct _FX_DATETIMEZONE {
+};
+
+struct FX_DATETIMEZONE {
   union {
     struct {
       union {
@@ -228,11 +231,11 @@ typedef struct _FX_DATETIMEZONE {
     };
     FX_TIMEZONE tz;
   };
-} FX_DATETIMEZONE, *FX_LPDATETIMEZONE;
-typedef FX_DATETIMEZONE const* FX_LPCDATETIMEZONE;
+};
 #if _FX_OS_ != _FX_ANDROID_
 #pragma pack(pop)
 #endif
+
 class CFX_DateTime {
  public:
   CFX_DateTime() {}
@@ -240,7 +243,7 @@ class CFX_DateTime {
   CFX_DateTime(const CFX_DateTime& dt) { m_DateTime = dt.m_DateTime; }
   virtual ~CFX_DateTime() {}
   operator FX_DATETIME*() { return &m_DateTime; }
-  operator FX_DATETIME const*() const { return &m_DateTime; }
+  operator const FX_DATETIME*() const { return &m_DateTime; }
   operator FX_DATETIME&() { return m_DateTime; }
   operator const FX_DATETIME&() const { return m_DateTime; }
   CFX_DateTime& operator=(const CFX_DateTime& dt) {
@@ -330,24 +333,30 @@ class CFX_DateTime {
     return dt;
   }
   friend FX_BOOL operator==(const CFX_DateTime& dt1, const CFX_DateTime& dt2) {
-    return FXSYS_memcmp((FX_LPCDATETIME)dt1, (FX_LPCDATETIME)dt2,
+    return FXSYS_memcmp(static_cast<const FX_DATETIME*>(dt1),
+                        static_cast<const FX_DATETIME*>(dt2),
                         sizeof(FX_DATETIME)) == 0;
   }
   friend FX_BOOL operator==(const CFX_DateTime& dt1, const FX_DATETIME& dt2) {
-    return FXSYS_memcmp((FX_LPCDATETIME)dt1, &dt2, sizeof(FX_DATETIME)) == 0;
+    return FXSYS_memcmp(static_cast<const FX_DATETIME*>(dt1), &dt2,
+                        sizeof(FX_DATETIME)) == 0;
   }
   friend FX_BOOL operator==(const FX_DATETIME& dt1, const CFX_DateTime& dt2) {
-    return FXSYS_memcmp(&dt1, (FX_LPCDATETIME)dt2, sizeof(FX_DATETIME)) == 0;
+    return FXSYS_memcmp(&dt1, static_cast<const FX_DATETIME*>(dt2),
+                        sizeof(FX_DATETIME)) == 0;
   }
   friend FX_BOOL operator!=(const CFX_DateTime& dt1, const CFX_DateTime& dt2) {
-    return FXSYS_memcmp((FX_LPCDATETIME)dt1, (FX_LPCDATETIME)dt2,
+    return FXSYS_memcmp(static_cast<const FX_DATETIME*>(dt1),
+                        static_cast<const FX_DATETIME*>(dt2),
                         sizeof(FX_DATETIME)) != 0;
   }
   friend FX_BOOL operator!=(const CFX_DateTime& dt1, const FX_DATETIME& dt2) {
-    return FXSYS_memcmp((FX_LPCDATETIME)dt1, &dt2, sizeof(FX_DATETIME)) != 0;
+    return FXSYS_memcmp(static_cast<const FX_DATETIME*>(dt1), &dt2,
+                        sizeof(FX_DATETIME)) != 0;
   }
   friend FX_BOOL operator!=(const FX_DATETIME& dt1, const CFX_DateTime& dt2) {
-    return FXSYS_memcmp(&dt1, (FX_LPCDATETIME)dt2, sizeof(FX_DATETIME)) != 0;
+    return FXSYS_memcmp(&dt1, static_cast<const FX_DATETIME*>(dt2),
+                        sizeof(FX_DATETIME)) != 0;
   }
   friend FX_BOOL operator>(const CFX_DateTime& dt1, const CFX_DateTime& dt2) {
     return dt1.ToUnitime() > dt2.ToUnitime();
@@ -389,4 +398,5 @@ class CFX_DateTime {
  private:
   FX_DATETIME m_DateTime;
 };
-#endif
+
+#endif  // XFA_SRC_FGAS_INCLUDE_FX_DATETIME_H_

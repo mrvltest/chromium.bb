@@ -4,8 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_UTILRESS_H_
-#define _BC_UTILRESS_H_
+#ifndef XFA_SRC_FXBARCODE_BC_UTILRSS_H_
+#define XFA_SRC_FXBARCODE_BC_UTILRSS_H_
+
+#include <cstdint>
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_RssPair;
 class CBC_UtilRSS {
  public:
@@ -26,4 +31,5 @@ class CBC_UtilRSS {
  private:
   CBC_UtilRSS();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_BC_UTILRSS_H_

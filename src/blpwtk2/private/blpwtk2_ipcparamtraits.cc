@@ -61,7 +61,7 @@ namespace IPC {
 
 // ============== blpwtk2::WebViewProperties =============== //
 
-void ParamTraits<WebViewProperties>::Write(Message* m, const param_type& p)
+void ParamTraits<WebViewProperties>::Write(base::Pickle* m, const param_type& p)
 {
     WriteParam(m, p.takeKeyboardFocusOnMouseDown);
     WriteParam(m, p.takeLogicalFocusOnMouseDown);
@@ -71,7 +71,7 @@ void ParamTraits<WebViewProperties>::Write(Message* m, const param_type& p)
     WriteParam(m, p.rerouteMouseWheelToAnyRelatedWindow);
 }
 
-bool ParamTraits<WebViewProperties>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<WebViewProperties>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     if (!ReadParam(m, iter, &r->takeKeyboardFocusOnMouseDown))
         return false;
@@ -110,12 +110,12 @@ void ParamTraits<WebViewProperties>::Log(const param_type& p, std::string* l)
 template <>
 struct ParamTraits<blpwtk2::ContextMenuItem> {
     typedef blpwtk2::ContextMenuItem param_type;
-    static void Write(Message* m, const param_type& p);
-    static bool Read(const Message* m, base::PickleIterator* iter, param_type* r);
+    static void Write(base::Pickle* m, const param_type& p);
+    static bool Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r);
     static void Log(const param_type& p, std::string* l);
 };
 
-void ParamTraits<ContextMenuItem>::Write(Message* m, const param_type& p)
+void ParamTraits<ContextMenuItem>::Write(base::Pickle* m, const param_type& p)
 {
     const ContextMenuItemImpl& impl = *getContextMenuItemImpl(p);
     WriteParam(m, impl.d_label);
@@ -129,7 +129,7 @@ void ParamTraits<ContextMenuItem>::Write(Message* m, const param_type& p)
     WriteParam(m, impl.d_submenu);
 }
 
-bool ParamTraits<ContextMenuItem>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<ContextMenuItem>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     ContextMenuItemImpl& impl = *getContextMenuItemImpl(*r);
     if (!ReadParam(m, iter, &impl.d_label))
@@ -179,7 +179,7 @@ void ParamTraits<ContextMenuItem>::Log(const param_type& p, std::string* l)
 
 // ============== blpwtk2::ContextMenuParams =============== //
 
-void ParamTraits<ContextMenuParams>::Write(Message* m, const param_type& p)
+void ParamTraits<ContextMenuParams>::Write(base::Pickle* m, const param_type& p)
 {
     const ContextMenuParamsImpl& impl = *getContextMenuParamsImpl(p);
     WriteParam(m, impl.d_misspelledWord);
@@ -193,7 +193,7 @@ void ParamTraits<ContextMenuParams>::Write(Message* m, const param_type& p)
     WriteParam(m, impl.d_suggestions);
 }
 
-bool ParamTraits<ContextMenuParams>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<ContextMenuParams>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     ContextMenuParamsImpl& impl = *getContextMenuParamsImpl(*r);
     if (!ReadParam(m, iter, &impl.d_misspelledWord))
@@ -243,7 +243,7 @@ void ParamTraits<ContextMenuParams>::Log(const param_type& p, std::string* l)
 
 // ============== blpwtk2::FileChooserParams =============== //
 
-void ParamTraits<FileChooserParams>::Write(Message* m, const param_type& p)
+void ParamTraits<FileChooserParams>::Write(base::Pickle* m, const param_type& p)
 {
     const FileChooserParamsImpl* impl = *reinterpret_cast<FileChooserParamsImpl*const *>(&p);
     WriteParam(m, impl->d_mode);
@@ -252,7 +252,7 @@ void ParamTraits<FileChooserParams>::Write(Message* m, const param_type& p)
     WriteParam(m, impl->d_acceptTypes);
 }
 
-bool ParamTraits<FileChooserParams>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<FileChooserParams>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     FileChooserParamsImpl* impl = *reinterpret_cast<FileChooserParamsImpl**>(r);
     if (!ReadParam(m, iter, &impl->d_mode))
@@ -282,7 +282,7 @@ void ParamTraits<FileChooserParams>::Log(const param_type& p, std::string* l)
 
 // ============== blpwtk2::FindOnPageRequest =============== //
 
-void ParamTraits<FindOnPageRequest>::Write(Message* m, const param_type& p)
+void ParamTraits<FindOnPageRequest>::Write(base::Pickle* m, const param_type& p)
 {
     WriteParam(m, p.reqId);
     WriteParam(m, p.text);
@@ -291,7 +291,7 @@ void ParamTraits<FindOnPageRequest>::Write(Message* m, const param_type& p)
     WriteParam(m, p.forward);
 }
 
-bool ParamTraits<FindOnPageRequest>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<FindOnPageRequest>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     if (!ReadParam(m, iter, &r->reqId))
         return false;
@@ -323,7 +323,7 @@ void ParamTraits<FindOnPageRequest>::Log(const param_type& p, std::string* l)
 
 // ================= blpwtk2::NewViewParams ================== //
 
-void ParamTraits<NewViewParams>::Write(Message* m, const param_type& p)
+void ParamTraits<NewViewParams>::Write(base::Pickle* m, const param_type& p)
 {
     m->WriteInt(p.disposition());
     {
@@ -356,7 +356,7 @@ void ParamTraits<NewViewParams>::Write(Message* m, const param_type& p)
     }
 }
 
-bool ParamTraits<NewViewParams>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<NewViewParams>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     int intValue;
     int length, strLength;
@@ -456,19 +456,19 @@ void ParamTraits<NewViewParams>::Log(const param_type& p, std::string* l)
 template <>
 struct ParamTraits<net::ProxyServer> {
     typedef net::ProxyServer param_type;
-    static void Write(Message* m, const param_type& p);
-    static bool Read(const Message* m, base::PickleIterator* iter, param_type* r);
+    static void Write(base::Pickle* m, const param_type& p);
+    static bool Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r);
     static void Log(const param_type& p, std::string* l);
 };
 
-void ParamTraits<net::ProxyServer>::Write(Message* m, const param_type& p)
+void ParamTraits<net::ProxyServer>::Write(base::Pickle* m, const param_type& p)
 {
     m->WriteInt(p.scheme());
     m->WriteString(p.host_port_pair().host());
     m->WriteUInt16(p.host_port_pair().port());
 }
 
-bool ParamTraits<net::ProxyServer>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<net::ProxyServer>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     int scheme;
     if (!iter->ReadInt(&scheme))
@@ -494,7 +494,7 @@ void ParamTraits<net::ProxyServer>::Log(const param_type& p, std::string* l)
 
 // =================== blpwtk2::ProxyConfig ==================== //
 
-void ParamTraits<ProxyConfig>::Write(Message* m, const param_type& p)
+void ParamTraits<ProxyConfig>::Write(base::Pickle* m, const param_type& p)
 {
     const net::ProxyConfig& impl = getProxyConfigImpl(p)->d_config;
     WriteParam(m, impl.has_pac_url());
@@ -508,7 +508,7 @@ void ParamTraits<ProxyConfig>::Write(Message* m, const param_type& p)
     WriteParam(m, impl.proxy_rules().bypass_rules.ToString());
 }
 
-bool ParamTraits<ProxyConfig>::Read(const Message* m, base::PickleIterator* iter, param_type* r)
+bool ParamTraits<ProxyConfig>::Read(const base::Pickle* m, base::PickleIterator* iter, param_type* r)
 {
     bool hasPacUrl;
     net::ProxyConfig& impl = getProxyConfigImpl(*r)->d_config;
@@ -558,7 +558,7 @@ void ParamTraits<ProxyConfig>::Log(const param_type& p, std::string* l)
 
 // =================== blpwtk2::SpellCheckConfig ==================== //
 
-void ParamTraits<SpellCheckConfig>::Write(Message* m, const param_type& p)
+void ParamTraits<SpellCheckConfig>::Write(base::Pickle* m, const param_type& p)
 {
     // TODO: expose the internal vectors of SpellCheckConfig to make this
     // TODO: simpler.
@@ -572,7 +572,7 @@ void ParamTraits<SpellCheckConfig>::Write(Message* m, const param_type& p)
     }
 }
 
-bool ParamTraits<SpellCheckConfig>::Read(const Message* m,
+bool ParamTraits<SpellCheckConfig>::Read(const base::Pickle* m,
                                          base::PickleIterator* iter,
                                          param_type* r)
 {

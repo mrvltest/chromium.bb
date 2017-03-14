@@ -50,7 +50,8 @@ private:
 // drawTargets to be picked up and added to by drawContexts lower in the call
 // stack. When this occurs with a closed drawTarget, a new one will be allocated
 // when the drawContext attempts to use it (via getDrawTarget).
-GrDrawContext::GrDrawContext(GrDrawingManager* drawingMgr,
+GrDrawContext::GrDrawContext(GrContext* context,
+                             GrDrawingManager* drawingMgr,
                              GrRenderTarget* rt,
                              const SkSurfaceProps* surfaceProps,
                              GrAuditTrail* auditTrail,
@@ -58,7 +59,7 @@ GrDrawContext::GrDrawContext(GrDrawingManager* drawingMgr,
     : fDrawingManager(drawingMgr)
     , fRenderTarget(rt)
     , fDrawTarget(SkSafeRef(rt->getLastDrawTarget()))
-    , fTextContext(nullptr)
+    , fContext(context)
     , fSurfaceProps(SkSurfacePropsCopyOrDefault(surfaceProps))
     , fAuditTrail(auditTrail)
 #ifdef SK_DEBUG
@@ -95,13 +96,13 @@ GrDrawTarget* GrDrawContext::getDrawTarget() {
     return fDrawTarget;
 }
 
-void GrDrawContext::copySurface(GrSurface* src, const SkIRect& srcRect, const SkIPoint& dstPoint) {
+bool GrDrawContext::copySurface(GrSurface* src, const SkIRect& srcRect, const SkIPoint& dstPoint) {
     ASSERT_SINGLE_OWNER
-    RETURN_IF_ABANDONED
+    RETURN_FALSE_IF_ABANDONED
     SkDEBUGCODE(this->validate();)
     GR_AUDIT_TRAIL_AUTO_FRAME(fAuditTrail, "GrDrawContext::copySurface");
 
-    this->getDrawTarget()->copySurface(fRenderTarget, src, srcRect, dstPoint);
+    return this->getDrawTarget()->copySurface(fRenderTarget, src, srcRect, dstPoint);
 }
 
 void GrDrawContext::drawText(const GrClip& clip, const GrPaint& grPaint,
@@ -114,12 +115,12 @@ void GrDrawContext::drawText(const GrClip& clip, const GrPaint& grPaint,
     SkDEBUGCODE(this->validate();)
     GR_AUDIT_TRAIL_AUTO_FRAME(fAuditTrail, "GrDrawContext::drawText");
 
-    if (!fTextContext) {
-        fTextContext = fDrawingManager->textContext(fSurfaceProps, fRenderTarget);
+    if (!fAtlasTextContext) {
+        fAtlasTextContext.reset(GrAtlasTextContext::Create());
     }
 
-    fTextContext->drawText(this, clip, grPaint, skPaint, viewMatrix,
-                           text, byteLength, x, y, clipBounds);
+    fAtlasTextContext->drawText(fContext, this, clip, grPaint, skPaint, viewMatrix, fSurfaceProps,
+                                text, byteLength, x, y, clipBounds);
 }
 
 void GrDrawContext::drawPosText(const GrClip& clip, const GrPaint& grPaint,
@@ -133,12 +134,13 @@ void GrDrawContext::drawPosText(const GrClip& clip, const GrPaint& grPaint,
     SkDEBUGCODE(this->validate();)
     GR_AUDIT_TRAIL_AUTO_FRAME(fAuditTrail, "GrDrawContext::drawPosText");
 
-    if (!fTextContext) {
-        fTextContext = fDrawingManager->textContext(fSurfaceProps, fRenderTarget);
+    if (!fAtlasTextContext) {
+        fAtlasTextContext.reset(GrAtlasTextContext::Create());
     }
 
-    fTextContext->drawPosText(this, clip, grPaint, skPaint, viewMatrix, text, byteLength,
-                              pos, scalarsPerPosition, offset, clipBounds);
+    fAtlasTextContext->drawPosText(fContext, this, clip, grPaint, skPaint, viewMatrix,
+                                   fSurfaceProps, text, byteLength, pos, scalarsPerPosition,
+                                   offset, clipBounds);
 
 }
 
@@ -151,11 +153,12 @@ void GrDrawContext::drawTextBlob(const GrClip& clip, const SkPaint& skPaint,
     SkDEBUGCODE(this->validate();)
     GR_AUDIT_TRAIL_AUTO_FRAME(fAuditTrail, "GrDrawContext::drawTextBlob");
 
-    if (!fTextContext) {
-        fTextContext = fDrawingManager->textContext(fSurfaceProps, fRenderTarget);
+    if (!fAtlasTextContext) {
+        fAtlasTextContext.reset(GrAtlasTextContext::Create());
     }
 
-    fTextContext->drawTextBlob(this, clip, skPaint, viewMatrix, blob, x, y, filter, clipBounds);
+    fAtlasTextContext->drawTextBlob(fContext, this, clip, skPaint, viewMatrix, fSurfaceProps, blob,
+                                    x, y, filter, clipBounds);
 }
 
 void GrDrawContext::discard() {
@@ -491,58 +494,25 @@ void GrDrawContext::drawRRect(const GrClip& clip,
     GrPipelineBuilder pipelineBuilder(paint, fRenderTarget, clip);
     GrColor color = paint.getColor();
 
-    if (!GrOvalRenderer::DrawRRect(this->getDrawTarget(),
-                                   pipelineBuilder,
-                                   color,
-                                   viewMatrix,
-                                   paint.isAntiAlias(),
-                                   rrect,
-                                   strokeInfo)) {
-        SkPath path;
-        path.setIsVolatile(true);
-        path.addRRect(rrect);
-        this->internalDrawPath(&pipelineBuilder, viewMatrix, color,
-                               paint.isAntiAlias(), path, strokeInfo);
-    }
-}
+    if (should_apply_coverage_aa(paint, fRenderTarget)) {
+        GrShaderCaps* shaderCaps = fContext->caps()->shaderCaps();
 
-///////////////////////////////////////////////////////////////////////////////
-
-void GrDrawContext::drawDRRect(const GrClip& clip,
-                               const GrPaint& paint,
-                               const SkMatrix& viewMatrix,
-                               const SkRRect& outer,
-                               const SkRRect& inner) {
-    ASSERT_SINGLE_OWNER
-    RETURN_IF_ABANDONED
-    SkDEBUGCODE(this->validate();)
-    GR_AUDIT_TRAIL_AUTO_FRAME(fAuditTrail, "GrDrawContext::drawDRRect");
-
-    if (outer.isEmpty()) {
-       return;
+        SkAutoTUnref<GrDrawBatch> batch(GrOvalRenderer::CreateRRectBatch(color,
+                                                                         viewMatrix,
+                                                                         rrect,
+                                                                         strokeInfo,
+                                                                         shaderCaps));
+        if (batch) {
+            this->getDrawTarget()->drawBatch(pipelineBuilder, batch);
+            return;
+        }
     }
 
-    AutoCheckFlush acf(fDrawingManager);
-
-    GrPipelineBuilder pipelineBuilder(paint, fRenderTarget, clip);
-    GrColor color = paint.getColor();
-    if (!GrOvalRenderer::DrawDRRect(this->getDrawTarget(),
-                                    pipelineBuilder,
-                                    color,
-                                    viewMatrix,
-                                    paint.isAntiAlias(),
-                                    outer,
-                                    inner)) {
-        SkPath path;
-        path.setIsVolatile(true);
-        path.addRRect(inner);
-        path.addRRect(outer);
-        path.setFillType(SkPath::kEvenOdd_FillType);
-
-        GrStrokeInfo fillRec(SkStrokeRec::kFill_InitStyle);
-        this->internalDrawPath(&pipelineBuilder, viewMatrix, color,
-                               paint.isAntiAlias(), path, fillRec);
-    }
+    SkPath path;
+    path.setIsVolatile(true);
+    path.addRRect(rrect);
+    this->internalDrawPath(&pipelineBuilder, viewMatrix, color,
+                           paint.isAntiAlias(), path, strokeInfo);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -567,20 +537,25 @@ void GrDrawContext::drawOval(const GrClip& clip,
 
     GrPipelineBuilder pipelineBuilder(paint, fRenderTarget, clip);
     GrColor color = paint.getColor();
-
-    if (!GrOvalRenderer::DrawOval(this->getDrawTarget(),
-                                  pipelineBuilder,
-                                  color,
-                                  viewMatrix,
-                                  paint.isAntiAlias(),
-                                  oval,
-                                  strokeInfo)) {
-        SkPath path;
-        path.setIsVolatile(true);
-        path.addOval(oval);
-        this->internalDrawPath(&pipelineBuilder, viewMatrix, color,
-                               paint.isAntiAlias(), path, strokeInfo);
+    
+    if (should_apply_coverage_aa(paint, fRenderTarget)) {
+        GrShaderCaps* shaderCaps = fContext->caps()->shaderCaps();
+        SkAutoTUnref<GrDrawBatch> batch(GrOvalRenderer::CreateOvalBatch(color,
+                                                                        viewMatrix,
+                                                                        oval,
+                                                                        strokeInfo,
+                                                                        shaderCaps));
+        if (batch) {
+            this->getDrawTarget()->drawBatch(pipelineBuilder, batch);
+            return;
+        }
     }
+
+    SkPath path;
+    path.setIsVolatile(true);
+    path.addOval(oval);
+    this->internalDrawPath(&pipelineBuilder, viewMatrix, color,
+                           paint.isAntiAlias(), path, strokeInfo);
 }
 
 void GrDrawContext::drawImageNine(const GrClip& clip,
@@ -708,10 +683,8 @@ void GrDrawContext::drawPath(const GrClip& clip,
     AutoCheckFlush acf(fDrawingManager);
 
     GrPipelineBuilder pipelineBuilder(paint, fRenderTarget, clip);
-    if (!strokeInfo.isDashed()) {
-        bool useCoverageAA = should_apply_coverage_aa(paint, pipelineBuilder.getRenderTarget());
-
-        if (useCoverageAA && strokeInfo.getWidth() < 0 && !path.isConvex()) {
+    if (should_apply_coverage_aa(paint, fRenderTarget) && !strokeInfo.isDashed()) {
+        if (strokeInfo.getWidth() < 0 && !path.isConvex()) {
             // Concave AA paths are expensive - try to avoid them for special cases
             SkRect rects[2];
 
@@ -726,13 +699,14 @@ void GrDrawContext::drawPath(const GrClip& clip,
         bool isOval = path.isOval(&ovalRect);
 
         if (isOval && !path.isInverseFillType()) {
-            if (GrOvalRenderer::DrawOval(this->getDrawTarget(),
-                                         pipelineBuilder,
-                                         color,
-                                         viewMatrix,
-                                         paint.isAntiAlias(),
-                                         ovalRect,
-                                         strokeInfo)) {
+            GrShaderCaps* shaderCaps = fContext->caps()->shaderCaps();
+            SkAutoTUnref<GrDrawBatch> batch(GrOvalRenderer::CreateOvalBatch(color,
+                                                                            viewMatrix,
+                                                                            ovalRect,
+                                                                            strokeInfo,
+                                                                            shaderCaps));
+            if (batch) {
+                this->getDrawTarget()->drawBatch(pipelineBuilder, batch);
                 return;
             }
         }

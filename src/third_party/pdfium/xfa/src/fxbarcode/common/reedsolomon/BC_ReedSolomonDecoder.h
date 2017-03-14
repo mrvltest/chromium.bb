@@ -4,10 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_REEDSOLOMONDECODER_H_
-#define _BC_REEDSOLOMONDECODER_H_
+#ifndef XFA_SRC_FXBARCODE_COMMON_REEDSOLOMON_BC_REEDSOLOMONDECODER_H_
+#define XFA_SRC_FXBARCODE_COMMON_REEDSOLOMON_BC_REEDSOLOMONDECODER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_ReedSolomonGF256;
 class CBC_ReedSolomonGF256Poly;
+
 class CBC_ReedSolomonDecoder {
  private:
   CBC_ReedSolomonGF256* m_field;
@@ -27,4 +31,5 @@ class CBC_ReedSolomonDecoder {
                                       FX_BOOL dataMatrix,
                                       int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_COMMON_REEDSOLOMON_BC_REEDSOLOMONDECODER_H_

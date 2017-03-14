@@ -20,9 +20,9 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "BC_ReedSolomonGF256Poly.h"
-#include "BC_ReedSolomonGF256.h"
+#include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonGF256.h"
+#include "xfa/src/fxbarcode/common/reedsolomon/BC_ReedSolomonGF256Poly.h"
+
 CBC_ReedSolomonGF256* CBC_ReedSolomonGF256::QRCodeFild = NULL;
 CBC_ReedSolomonGF256* CBC_ReedSolomonGF256::DataMatrixField = NULL;
 void CBC_ReedSolomonGF256::Initialize() {
@@ -60,14 +60,8 @@ void CBC_ReedSolomonGF256::Init() {
   m_one = new CBC_ReedSolomonGF256Poly(this, 1);
 }
 CBC_ReedSolomonGF256::~CBC_ReedSolomonGF256() {
-  if (m_zero != NULL) {
-    delete m_zero;
-    m_zero = NULL;
-  }
-  if (m_one != NULL) {
-    delete m_one;
-    m_one = NULL;
-  }
+  delete m_zero;
+  delete m_one;
 }
 CBC_ReedSolomonGF256Poly* CBC_ReedSolomonGF256::GetZero() {
   return m_zero;

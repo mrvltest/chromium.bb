@@ -4,8 +4,9 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FXFA_SCRIPT_H
-#define _FXFA_SCRIPT_H
+#ifndef XFA_SRC_FXFA_SRC_COMMON_XFA_SCRIPT_H_
+#define XFA_SRC_FXFA_SRC_COMMON_XFA_SCRIPT_H_
+
 #define XFA_RESOLVENODE_Children 0x0001
 #define XFA_RESOLVENODE_Attributes 0x0004
 #define XFA_RESOLVENODE_Properties 0x0008
@@ -45,10 +46,11 @@ class CXFA_HVALUEArray : public CFX_ArrayTemplate<FXJSE_HVALUE> {
   }
   FXJSE_HRUNTIME m_hRunTime;
 };
-typedef struct _XFA_RESOLVENODE_RS {
-  _XFA_RESOLVENODE_RS()
+
+struct XFA_RESOLVENODE_RS {
+  XFA_RESOLVENODE_RS()
       : dwFlags(XFA_RESOVENODE_RSTYPE_Nodes), pScriptAttribute(NULL) {}
-  ~_XFA_RESOLVENODE_RS() { nodes.RemoveAll(); }
+  ~XFA_RESOLVENODE_RS() { nodes.RemoveAll(); }
   int32_t GetAttributeResult(CXFA_HVALUEArray& hValueArray) const {
     if (pScriptAttribute && pScriptAttribute->eValueType == XFA_SCRIPT_Object) {
       FXJSE_HRUNTIME hRunTime = hValueArray.m_hRunTime;
@@ -61,23 +63,26 @@ typedef struct _XFA_RESOLVENODE_RS {
     }
     return hValueArray.GetSize();
   }
+
   CXFA_ObjArray nodes;
   XFA_RESOVENODE_RSTYPE dwFlags;
-  XFA_LPCSCRIPTATTRIBUTEINFO pScriptAttribute;
-} XFA_RESOLVENODE_RS, *XFA_LPRESOLVENODE_RS;
-typedef struct _XFA_JSBUILTININFO {
+  const XFA_SCRIPTATTRIBUTEINFO* pScriptAttribute;
+};
+
+struct XFA_JSBUILTININFO {
   uint32_t uUnicodeHash;
   const FX_CHAR* pName;
-} XFA_JSBUILTININFO, *XFA_LPJSBUILTININFO;
-typedef XFA_JSBUILTININFO const* XFA_LPCJSBUILTININFO;
-XFA_LPCJSBUILTININFO XFA_GetJSBuiltinByHash(uint32_t uHashCode);
+};
+
+const XFA_JSBUILTININFO* XFA_GetJSBuiltinByHash(uint32_t uHashCode);
+
 class IXFA_ScriptContext {
  public:
   virtual ~IXFA_ScriptContext() {}
   virtual void Release() = 0;
   virtual void Initialize(FXJSE_HRUNTIME hRuntime) = 0;
 
-  virtual void SetEventParam(CXFA_EventParam* pEventParam) = 0;
+  virtual void SetEventParam(CXFA_EventParam param) = 0;
   virtual CXFA_EventParam* GetEventParam() = 0;
   virtual FX_BOOL RunScript(XFA_SCRIPTLANGTYPE eScriptType,
                             const CFX_WideStringC& wsScript,
@@ -102,9 +107,9 @@ class IXFA_ScriptContext {
   virtual void AddNodesOfRunScript(CXFA_Node* pNode) = 0;
   virtual FXJSE_HCLASS GetJseNormalClass() = 0;
   virtual XFA_SCRIPTLANGTYPE GetType() = 0;
-  virtual void AddJSBuiltinObject(XFA_LPCJSBUILTININFO pBuitinObject) = 0;
   virtual void SetRunAtType(XFA_ATTRIBUTEENUM eRunAt) = 0;
   virtual FX_BOOL IsRunAtClient() = 0;
 };
 IXFA_ScriptContext* XFA_ScriptContext_Create(CXFA_Document* pDocument);
-#endif
+
+#endif  // XFA_SRC_FXFA_SRC_COMMON_XFA_SCRIPT_H_

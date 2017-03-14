@@ -4,10 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/include/fwl/lightwidget/widget.h"
+
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/include/fwl/core/fwl_thread.h"
+#include "xfa/src/fdp/include/fde_tto.h"
 #include "xfa/src/foxitlib.h"
 #include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
 
@@ -279,13 +284,12 @@ void CFWL_Widget::DispatchEvent(CFWL_Event* pEvent) {
 CFX_SizeF CFWL_Widget::CalcTextSize(const CFX_WideString& wsText,
                                     FX_BOOL bMultiLine,
                                     int32_t iLineWidth) {
-  CFX_SizeF sz;
-  sz.Set(0, 0);
   if (!m_pIface)
-    return sz;
+    return CFX_SizeF();
   IFWL_ThemeProvider* pTheme = m_pIface->GetThemeProvider();
   if (!pTheme)
-    return sz;
+    return CFX_SizeF();
+
   CFWL_ThemeText calPart;
   calPart.m_pWidget = m_pIface;
   calPart.m_wsText = wsText;
@@ -299,9 +303,7 @@ CFX_SizeF CFWL_Widget::CalcTextSize(const CFX_WideString& wsText,
                         : FWL_WGT_CalcWidth;
   rect.Set(0, 0, fWidth, FWL_WGT_CalcHeight);
   pTheme->CalcTextRect(&calPart, rect);
-  sz.x = rect.width;
-  sz.y = rect.height;
-  return sz;
+  return CFX_SizeF(rect.width, rect.height);
 }
 CFWL_WidgetDelegate::CFWL_WidgetDelegate() {}
 CFWL_WidgetDelegate::~CFWL_WidgetDelegate() {}

@@ -10,6 +10,7 @@
 
 #include "SkBitmap.h"
 #include "SkFlattenable.h"
+#include "SkImageInfo.h"
 #include "SkMask.h"
 #include "SkMatrix.h"
 #include "SkPaint.h"
@@ -81,6 +82,10 @@ public:
             shadeSpan().
          */
         kConstInY32_Flag = 1 << 1,
+
+        /** hint for the blitter that 4f is the preferred shading mode.
+         */
+        kPrefers4f_Flag  = 1 << 2,
     };
 
     /**
@@ -95,14 +100,22 @@ public:
      *  ContextRec acts as a parameter bundle for creating Contexts.
      */
     struct ContextRec {
-        ContextRec(const SkPaint& paint, const SkMatrix& matrix, const SkMatrix* localM)
+        enum DstType {
+            kPMColor_DstType, // clients prefer shading into PMColor dest
+            kPM4f_DstType,    // clients prefer shading into PM4f dest
+        };
+
+        ContextRec(const SkPaint& paint, const SkMatrix& matrix, const SkMatrix* localM,
+                   DstType dstType)
             : fPaint(&paint)
             , fMatrix(&matrix)
-            , fLocalMatrix(localM) {}
+            , fLocalMatrix(localM)
+            , fPreferredDstType(dstType) {}
 
-        const SkPaint*  fPaint;         // the current paint associated with the draw
-        const SkMatrix* fMatrix;        // the current matrix in the canvas
-        const SkMatrix* fLocalMatrix;   // optional local matrix
+        const SkPaint*  fPaint;            // the current paint associated with the draw
+        const SkMatrix* fMatrix;           // the current matrix in the canvas
+        const SkMatrix* fLocalMatrix;      // optional local matrix
+        const DstType   fPreferredDstType; // the "natural" client dest type
     };
 
     class Context : public ::SkNoncopyable {
@@ -126,6 +139,8 @@ public:
          *  to the specified device coordinates.
          */
         virtual void shadeSpan(int x, int y, SkPMColor[], int count) = 0;
+
+        virtual void shadeSpan4f(int x, int y, SkPM4f[], int count);
 
         /**
          * The const void* ctx is only const because all the implementations are const.
@@ -181,7 +196,7 @@ public:
      *  Override this if your subclass overrides createContext, to return the correct size of
      *  your subclass' context.
      */
-    virtual size_t contextSize() const;
+    virtual size_t contextSize(const ContextRec&) const;
 
     /**
      *  Returns true if this shader is just a bitmap, and if not null, returns the bitmap,
@@ -316,7 +331,7 @@ public:
      *  the colorfilter.
      */
     SkShader* newWithColorFilter(SkColorFilter*) const;
-    
+
     //////////////////////////////////////////////////////////////////////////
     //  Factory methods for stock shaders
     
@@ -330,6 +345,18 @@ public:
      *  draw the same as a paint with this color (and no shader).
      */
     static SkShader* CreateColorShader(SkColor);
+
+    static SkShader* CreateComposeShader(SkShader* dst, SkShader* src, SkXfermode::Mode);
+
+    /**
+     *  Create a new compose shader, given shaders dst, src, and a combining xfermode mode.
+     *  The xfermode is called with the output of the two shaders, and its output is returned.
+     *  If xfer is null, SkXfermode::kSrcOver_Mode is assumed.
+     *
+     *  Ownership of the shaders, and the xfermode if not null, is not transfered, so the caller
+     *  is still responsible for managing its reference-count for those objects.
+     */
+    static SkShader* CreateComposeShader(SkShader* dst, SkShader* src, SkXfermode* xfer);
 
     /** Call this to create a new shader that will draw with the specified bitmap.
      *

@@ -8,7 +8,6 @@ import difflib
 import hashlib
 import json
 import logging
-import re
 
 import httplib2
 
@@ -17,6 +16,7 @@ from google.appengine.api import app_identity
 
 from dashboard import buildbucket_job
 from dashboard import buildbucket_service
+from dashboard import can_bisect
 from dashboard import namespaced_stored_object
 from dashboard import quick_logger
 from dashboard import request_handler
@@ -38,7 +38,6 @@ diff --git a/%(filename_a)s b/%(filename_b)s
 index %(hash_a)s..%(hash_b)s 100644
 """
 
-_BISECT_BOT_MAP_KEY = 'bisect_bot_map'
 _BOT_BROWSER_MAP_KEY = 'bot_browser_map'
 _INTERNAL_MASTERS_KEY = 'internal_masters'
 _BUILDER_TYPES_KEY = 'bisect_builder_types'
@@ -277,20 +276,15 @@ def GetBisectConfig(
     return {'error': 'Could not guess command for %r.' % suite}
 
   try:
-    if not _IsGitHash(good_revision):
-      good_revision = int(good_revision)
-    if not _IsGitHash(bad_revision):
-      bad_revision = int(bad_revision)
     repeat_count = int(repeat_count)
     max_time_minutes = int(max_time_minutes)
     bug_id = int(bug_id)
   except ValueError:
-    return {'error': ('repeat count and max time must be integers '
-                      'and revision as git hash or int.')}
+    return {'error': 'repeat count, max time and bug_id must be integers.'}
 
-  if not IsValidRevisionForBisect(good_revision):
+  if not can_bisect.IsValidRevisionForBisect(good_revision):
     return {'error': 'Invalid "good" revision "%s".' % good_revision}
-  if not IsValidRevisionForBisect(bad_revision):
+  if not can_bisect.IsValidRevisionForBisect(bad_revision):
     return {'error': 'Invalid "bad" revision "%s".' % bad_revision}
 
   config_dict = {
@@ -359,9 +353,9 @@ def _GetPerfTryConfig(
   if not command:
     return {'error': 'Only Telemetry is supported at the moment.'}
 
-  if not IsValidRevisionForBisect(good_revision):
+  if not can_bisect.IsValidRevisionForBisect(good_revision):
     return {'error': 'Invalid "good" revision "%s".' % good_revision}
-  if not IsValidRevisionForBisect(bad_revision):
+  if not can_bisect.IsValidRevisionForBisect(bad_revision):
     return {'error': 'Invalid "bad" revision "%s".' % bad_revision}
 
   config_dict = {
@@ -374,19 +368,9 @@ def _GetPerfTryConfig(
   return config_dict
 
 
-def IsValidRevisionForBisect(revision):
-  """Checks whether a revision looks like a valid revision for bisect."""
-  return _IsGitHash(revision) or re.match(r'^[0-9]{5,7}$', str(revision))
-
-
-def _IsGitHash(revision):
-  """Checks whether the input looks like a SHA1 hash."""
-  return re.match(r'[a-fA-F0-9]{40}$', str(revision))
-
-
 def _GetAvailableBisectBots(master_name):
   """Get all available bisect bots corresponding to a master name."""
-  bisect_bot_map = namespaced_stored_object.Get(_BISECT_BOT_MAP_KEY)
+  bisect_bot_map = namespaced_stored_object.Get(can_bisect.BISECT_BOT_MAP_KEY)
   for master, platform_bot_pairs in bisect_bot_map.iteritems():
     if master_name.startswith(master):
       return sorted({bot for _, bot in platform_bot_pairs})
@@ -401,7 +385,7 @@ def _CanDownloadBuilds(master_name):
 def GuessBisectBot(master_name, bot_name):
   """Returns a bisect bot name based on |bot_name| (perf_id) string."""
   fallback = 'linux_perf_bisect'
-  bisect_bot_map = namespaced_stored_object.Get(_BISECT_BOT_MAP_KEY)
+  bisect_bot_map = namespaced_stored_object.Get(can_bisect.BISECT_BOT_MAP_KEY)
   if not bisect_bot_map:
     return fallback
   bot_name = bot_name.lower()
@@ -617,6 +601,11 @@ def PerformBisect(bisect_job):
   Returns:
     A dictionary containing the result; if successful, this dictionary contains
     the field "issue_id" and "issue_url", otherwise it contains "error".
+
+  Raises:
+    AssertionError: Bot or config not set as expected.
+    request_handler.InvalidInputError: Some property of the bisect job
+        is invalid.
   """
   assert bisect_job.bot and bisect_job.config
   if not bisect_job.key:
@@ -685,7 +674,7 @@ def _PerformLegacyBisect(bisect_job):
       bisect_job.SetStarted()
       bug_comment = ('Bisect started; track progress at '
                      '<a href="%s">%s</a>' % (issue_url, issue_url))
-      LogBisectResult(bug_id, bug_comment)
+      LogBisectResult(bisect_job, bug_comment)
     return {'issue_id': issue_id, 'issue_url': issue_url}
 
   return {'error': 'Error starting try job. Try to fix at %s' % issue_url}
@@ -765,14 +754,19 @@ def _PerformPerfTryJob(perf_job):
   return {'error': 'Error starting try job. Try to fix at %s' % url}
 
 
-def LogBisectResult(bug_id, comment):
+def LogBisectResult(job, comment):
   """Adds an entry to the bisect result log for a particular bug."""
-  if not bug_id or bug_id < 0:
+  if not job.bug_id or job.bug_id < 0:
     return
   formatter = quick_logger.Formatter()
-  logger = quick_logger.QuickLogger('bisect_result', bug_id, formatter)
-  logger.Log(comment)
-  logger.Save()
+  logger = quick_logger.QuickLogger('bisect_result', job.bug_id, formatter)
+  if job.log_record_id:
+    logger.Log(comment, record_id=job.log_record_id)
+    logger.Save()
+  else:
+    job.log_record_id = logger.Log(comment)
+    logger.Save()
+    job.put()
 
 
 def _MakeBuildbucketBisectJob(bisect_job):
@@ -837,7 +831,7 @@ def _PerformBuildbucketBisect(bisect_job):
     issue_url = 'https://%s/buildbucket_job_status/%s' % (hostname, job_id)
     bug_comment = ('Bisect started; track progress at '
                    '<a href="%s">%s</a>' % (issue_url, issue_url))
-    LogBisectResult(bisect_job.bug_id, bug_comment)
+    LogBisectResult(bisect_job, bug_comment)
     return {
         'issue_id': job_id,
         'issue_url': issue_url,

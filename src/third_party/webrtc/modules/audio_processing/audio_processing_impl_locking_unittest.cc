@@ -11,6 +11,7 @@
 #include "webrtc/modules/audio_processing/audio_processing_impl.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -198,8 +199,12 @@ struct TestConfig {
           AecType::BasicWebRtcAecSettingsWithDelayAgnosticAec,
           AecType::BasicWebRtcAecSettingsWithAecMobile};
       for (auto test_config : in) {
-        for (auto aec_type : aec_types) {
-          test_config.aec_type = aec_type;
+        // Due to a VisualStudio 2015 compiler issue, the internal loop
+        // variable here cannot override a previously defined name.
+        // In other words "type" cannot be named "aec_type" here.
+        // https://connect.microsoft.com/VisualStudio/feedback/details/2291755
+        for (auto type : aec_types) {
+          test_config.aec_type = type;
           out.push_back(test_config);
         }
       }
@@ -298,7 +303,7 @@ class FrameCounters {
   }
 
  private:
-  mutable rtc::CriticalSection crit_;
+  rtc::CriticalSection crit_;
   int render_count GUARDED_BY(crit_) = 0;
   int capture_count GUARDED_BY(crit_) = 0;
 };
@@ -443,7 +448,7 @@ class AudioProcessingImplLockTest
   rtc::PlatformThread stats_thread_;
   mutable RandomGenerator rand_gen_;
 
-  rtc::scoped_ptr<AudioProcessing> apm_;
+  std::unique_ptr<AudioProcessing> apm_;
   TestConfig test_config_;
   FrameCounters frame_counters_;
   RenderProcessor render_thread_state_;
@@ -596,7 +601,6 @@ bool StatsProcessor::Process() {
                 (test_config_->aec_type ==
                  AecType::BasicWebRtcAecSettingsWithAecMobile));
   EXPECT_TRUE(apm_->gain_control()->is_enabled());
-  apm_->gain_control()->stream_analog_level();
   EXPECT_TRUE(apm_->noise_suppression()->is_enabled());
 
   // The below return values are not testable.
@@ -709,8 +713,11 @@ void CaptureProcessor::CallApmCaptureSide() {
   // Prepare a proper capture side processing API call input.
   PrepareFrame();
 
-  // Set the stream delay
+  // Set the stream delay.
   apm_->set_stream_delay_ms(30);
+
+  // Set the analog level.
+  apm_->gain_control()->set_stream_analog_level(80);
 
   // Call the specified capture side API processing method.
   int result = AudioProcessing::kNoError;
@@ -733,6 +740,9 @@ void CaptureProcessor::CallApmCaptureSide() {
     default:
       FAIL();
   }
+
+  // Retrieve the new analog level.
+  apm_->gain_control()->stream_analog_level();
 
   // Check the return code for error.
   ASSERT_EQ(AudioProcessing::kNoError, result);

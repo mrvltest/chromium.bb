@@ -8,6 +8,7 @@
 #include "DMSrcSink.h"
 #include "SkAndroidCodec.h"
 #include "SkCodec.h"
+#include "SkCodecImageGenerator.h"
 #include "SkCommonFlags.h"
 #include "SkData.h"
 #include "SkDocument.h"
@@ -17,6 +18,7 @@
 #include "SkMultiPictureDraw.h"
 #include "SkNullCanvas.h"
 #include "SkOSFile.h"
+#include "SkOpts.h"
 #include "SkPictureData.h"
 #include "SkPictureRecorder.h"
 #include "SkRandom.h"
@@ -30,13 +32,13 @@
 #include "SkSwizzler.h"
 #include <functional>
 
+#ifdef SK_MOJO
+    #include "SkMojo.mojom.h"
+#endif
+
 DEFINE_bool(multiPage, false, "For document-type backends, render the source"
             " into multiple pages");
-
-static bool lazy_decode_bitmap(const void* src, size_t size, SkBitmap* dst) {
-    SkAutoTUnref<SkData> encoded(SkData::NewWithCopy(src, size));
-    return encoded && SkDEPRECATED_InstallDiscardablePixelRef(encoded, dst);
-}
+DEFINE_bool(RAW_threading, true, "Allow RAW decodes to run on multiple threads?");
 
 namespace DM {
 
@@ -232,46 +234,128 @@ Name BRDSrc::name() const {
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-CodecSrc::CodecSrc(Path path, Mode mode, DstColorType dstColorType, float scale)
+static bool serial_from_path_name(const SkString& path) {
+    if (!FLAGS_RAW_threading) {
+        static const char* const exts[] = {
+            "arw", "cr2", "dng", "nef", "nrw", "orf", "raf", "rw2", "pef", "srw",
+            "ARW", "CR2", "DNG", "NEF", "NRW", "ORF", "RAF", "RW2", "PEF", "SRW",
+        };
+        const char* actualExt = strrchr(path.c_str(), '.');
+        if (actualExt) {
+            actualExt++;
+            for (auto* ext : exts) {
+                if (0 == strcmp(ext, actualExt)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+CodecSrc::CodecSrc(Path path, Mode mode, DstColorType dstColorType, SkAlphaType dstAlphaType,
+                   float scale)
     : fPath(path)
     , fMode(mode)
     , fDstColorType(dstColorType)
+    , fDstAlphaType(dstAlphaType)
     , fScale(scale)
+    , fRunSerially(serial_from_path_name(path))
 {}
 
 bool CodecSrc::veto(SinkFlags flags) const {
-    // No need to test decoding to non-raster or indirect backend.
-    // TODO: Once we implement GPU paths (e.g. JPEG YUV), we should use a deferred decode to
-    // let the GPU handle it.
-    return flags.type != SinkFlags::kRaster
-        || flags.approach != SinkFlags::kDirect;
+    // Test CodecImageGenerator on 8888, 565, and gpu
+    if (kGen_Mode == fMode) {
+        // For image generator, we want to test kDirect approaches for kRaster and kGPU,
+        // while skipping everything else.
+        return (flags.type != SinkFlags::kRaster && flags.type != SinkFlags::kGPU) ||
+                flags.approach != SinkFlags::kDirect;
+    }
+
+    // Test all other modes to direct raster backends (8888 and 565).
+    return flags.type != SinkFlags::kRaster || flags.approach != SinkFlags::kDirect;
 }
 
-bool get_decode_info(SkImageInfo* decodeInfo, const SkImageInfo& defaultInfo,
-        SkColorType canvasColorType, CodecSrc::DstColorType dstColorType) {
+// FIXME: Currently we cannot draw unpremultiplied sources. skbug.com/3338 and skbug.com/3339.
+// This allows us to still test unpremultiplied decodes.
+void premultiply_if_necessary(SkBitmap& bitmap) {
+    if (kUnpremul_SkAlphaType != bitmap.alphaType()) {
+        return;
+    }
+
+    switch (bitmap.colorType()) {
+        case kN32_SkColorType:
+            for (int y = 0; y < bitmap.height(); y++) {
+                uint32_t* row = (uint32_t*) bitmap.getAddr(0, y);
+                SkOpts::RGBA_to_rgbA(row, row, bitmap.width());
+            }
+            break;
+        case kIndex_8_SkColorType: {
+            SkColorTable* colorTable = bitmap.getColorTable();
+            SkPMColor* colorPtr = const_cast<SkPMColor*>(colorTable->readColors());
+            SkOpts::RGBA_to_rgbA(colorPtr, colorPtr, colorTable->count());
+            break;
+        }
+        default:
+            // No need to premultiply kGray or k565 outputs.
+            break;
+    }
+
+    // In the kIndex_8 case, the canvas won't even try to draw unless we mark the
+    // bitmap as kPremul.
+    bitmap.setAlphaType(kPremul_SkAlphaType);
+}
+
+bool get_decode_info(SkImageInfo* decodeInfo, SkColorType canvasColorType,
+                     CodecSrc::DstColorType dstColorType) {
     switch (dstColorType) {
         case CodecSrc::kIndex8_Always_DstColorType:
             if (kRGB_565_SkColorType == canvasColorType) {
                 return false;
             }
-            *decodeInfo = defaultInfo.makeColorType(kIndex_8_SkColorType);
+            *decodeInfo = decodeInfo->makeColorType(kIndex_8_SkColorType);
             break;
         case CodecSrc::kGrayscale_Always_DstColorType:
-            if (kRGB_565_SkColorType == canvasColorType) {
+            if (kRGB_565_SkColorType == canvasColorType ||
+                    kOpaque_SkAlphaType != decodeInfo->alphaType()) {
                 return false;
             }
-            *decodeInfo = defaultInfo.makeColorType(kGray_8_SkColorType);
+            *decodeInfo = decodeInfo->makeColorType(kGray_8_SkColorType);
             break;
         default:
-            *decodeInfo = defaultInfo.makeColorType(canvasColorType);
+            if (kRGB_565_SkColorType == canvasColorType &&
+                    kOpaque_SkAlphaType != decodeInfo->alphaType()) {
+                return false;
+            }
+            *decodeInfo = decodeInfo->makeColorType(canvasColorType);
             break;
     }
 
-    // FIXME: Currently we cannot draw unpremultiplied sources.
-    if (decodeInfo->alphaType() == kUnpremul_SkAlphaType) {
-        *decodeInfo = decodeInfo->makeAlphaType(kPremul_SkAlphaType);
-    }
     return true;
+}
+
+Error test_gen(SkCanvas* canvas, SkData* data) {
+    SkAutoTDelete<SkImageGenerator> gen = SkCodecImageGenerator::NewFromEncodedCodec(data);
+    if (!gen) {
+        return "Could not create image generator.";
+    }
+
+    // FIXME: The gpu backend does not draw kGray sources correctly. (skbug.com/4822)
+    // Currently, we will avoid creating a CodecSrc for this case (see DM.cpp).
+    SkASSERT(kGray_8_SkColorType != gen->getInfo().colorType());
+
+    if (kOpaque_SkAlphaType != gen->getInfo().alphaType() &&
+            kRGB_565_SkColorType == canvas->imageInfo().colorType()) {
+        return Error::Nonfatal("Skip testing non-opaque images to 565.");
+    }
+
+    SkAutoTDelete<SkImage> image(SkImage::NewFromGenerator(gen.detach(), nullptr));
+    if (!image) {
+        return "Could not create image from codec image generator.";
+    }
+
+    canvas->drawImage(image, 0, 0);
+    return "";
 }
 
 Error CodecSrc::draw(SkCanvas* canvas) const {
@@ -279,14 +363,20 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
     if (!encoded) {
         return SkStringPrintf("Couldn't read %s.", fPath.c_str());
     }
+
+    // The CodecImageGenerator test does not share much code with the other tests,
+    // so we will handle it in its own function.
+    if (kGen_Mode == fMode) {
+        return test_gen(canvas, encoded);
+    }
+
     SkAutoTDelete<SkCodec> codec(SkCodec::NewFromData(encoded));
     if (nullptr == codec.get()) {
         return SkStringPrintf("Couldn't create codec for %s.", fPath.c_str());
     }
 
-    SkImageInfo decodeInfo;
-    if (!get_decode_info(&decodeInfo, codec->getInfo(), canvas->imageInfo().colorType(),
-            fDstColorType)) {
+    SkImageInfo decodeInfo = codec->getInfo().makeAlphaType(fDstAlphaType);
+    if (!get_decode_info(&decodeInfo, canvas->imageInfo().colorType(), fDstColorType)) {
         return Error::Nonfatal("Testing non-565 to 565 is uninteresting.");
     }
 
@@ -338,19 +428,18 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
                     // available.
                 case SkCodec::kIncompleteInput:
                     break;
-                case SkCodec::kInvalidConversion:
-                    return Error::Nonfatal("Incompatible colortype conversion");
                 default:
                     // Everything else is considered a failure.
                     return SkStringPrintf("Couldn't getPixels %s.", fPath.c_str());
             }
+            premultiply_if_necessary(bitmap);
             canvas->drawBitmap(bitmap, 0, 0);
             break;
         }
         case kScanline_Mode: {
             if (SkCodec::kSuccess != codec->startScanlineDecode(decodeInfo, NULL, colorPtr,
                                                                 colorCountPtr)) {
-                return Error::Nonfatal("Could not start scanline decoder");
+                return "Could not start scanline decoder";
             }
 
             void* dst = bitmap.getAddr(0, 0);
@@ -377,6 +466,7 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
                 }
             }
 
+            premultiply_if_necessary(bitmap);
             canvas->drawBitmap(bitmap, 0, 0);
             break;
         }
@@ -389,12 +479,15 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
 
             // Decode odd stripes
             if (SkCodec::kSuccess != codec->startScanlineDecode(decodeInfo, NULL, colorPtr,
-                                                                colorCountPtr)
-                    || SkCodec::kTopDown_SkScanlineOrder != codec->getScanlineOrder()) {
-                // This mode was designed to test the new skip scanlines API in libjpeg-turbo.
-                // Jpegs have kTopDown_SkScanlineOrder, and at this time, it is not interesting
-                // to run this test for image types that do not have this scanline ordering.
-                return Error::Nonfatal("Could not start top-down scanline decoder");
+                                                                colorCountPtr)) {
+                return "Could not start scanline decoder";
+            }
+
+            // This mode was designed to test the new skip scanlines API in libjpeg-turbo.
+            // Jpegs have kTopDown_SkScanlineOrder, and at this time, it is not interesting
+            // to run this test for image types that do not have this scanline ordering.
+            if (SkCodec::kTopDown_SkScanlineOrder != codec->getScanlineOrder()) {
+                return Error::Nonfatal("kStripe test is only interesting for kTopDown codecs.");
             }
 
             for (int i = 0; i < numStripes; i += 2) {
@@ -428,6 +521,32 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
                     codec->skipScanlines(linesToSkip);
                 }
             }
+            premultiply_if_necessary(bitmap);
+            canvas->drawBitmap(bitmap, 0, 0);
+            break;
+        }
+        case kCroppedScanline_Mode: {
+            const int width = decodeInfo.width();
+            const int height = decodeInfo.height();
+            // This value is chosen because, as we move across the image, it will sometimes
+            // align with the jpeg block sizes and it will sometimes not.  This allows us
+            // to test interestingly different code paths in the implementation.
+            const int tileSize = 36;
+
+            SkCodec::Options opts;
+            SkIRect subset;
+            for (int x = 0; x < width; x += tileSize) {
+                subset = SkIRect::MakeXYWH(x, 0, SkTMin(tileSize, width - x), height);
+                opts.fSubset = &subset;
+                if (SkCodec::kSuccess != codec->startScanlineDecode(decodeInfo, &opts,
+                        colorPtr, colorCountPtr)) {
+                    return "Could not start scanline decoder.";
+                }
+
+                codec->getScanlines(bitmap.getAddr(x, 0), height, bitmap.rowBytes());
+            }
+
+            premultiply_if_necessary(bitmap);
             canvas->drawBitmap(bitmap, 0, 0);
             break;
         }
@@ -480,26 +599,13 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
                         case SkCodec::kSuccess:
                         case SkCodec::kIncompleteInput:
                             break;
-                        case SkCodec::kInvalidConversion:
-                            if (0 == (x|y)) {
-                                // First subset is okay to return unimplemented.
-                                return Error::Nonfatal("Incompatible colortype conversion");
-                            }
-                            // If the first subset succeeded, a later one should not fail.
-                            // fall through to failure
-                        case SkCodec::kUnimplemented:
-                            if (0 == (x|y)) {
-                                // First subset is okay to return unimplemented.
-                                return Error::Nonfatal("subset codec not supported");
-                            }
-                            // If the first subset succeeded, why would a later one fail?
-                            // fall through to failure
                         default:
                             return SkStringPrintf("subset codec failed to decode (%d, %d, %d, %d) "
                                                   "from %s with dimensions (%d x %d)\t error %d",
                                                   x, y, decodeInfo.width(), decodeInfo.height(),
                                                   fPath.c_str(), W, H, result);
                     }
+                    premultiply_if_necessary(subsetBm);
                     canvas->drawBitmap(subsetBm, SkIntToScalar(left), SkIntToScalar(top));
                     // translate by the scaled height.
                     top += decodeInfo.height();
@@ -509,6 +615,9 @@ Error CodecSrc::draw(SkCanvas* canvas) const {
             }
             return "";
         }
+        default:
+            SkASSERT(false);
+            return "Invalid fMode";
     }
     return "";
 }
@@ -532,17 +641,17 @@ Name CodecSrc::name() const {
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 AndroidCodecSrc::AndroidCodecSrc(Path path, Mode mode, CodecSrc::DstColorType dstColorType,
-        int sampleSize)
+        SkAlphaType dstAlphaType, int sampleSize)
     : fPath(path)
     , fMode(mode)
     , fDstColorType(dstColorType)
+    , fDstAlphaType(dstAlphaType)
     , fSampleSize(sampleSize)
+    , fRunSerially(serial_from_path_name(path))
 {}
 
 bool AndroidCodecSrc::veto(SinkFlags flags) const {
     // No need to test decoding to non-raster or indirect backend.
-    // TODO: Once we implement GPU paths (e.g. JPEG YUV), we should use a deferred decode to
-    // let the GPU handle it.
     return flags.type != SinkFlags::kRaster
         || flags.approach != SinkFlags::kDirect;
 }
@@ -557,9 +666,8 @@ Error AndroidCodecSrc::draw(SkCanvas* canvas) const {
         return SkStringPrintf("Couldn't create android codec for %s.", fPath.c_str());
     }
 
-    SkImageInfo decodeInfo;
-    if (!get_decode_info(&decodeInfo, codec->getInfo(), canvas->imageInfo().colorType(),
-            fDstColorType)) {
+    SkImageInfo decodeInfo = codec->getInfo().makeAlphaType(fDstAlphaType);
+    if (!get_decode_info(&decodeInfo, canvas->imageInfo().colorType(), fDstColorType)) {
         return Error::Nonfatal("Testing non-565 to 565 is uninteresting.");
     }
 
@@ -604,11 +712,10 @@ Error AndroidCodecSrc::draw(SkCanvas* canvas) const {
                 case SkCodec::kSuccess:
                 case SkCodec::kIncompleteInput:
                     break;
-                case SkCodec::kInvalidConversion:
-                    return Error::Nonfatal("Cannot convert to requested color type.");
                 default:
                     return SkStringPrintf("Couldn't getPixels %s.", fPath.c_str());
             }
+            premultiply_if_necessary(bitmap);
             canvas->drawBitmap(bitmap, 0, 0);
             return "";
         }
@@ -658,8 +765,6 @@ Error AndroidCodecSrc::draw(SkCanvas* canvas) const {
                         case SkCodec::kSuccess:
                         case SkCodec::kIncompleteInput:
                             break;
-                        case SkCodec::kInvalidConversion:
-                            return Error::Nonfatal("Cannot convert to requested color type.");
                         default:
                             return SkStringPrintf("Couldn't getPixels %s.", fPath.c_str());
                     }
@@ -668,6 +773,7 @@ Error AndroidCodecSrc::draw(SkCanvas* canvas) const {
 
             SkRect rect = SkRect::MakeXYWH(0, 0, (SkScalar) finalScaledWidth,
                     (SkScalar) finalScaledHeight);
+            premultiply_if_necessary(bitmap);
             canvas->drawBitmapRect(bitmap, rect, rect, nullptr);
             return "";
         }
@@ -697,56 +803,6 @@ Name AndroidCodecSrc::name() const {
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-ImageSrc::ImageSrc(Path path) : fPath(path) {}
-
-bool ImageSrc::veto(SinkFlags flags) const {
-    // No need to test decoding to non-raster or indirect backend.
-    // TODO: Instead, use lazy decoding to allow the GPU to handle cases like YUV.
-    return flags.type != SinkFlags::kRaster
-        || flags.approach != SinkFlags::kDirect;
-}
-
-Error ImageSrc::draw(SkCanvas* canvas) const {
-    SkAutoTUnref<SkData> encoded(SkData::NewFromFileName(fPath.c_str()));
-    if (!encoded) {
-        return SkStringPrintf("Couldn't read %s.", fPath.c_str());
-    }
-    const SkColorType dstColorType = canvas->imageInfo().colorType();
-
-    // Decode the full image.
-    SkBitmap bitmap;
-    if (!SkImageDecoder::DecodeMemory(encoded->data(), encoded->size(), &bitmap,
-                                      dstColorType, SkImageDecoder::kDecodePixels_Mode)) {
-        return SkStringPrintf("Couldn't decode %s.", fPath.c_str());
-    }
-    if (kRGB_565_SkColorType == dstColorType && !bitmap.isOpaque()) {
-        // Do not draw a bitmap with alpha to a destination without alpha.
-        return Error::Nonfatal("Uninteresting to decode image with alpha into 565.");
-    }
-    encoded.reset((SkData*)nullptr);  // Might as well drop this when we're done with it.
-    canvas->drawBitmap(bitmap, 0,0);
-    return "";
-}
-
-SkISize ImageSrc::size() const {
-    SkAutoTUnref<SkData> encoded(SkData::NewFromFileName(fPath.c_str()));
-    SkBitmap bitmap;
-    if (!encoded || !SkImageDecoder::DecodeMemory(encoded->data(),
-                                                  encoded->size(),
-                                                  &bitmap,
-                                                  kUnknown_SkColorType,
-                                                  SkImageDecoder::kDecodeBounds_Mode)) {
-        return SkISize::Make(0,0);
-    }
-    return bitmap.dimensions();
-}
-
-Name ImageSrc::name() const {
-    return SkOSPath::Basename(fPath.c_str());
-}
-
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
 static const SkRect kSKPViewport = {0,0, 1000,1000};
 
 SKPSrc::SKPSrc(Path path) : fPath(path) {}
@@ -756,7 +812,7 @@ Error SKPSrc::draw(SkCanvas* canvas) const {
     if (!stream) {
         return SkStringPrintf("Couldn't read %s.", fPath.c_str());
     }
-    SkAutoTUnref<SkPicture> pic(SkPicture::CreateFromStream(stream, &lazy_decode_bitmap));
+    SkAutoTUnref<SkPicture> pic(SkPicture::CreateFromStream(stream));
     if (!pic) {
         return SkStringPrintf("Couldn't decode %s as a picture.", fPath.c_str());
     }
@@ -807,10 +863,6 @@ GPUSink::GPUSink(GrContextFactory::GLContextType ct,
     , fUseDIText(diText)
     , fThreaded(threaded) {}
 
-int GPUSink::enclave() const {
-    return fThreaded ? kAnyThread_Enclave : kGPU_Enclave;
-}
-
 void PreAbandonGpuContextErrorHandler(SkError, void*) {}
 
 DEFINE_bool(imm, false, "Run gpu configs in immediate mode.");
@@ -831,6 +883,14 @@ Error GPUSink::draw(const Src& src, SkBitmap* dst, SkWStream*, SkString* log) co
     const SkISize size = src.size();
     const SkImageInfo info =
         SkImageInfo::Make(size.width(), size.height(), kN32_SkColorType, kPremul_SkAlphaType);
+#if SK_SUPPORT_GPU
+    const int maxDimension = factory.getContextInfo(fContextType, fContextOptions).
+            fGrContext->caps()->maxTextureSize();
+    if (maxDimension < SkTMax(size.width(), size.height())) {
+        return Error::Nonfatal("Src too large to create a texture.\n");
+    }
+#endif
+
     SkAutoTUnref<SkSurface> surface(
             NewGpuSurface(&factory, fContextType, fContextOptions, info, fSampleCount, fUseDIText));
     if (!surface) {
@@ -927,7 +987,7 @@ Error PDFSink::draw(const Src& src, SkBitmap*, SkWStream* dst, SkString*) const 
 
     info.emplace_back(SkString("Keywords"),
                       SkStringPrintf("Rasterizer:%s;", fRasterizer));
-    doc->setMetadata(info, nullptr, nullptr);
+    doc->setMetadata(&info[0], info.count(), nullptr, nullptr);
     return draw_skdocument(src, doc.get(), dst);
 }
 
@@ -995,17 +1055,18 @@ Error RasterSink::draw(const Src& src, SkBitmap* dst, SkWStream*, SkString*) con
 // passing the Sink draw() arguments, a size, and a function draws into an SkCanvas.
 // Several examples below.
 
+template <typename Fn>
 static Error draw_to_canvas(Sink* sink, SkBitmap* bitmap, SkWStream* stream, SkString* log,
-                            SkISize size, std::function<Error(SkCanvas*)> draw) {
+                            SkISize size, const Fn& draw) {
     class ProxySrc : public Src {
     public:
-        ProxySrc(SkISize size, std::function<Error(SkCanvas*)> draw) : fSize(size), fDraw(draw) {}
+        ProxySrc(SkISize size, const Fn& draw) : fSize(size), fDraw(draw) {}
         Error   draw(SkCanvas* canvas) const override { return fDraw(canvas); }
         Name                    name() const override { sk_throw(); return ""; } // Won't be called.
         SkISize                 size() const override { return fSize; }
     private:
-        SkISize                         fSize;
-        std::function<Error(SkCanvas*)> fDraw;
+        SkISize   fSize;
+        const Fn& fDraw;
     };
     return sink->draw(ProxySrc(size, draw), bitmap, stream, log);
 }
@@ -1125,7 +1186,7 @@ Error ViaSerialization::draw(
     SkDynamicMemoryWStream wStream;
     pic->serialize(&wStream);
     SkAutoTDelete<SkStream> rStream(wStream.detachAsStream());
-    SkAutoTUnref<SkPicture> deserialized(SkPicture::CreateFromStream(rStream, &lazy_decode_bitmap));
+    SkAutoTUnref<SkPicture> deserialized(SkPicture::CreateFromStream(rStream));
 
     return draw_to_canvas(fSink, bitmap, stream, log, size, [&](SkCanvas* canvas) {
         canvas->drawPicture(deserialized);
@@ -1244,6 +1305,55 @@ Error ViaTwice::draw(const Src& src, SkBitmap* bitmap, SkWStream* stream, SkStri
         return check_against_reference(bitmap, src, fSink);
     });
 }
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+#ifdef SK_MOJO
+    Error ViaMojo::draw(const Src& src, SkBitmap* bitmap, SkWStream* stream, SkString* log) const {
+        SkPictureRecorder recorder;
+        SkRect size = SkRect::Make(SkIRect::MakeSize(src.size()));
+        Error err = src.draw(recorder.beginRecording(size));
+        if (!err.isEmpty()) {
+            return err;
+        }
+        SkAutoTUnref<SkPicture> skPicture(recorder.endRecording());
+
+        SkASSERT(skPicture);
+        SkDynamicMemoryWStream buffer;
+        skPicture->serialize(&buffer);
+        skPicture.reset();
+        SkMojo::FlattenedPicturePtr mojoPicture = SkMojo::FlattenedPicture::New();
+        mojoPicture->data.resize(buffer.bytesWritten());
+        buffer.copyTo(mojoPicture->data.data());
+        buffer.reset();
+        SkASSERT(mojoPicture.get() && mojoPicture->data);
+
+        size_t flatSize = mojoPicture->GetSerializedSize();
+        SkAutoMalloc storage(flatSize);
+        if (!mojoPicture->Serialize(storage.get(), flatSize)) {
+            return "SkMojo::FlattenedPicture::Serialize failed";
+        }
+        mojoPicture = SkMojo::FlattenedPicture::New();
+        mojoPicture->Deserialize(storage.get());
+        storage.free();
+        if (!mojoPicture) {
+            return "SkMojo::FlattenedPicture::Deserialize failed";
+        }
+        SkMemoryStream tmpStream(mojoPicture->data.data(),
+                                 mojoPicture->data.size());
+        skPicture.reset(SkPicture::CreateFromStream(&tmpStream));
+        mojoPicture.reset();
+        auto fn = [&](SkCanvas* canvas) -> Error {
+            canvas->drawPicture(skPicture.get());
+            return check_against_reference(bitmap, src, fSink);
+        };
+        return draw_to_canvas(fSink, bitmap, stream, log, src.size(), fn);
+    }
+#else // not SK_MOJO
+    Error ViaMojo::draw(const Src&, SkBitmap*, SkWStream*, SkString*) const {
+        return "Mojo is missing!";
+    }
+#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 

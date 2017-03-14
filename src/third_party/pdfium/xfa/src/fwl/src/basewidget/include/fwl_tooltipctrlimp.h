@@ -4,15 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_ToolTip_IMP_H
-#define _FWL_ToolTip_IMP_H
-class CFWL_WidgetImp;
+#ifndef XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_TOOLTIPCTRLIMP_H_
+#define XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_TOOLTIPCTRLIMP_H_
+
+#include "xfa/include/fwl/core/fwl_timer.h"
+#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+
 class CFWL_WidgetImpProperties;
-class CFWL_WidgetImpDelegate;
 class IFWL_Widget;
-class IFWL_Timer;
-class CFWL_ToolTipImp;
 class CFWL_ToolTipImpDelegate;
+
 class CFWL_ToolTipImp : public CFWL_FormImp {
  public:
   CFWL_ToolTipImp(const CFWL_WidgetImpProperties& properties,
@@ -80,4 +82,5 @@ class CFWL_ToolTipImpDelegate : public CFWL_WidgetImpDelegate {
   void OnKeyDown(CFWL_MsgKey* pMsg);
   CFWL_ToolTipImp* m_pOwner;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_BASEWIDGET_INCLUDE_FWL_TOOLTIPCTRLIMP_H_

@@ -7,10 +7,12 @@
 #include "public/fpdf_formfill.h"
 
 #include <memory>
+#include <vector>
 
 #include "fpdfsdk/include/fsdk_define.h"
 #include "fpdfsdk/include/fsdk_mgr.h"
 #include "public/fpdfview.h"
+#include "third_party/base/stl_util.h"
 
 #ifdef PDF_ENABLE_XFA
 #include "fpdfsdk/include/fpdfxfa/fpdfxfa_app.h"
@@ -20,13 +22,8 @@
 
 namespace {
 
-CPDFSDK_Document* FormHandleToSDKDoc(FPDF_FORMHANDLE hHandle) {
-  CPDFDoc_Environment* pEnv = (CPDFDoc_Environment*)hHandle;
-  return pEnv ? pEnv->GetSDKDocument() : nullptr;
-}
-
 CPDFSDK_InterForm* FormHandleToInterForm(FPDF_FORMHANDLE hHandle) {
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   return pSDKDoc ? pSDKDoc->GetInterForm() : nullptr;
 }
 
@@ -36,9 +33,19 @@ CPDFSDK_PageView* FormHandleToPageView(FPDF_FORMHANDLE hHandle,
   if (!pPage)
     return nullptr;
 
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   return pSDKDoc ? pSDKDoc->GetPageView(pPage, TRUE) : nullptr;
 }
+
+#ifdef PDF_ENABLE_XFA
+std::vector<CFX_ByteString>* FromFPDFStringHandle(FPDF_STRINGHANDLE handle) {
+  return reinterpret_cast<std::vector<CFX_ByteString>*>(handle);
+}
+
+FPDF_STRINGHANDLE ToFPDFStringHandle(std::vector<CFX_ByteString>* strings) {
+  return reinterpret_cast<FPDF_STRINGHANDLE>(strings);
+}
+#endif  // PDF_ENABLE_XFA
 
 }  // namespace
 
@@ -49,73 +56,60 @@ DLLEXPORT int STDCALL FPDFPage_HasFormFieldAtPoint(FPDF_FORMHANDLE hHandle,
   if (!hHandle)
     return -1;
   CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
-#ifdef PDF_ENABLE_XFA
   if (pPage) {
     CPDF_InterForm interform(pPage->m_pDocument, FALSE);
-    CPDF_FormControl* pFormCtrl = interform.GetControlAtPoint(
-        pPage, (FX_FLOAT)page_x, (FX_FLOAT)page_y, nullptr);
+    CPDF_FormControl* pFormCtrl =
+        interform.GetControlAtPoint(pPage, static_cast<FX_FLOAT>(page_x),
+                                    static_cast<FX_FLOAT>(page_y), nullptr);
     if (!pFormCtrl)
       return -1;
-
     CPDF_FormField* pFormField = pFormCtrl->GetField();
-    if (!pFormField)
-      return -1;
-
-    int nType = pFormField->GetFieldType();
-    return nType;
+    return pFormField ? pFormField->GetFieldType() : -1;
   }
 
-  IXFA_PageView* pPageView = ((CPDFXFA_Page*)page)->GetXFAPageView();
-  if (pPageView) {
-    IXFA_WidgetHandler* pWidgetHandler = NULL;
-    IXFA_DocView* pDocView = pPageView->GetDocView();
-    if (!pDocView)
-      return -1;
+#ifdef PDF_ENABLE_XFA
+  CPDFXFA_Page* pXFAPage = UnderlyingFromFPDFPage(page);
+  if (!pXFAPage)
+    return -1;
 
-    pWidgetHandler = pDocView->GetWidgetHandler();
-    if (!pWidgetHandler)
-      return -1;
+  IXFA_PageView* pPageView = pXFAPage->GetXFAPageView();
+  if (!pPageView)
+    return -1;
 
-    IXFA_Widget* pXFAAnnot = NULL;
-    IXFA_WidgetIterator* pWidgetIterator = pPageView->CreateWidgetIterator(
-        XFA_TRAVERSEWAY_Form,
-        XFA_WIDGETFILTER_Viewable | XFA_WIDGETFILTER_AllType);
-    if (!pWidgetIterator)
-      return -1;
-    pXFAAnnot = pWidgetIterator->MoveToNext();
-    while (pXFAAnnot) {
-      CFX_RectF rcBBox;
-      pWidgetHandler->GetBBox(pXFAAnnot, rcBBox, 0);
-      CFX_FloatRect rcWidget(rcBBox.left, rcBBox.top,
-                             rcBBox.left + rcBBox.width,
-                             rcBBox.top + rcBBox.height);
-      rcWidget.left -= 1.0f;
-      rcWidget.right += 1.0f;
-      rcWidget.bottom -= 1.0f;
-      rcWidget.top += 1.0f;
+  IXFA_DocView* pDocView = pPageView->GetDocView();
+  if (!pDocView)
+    return -1;
 
-      if (rcWidget.Contains(static_cast<FX_FLOAT>(page_x),
-                            static_cast<FX_FLOAT>(page_y))) {
-        pWidgetIterator->Release();
-        return FPDF_FORMFIELD_XFA;
-      }
-      pXFAAnnot = pWidgetIterator->MoveToNext();
+  IXFA_WidgetHandler* pWidgetHandler = pDocView->GetWidgetHandler();
+  if (!pWidgetHandler)
+    return -1;
+
+  std::unique_ptr<IXFA_WidgetIterator, ReleaseDeleter<IXFA_WidgetIterator>>
+      pWidgetIterator(pPageView->CreateWidgetIterator(
+          XFA_TRAVERSEWAY_Form,
+          XFA_WIDGETFILTER_Viewable | XFA_WIDGETFILTER_AllType));
+  if (!pWidgetIterator)
+    return -1;
+
+  IXFA_Widget* pXFAAnnot = pWidgetIterator->MoveToNext();
+  while (pXFAAnnot) {
+    CFX_RectF rcBBox;
+    pWidgetHandler->GetBBox(pXFAAnnot, rcBBox, 0);
+    CFX_FloatRect rcWidget(rcBBox.left, rcBBox.top, rcBBox.left + rcBBox.width,
+                           rcBBox.top + rcBBox.height);
+    rcWidget.left -= 1.0f;
+    rcWidget.right += 1.0f;
+    rcWidget.bottom -= 1.0f;
+    rcWidget.top += 1.0f;
+
+    if (rcWidget.Contains(static_cast<FX_FLOAT>(page_x),
+                          static_cast<FX_FLOAT>(page_y))) {
+      return FPDF_FORMFIELD_XFA;
     }
-
-    pWidgetIterator->Release();
+    pXFAAnnot = pWidgetIterator->MoveToNext();
   }
-  return -1;
-#else   // PDF_ENABLE_XFA
-  if (!pPage)
-    return -1;
-  CPDF_InterForm interform(pPage->m_pDocument, FALSE);
-  CPDF_FormControl* pFormCtrl = interform.GetControlAtPoint(
-      pPage, (FX_FLOAT)page_x, (FX_FLOAT)page_y, nullptr);
-  if (!pFormCtrl)
-    return -1;
-  CPDF_FormField* pFormField = pFormCtrl->GetField();
-  return pFormField ? pFormField->GetFieldType() : -1;
 #endif  // PDF_ENABLE_XFA
+  return -1;
 }
 
 DLLEXPORT int STDCALL FPDPage_HasFormFieldAtPoint(FPDF_FORMHANDLE hHandle,
@@ -285,7 +279,7 @@ DLLEXPORT FPDF_BOOL STDCALL FORM_OnChar(FPDF_FORMHANDLE hHandle,
 }
 
 DLLEXPORT FPDF_BOOL STDCALL FORM_ForceToKillFocus(FPDF_FORMHANDLE hHandle) {
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   if (!pSDKDoc)
     return FALSE;
 
@@ -472,6 +466,7 @@ DLLEXPORT void STDCALL FPDF_Widget_Copy(FPDF_DOCUMENT document,
   }
   *size = real_size;
 }
+
 DLLEXPORT void STDCALL FPDF_Widget_Cut(FPDF_DOCUMENT document,
                                        FPDF_WIDGET hWidget,
                                        FPDF_WIDESTRING wsText,
@@ -507,6 +502,7 @@ DLLEXPORT void STDCALL FPDF_Widget_Cut(FPDF_DOCUMENT document,
   }
   *size = real_size;
 }
+
 DLLEXPORT void STDCALL FPDF_Widget_Paste(FPDF_DOCUMENT document,
                                          FPDF_WIDGET hWidget,
                                          FPDF_WIDESTRING wsText,
@@ -527,6 +523,7 @@ DLLEXPORT void STDCALL FPDF_Widget_Paste(FPDF_DOCUMENT document,
   CFX_WideString wstr = CFX_WideString::FromUTF16LE(wsText, size);
   pXFAMenuHander->Paste((IXFA_Widget*)hWidget, wstr);
 }
+
 DLLEXPORT void STDCALL
 FPDF_Widget_ReplaceSpellCheckWord(FPDF_DOCUMENT document,
                                   FPDF_WIDGET hWidget,
@@ -552,13 +549,14 @@ FPDF_Widget_ReplaceSpellCheckWord(FPDF_DOCUMENT document,
   CFX_ByteStringC bs(bsText);
   pXFAMenuHander->ReplaceSpellCheckWord((IXFA_Widget*)hWidget, ptPopup, bs);
 }
+
 DLLEXPORT void STDCALL
 FPDF_Widget_GetSpellCheckWords(FPDF_DOCUMENT document,
                                FPDF_WIDGET hWidget,
                                float x,
                                float y,
                                FPDF_STRINGHANDLE* stringHandle) {
-  if (NULL == hWidget || NULL == document)
+  if (!hWidget || !document)
     return;
 
   CPDFXFA_Document* pDocument = (CPDFXFA_Document*)document;
@@ -568,69 +566,63 @@ FPDF_Widget_GetSpellCheckWords(FPDF_DOCUMENT document,
 
   IXFA_MenuHandler* pXFAMenuHander =
       CPDFXFA_App::GetInstance()->GetXFAApp()->GetMenuHandler();
-  if (pXFAMenuHander == NULL)
+  if (!pXFAMenuHander)
     return;
 
-  CFX_ByteStringArray* sSuggestWords = new CFX_ByteStringArray;
+  std::vector<CFX_ByteString>* sSuggestWords = new std::vector<CFX_ByteString>;
   CFX_PointF ptPopup;
   ptPopup.x = x;
   ptPopup.y = y;
-  pXFAMenuHander->GetSuggestWords((IXFA_Widget*)hWidget, ptPopup,
-                                  *sSuggestWords);
-  *stringHandle = (FPDF_STRINGHANDLE)sSuggestWords;
+  pXFAMenuHander->GetSuggestWords(reinterpret_cast<IXFA_Widget*>(hWidget),
+                                  ptPopup, *sSuggestWords);
+  *stringHandle = ToFPDFStringHandle(sSuggestWords);
 }
-DLLEXPORT int STDCALL FPDF_StringHandleCounts(FPDF_STRINGHANDLE stringHandle) {
-  if (stringHandle == NULL)
-    return -1;
-  CFX_ByteStringArray* sSuggestWords = (CFX_ByteStringArray*)stringHandle;
-  return sSuggestWords->GetSize();
+
+DLLEXPORT int STDCALL FPDF_StringHandleCounts(FPDF_STRINGHANDLE sHandle) {
+  std::vector<CFX_ByteString>* sSuggestWords = FromFPDFStringHandle(sHandle);
+  return sSuggestWords ? pdfium::CollectionSize<int>(*sSuggestWords) : -1;
 }
+
 DLLEXPORT FPDF_BOOL STDCALL
-FPDF_StringHandleGetStringByIndex(FPDF_STRINGHANDLE stringHandle,
+FPDF_StringHandleGetStringByIndex(FPDF_STRINGHANDLE sHandle,
                                   int index,
                                   FPDF_BYTESTRING bsText,
                                   FPDF_DWORD* size) {
-  if (stringHandle == NULL || size == NULL)
+  if (!sHandle || !size)
     return FALSE;
-  int count = FPDF_StringHandleCounts(stringHandle);
+
+  int count = FPDF_StringHandleCounts(sHandle);
   if (index < 0 || index >= count)
     return FALSE;
 
-  CFX_ByteStringArray sSuggestWords = *(CFX_ByteStringArray*)stringHandle;
-  int len = sSuggestWords[index].GetLength();
-
-  if (bsText == NULL) {
+  std::vector<CFX_ByteString>* sSuggestWords = FromFPDFStringHandle(sHandle);
+  int len = (*sSuggestWords)[index].GetLength();
+  if (!bsText) {
     *size = len;
     return TRUE;
   }
 
   int real_size = len < *size ? len : *size;
   if (real_size > 0)
-    FXSYS_memcpy((void*)bsText, (const FX_CHAR*)(sSuggestWords[index]),
+    FXSYS_memcpy((void*)bsText, (const FX_CHAR*)(*sSuggestWords)[index],
                  real_size);
   *size = real_size;
-
   return TRUE;
 }
+
 DLLEXPORT void STDCALL
 FPDF_StringHandleRelease(FPDF_STRINGHANDLE stringHandle) {
-  if (stringHandle == NULL)
-    return;
-  CFX_ByteStringArray* sSuggestWords = (CFX_ByteStringArray*)stringHandle;
-  delete sSuggestWords;
+  delete FromFPDFStringHandle(stringHandle);
 }
 
 DLLEXPORT FPDF_BOOL STDCALL
 FPDF_StringHandleAddString(FPDF_STRINGHANDLE stringHandle,
                            FPDF_BYTESTRING bsText,
                            FPDF_DWORD size) {
-  if (stringHandle == NULL || bsText == NULL || size <= 0)
+  if (!stringHandle || !bsText || size == 0)
     return FALSE;
 
-  CFX_ByteStringArray* stringArr = (CFX_ByteStringArray*)stringHandle;
-  CFX_ByteString bsStr(bsText, size);
-
-  stringArr->Add(bsStr);
+  FromFPDFStringHandle(stringHandle)->push_back(CFX_ByteString(bsText, size));
   return TRUE;
 }
 #endif  // PDF_ENABLE_XFA
@@ -681,20 +673,20 @@ DLLEXPORT void STDCALL FORM_OnBeforeClosePage(FPDF_PAGE page,
 }
 
 DLLEXPORT void STDCALL FORM_DoDocumentJSAction(FPDF_FORMHANDLE hHandle) {
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   if (pSDKDoc && ((CPDFDoc_Environment*)hHandle)->IsJSInitiated())
     pSDKDoc->ProcJavascriptFun();
 }
 
 DLLEXPORT void STDCALL FORM_DoDocumentOpenAction(FPDF_FORMHANDLE hHandle) {
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   if (pSDKDoc && ((CPDFDoc_Environment*)hHandle)->IsJSInitiated())
     pSDKDoc->ProcOpenAction();
 }
 
 DLLEXPORT void STDCALL FORM_DoDocumentAAction(FPDF_FORMHANDLE hHandle,
                                               int aaType) {
-  CPDFSDK_Document* pSDKDoc = FormHandleToSDKDoc(hHandle);
+  CPDFSDK_Document* pSDKDoc = CPDFSDK_Document::FromFPDFFormHandle(hHandle);
   if (!pSDKDoc)
     return;
 
@@ -703,7 +695,7 @@ DLLEXPORT void STDCALL FORM_DoDocumentAAction(FPDF_FORMHANDLE hHandle,
   if (!pDic)
     return;
 
-  CPDF_AAction aa = pDic->GetDict("AA");
+  CPDF_AAction aa = pDic->GetDictBy("AA");
   if (aa.ActionExist((CPDF_AAction::AActionType)aaType)) {
     CPDF_Action action = aa.GetAction((CPDF_AAction::AActionType)aaType);
     CPDFSDK_ActionHandler* pActionHandler =
@@ -727,7 +719,7 @@ DLLEXPORT void STDCALL FORM_DoPageAAction(FPDF_PAGE page,
     CPDFDoc_Environment* pEnv = pSDKDoc->GetEnv();
     CPDFSDK_ActionHandler* pActionHandler = pEnv->GetActionHander();
     CPDF_Dictionary* pPageDict = pPDFPage->m_pFormDict;
-    CPDF_AAction aa = pPageDict->GetDict("AA");
+    CPDF_AAction aa = pPageDict->GetDictBy("AA");
     if (FPDFPAGE_AACTION_OPEN == aaType) {
       if (aa.ActionExist(CPDF_AAction::OpenPage)) {
         CPDF_Action action = aa.GetAction(CPDF_AAction::OpenPage);

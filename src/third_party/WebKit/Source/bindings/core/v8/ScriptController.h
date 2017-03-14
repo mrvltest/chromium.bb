@@ -128,7 +128,7 @@ public:
     void enableEval();
     void disableEval(const String& errorMessage);
 
-    static bool canAccessFromCurrentOrigin(LocalFrame*);
+    static bool canAccessFromCurrentOrigin(v8::Isolate*, Frame*);
 
     // SHEZ: Renamed this function to prevent new upstream code from calling this.
     static void setCaptureCallStackForUncaughtExceptions_bb(v8::Isolate*, bool);

@@ -4,9 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_BARCODE_H
-#define _FWL_BARCODE_H
-#include "fwl_edit.h"
+#ifndef XFA_INCLUDE_FWL_BASEWIDGET_FWL_BARCODE_H_
+#define XFA_INCLUDE_FWL_BASEWIDGET_FWL_BARCODE_H_
+
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fxbarcode/BC_BarCode.h"
+
 class CFWL_WidgetImpProperties;
 class IFWL_Widget;
 class IFWL_BarcodeDP;
@@ -57,4 +60,5 @@ class IFWL_Barcode : public IFWL_Edit {
  protected:
   IFWL_Barcode();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_BASEWIDGET_FWL_BARCODE_H_

@@ -66,6 +66,7 @@ int enable_noise_estimation(VP9_COMP *const cpi) {
     return 0;
 }
 
+#if CONFIG_VP9_TEMPORAL_DENOISING
 static void copy_frame(YV12_BUFFER_CONFIG * const dest,
                        const YV12_BUFFER_CONFIG * const src) {
   int r;
@@ -81,6 +82,7 @@ static void copy_frame(YV12_BUFFER_CONFIG * const dest,
     srcbuf += src->y_stride;
   }
 }
+#endif  // CONFIG_VP9_TEMPORAL_DENOISING
 
 NOISE_LEVEL vp9_noise_estimate_extract_level(NOISE_ESTIMATE *const ne) {
   int noise_level = kLowLow;
@@ -160,7 +162,9 @@ void vp9_update_noise_estimate(VP9_COMP *const cpi) {
     for (mi_row = 0; mi_row < cm->mi_rows; mi_row++) {
       for (mi_col = 0; mi_col < cm->mi_cols; mi_col++) {
         // 16x16 blocks, 1/4 sample of frame.
-        if (mi_row % 4 == 0 && mi_col % 4 == 0) {
+        if (mi_row % 4 == 0 && mi_col % 4 == 0 &&
+            mi_row < cm->mi_rows - 1 &&
+            mi_col < cm->mi_cols - 1) {
           int bl_index = mi_row * cm->mi_cols + mi_col;
           int bl_index1 = bl_index + 1;
           int bl_index2 = bl_index + cm->mi_cols;

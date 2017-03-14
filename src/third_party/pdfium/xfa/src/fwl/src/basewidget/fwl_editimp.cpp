@@ -4,19 +4,25 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
+
 #include <algorithm>
 
+#include "xfa/include/fwl/basewidget/fwl_caret.h"
+#include "xfa/include/fwl/basewidget/fwl_datetimepicker.h"
+#include "xfa/include/fwl/core/fwl_theme.h"
+#include "xfa/src/fdp/include/fde_rdr.h"
+#include "xfa/src/fdp/include/fde_rdv.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_caretimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_comboboximp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_scrollbarimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_appimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
 
 // static
 IFWL_Edit* IFWL_Edit::Create(const CFWL_WidgetImpProperties& properties,
@@ -78,9 +84,6 @@ FWL_ERR IFWL_Edit::SetLimit(int32_t nLimit) {
 }
 FWL_ERR IFWL_Edit::SetAliasChar(FX_WCHAR wAlias) {
   return static_cast<CFWL_EditImp*>(GetImpl())->SetAliasChar(wAlias);
-}
-FWL_ERR IFWL_Edit::SetFormatString(const CFX_WideString& wsFormat) {
-  return static_cast<CFWL_EditImp*>(GetImpl())->SetFormatString(wsFormat);
 }
 FWL_ERR IFWL_Edit::Insert(int32_t nStart,
                           const FX_WCHAR* lpText,
@@ -155,7 +158,7 @@ void IFWL_Edit::SetScrollOffset(FX_FLOAT fScrollOffset) {
   return static_cast<CFWL_EditImp*>(GetImpl())->SetScrollOffset(fScrollOffset);
 }
 FX_BOOL IFWL_Edit::GetSuggestWords(CFX_PointF pointf,
-                                   CFX_ByteStringArray& sSuggest) {
+                                   std::vector<CFX_ByteString>& sSuggest) {
   return static_cast<CFWL_EditImp*>(GetImpl())
       ->GetSuggestWords(pointf, sSuggest);
 }
@@ -357,7 +360,7 @@ int32_t CFWL_EditImp::GetWordAtPoint(CFX_PointF pointf, int32_t& nCount) {
   return 0;
 }
 FX_BOOL CFWL_EditImp::GetSuggestWords(CFX_PointF pointf,
-                                      CFX_ByteStringArray& sSuggest) {
+                                      std::vector<CFX_ByteString>& sSuggest) {
   int32_t nWordCount = 0;
   int32_t nWordStart = GetWordAtPoint(pointf, nWordCount);
   if (nWordCount < 1) {
@@ -433,7 +436,7 @@ void CFWL_EditImp::DrawSpellCheck(CFX_Graphics* pGraphics,
   FX_FLOAT fOffSetX = m_rtEngine.left - m_fScrollOffsetX;
   FX_FLOAT fOffSetY = m_rtEngine.top - m_fScrollOffsetY + m_fVAlignOffset;
   CFX_WideString wsSpell;
-  this->GetText(wsSpell);
+  GetText(wsSpell);
   int32_t nContentLen = wsSpell.GetLength();
   for (int i = 0; i < nContentLen; i++) {
     if (FX_EDIT_ISLATINWORD(wsSpell[i])) {
@@ -589,12 +592,6 @@ FWL_ERR CFWL_EditImp::SetAliasChar(FX_WCHAR wAlias) {
   m_pEdtEngine->SetAliasChar(wAlias);
   return FWL_ERR_Succeeded;
 }
-FWL_ERR CFWL_EditImp::SetFormatString(const CFX_WideString& wsFormat) {
-  if (!m_pEdtEngine)
-    return FWL_ERR_Succeeded;
-  m_pEdtEngine->SetFormatBlock(0, wsFormat);
-  return FWL_ERR_Succeeded;
-}
 FWL_ERR CFWL_EditImp::Insert(int32_t nStart,
                              const FX_WCHAR* lpText,
                              int32_t nLen) {
@@ -648,56 +645,7 @@ FWL_ERR CFWL_EditImp::DoClipboard(int32_t iCmd) {
       (m_pProperties->m_dwStates & FWL_WGTSTATE_Disabled)) {
     return FWL_ERR_Succeeded;
   }
-  IFWL_AdapterNative* pNative = FWL_GetAdapterNative();
-  if (!pNative)
-    return FWL_ERR_Indefinite;
-  IFWL_AdapterClipboardMgr* pClipBorder = pNative->GetClipboardMgr();
-  if (!pClipBorder)
-    return FWL_ERR_Indefinite;
-  CFX_WideString wsText;
-  switch (iCmd) {
-    case 1: {
-      int32_t nStart;
-      int32_t nCount = m_pEdtEngine->GetSelRange(0, nStart);
-      if (nCount < 1) {
-        break;
-      }
-      m_pEdtEngine->GetText(wsText, nStart, nCount);
-      pClipBorder->SetStringData(wsText);
-      break;
-    }
-    case 2: {
-      int32_t nStart;
-      int32_t nCount = m_pEdtEngine->GetSelRange(0, nStart);
-      if (nCount < 1) {
-        break;
-      }
-      m_pEdtEngine->GetText(wsText, nStart, nCount);
-      m_pEdtEngine->DeleteRange(nStart, nCount);
-      m_pEdtEngine->ClearSelection();
-      pClipBorder->SetStringData(wsText);
-      break;
-    }
-    case 3: {
-      pClipBorder->GetStringData(wsText);
-      int32_t iLen = wsText.GetLength();
-      if (iLen < 0) {
-        break;
-      }
-      if (wsText[iLen] == L'\0') {
-        if (iLen == 1) {
-          break;
-        }
-        iLen--;
-        wsText = wsText.Left(iLen);
-      }
-      int32_t nPos = m_pEdtEngine->GetCaretPos();
-      m_pEdtEngine->Insert(nPos, wsText, iLen);
-      break;
-    }
-    default: {}
-  }
-  return FWL_ERR_Succeeded;
+  return FWL_ERR_Indefinite;
 }
 FX_BOOL CFWL_EditImp::Copy(CFX_WideString& wsCopy) {
   if (!m_pEdtEngine)
@@ -931,18 +879,12 @@ FX_BOOL CFWL_EditImp::On_PageUnload(IFDE_TxtEdtEngine* pEdit,
   pPage->UnloadPage();
   return TRUE;
 }
+
 void CFWL_EditImp::On_AddDoRecord(IFDE_TxtEdtEngine* pEdit,
                                   const CFX_ByteStringC& bsDoRecord) {
   AddDoRecord(bsDoRecord);
-  CFWL_WidgetImp* pSrcTarget = GetRootOuter();
-  if (!pSrcTarget) {
-    pSrcTarget = this;
-  }
-  CFWL_EvtEdtAddDoRecord evt;
-  evt.m_pSrcTarget = m_pInterface;
-  evt.m_wsDoRecord = bsDoRecord;
-  m_pDelegate->OnProcessEvent(&evt);
 }
+
 FX_BOOL CFWL_EditImp::On_ValidateField(IFDE_TxtEdtEngine* pEdit,
                                        int32_t nBlockIndex,
                                        int32_t nFieldIndex,
@@ -1867,8 +1809,7 @@ void CFWL_EditImpDelegate::DoButtonDown(CFWL_MsgMouse* pMsg) {
   IFDE_TxtEdtPage* pPage = m_pOwner->m_pEdtEngine->GetPage(0);
   if (!pPage)
     return;
-  CFX_PointF pt;
-  pt.Set(pMsg->m_fx, pMsg->m_fy);
+  CFX_PointF pt(pMsg->m_fx, pMsg->m_fy);
   m_pOwner->DeviceToEngine(pt);
   FX_BOOL bBefore = TRUE;
   int32_t nIndex = pPage->GetCharIndex(pt, bBefore);
@@ -1951,8 +1892,7 @@ void CFWL_EditImpDelegate::OnButtonDblClk(CFWL_MsgMouse* pMsg) {
   IFDE_TxtEdtPage* pPage = m_pOwner->m_pEdtEngine->GetPage(0);
   if (!pPage)
     return;
-  CFX_PointF pt;
-  pt.Set(pMsg->m_fx, pMsg->m_fy);
+  CFX_PointF pt(pMsg->m_fx, pMsg->m_fy);
   m_pOwner->DeviceToEngine(pt);
   int32_t nCount = 0;
   int32_t nIndex = pPage->SelectWord(pt, nCount);
@@ -1973,8 +1913,7 @@ void CFWL_EditImpDelegate::OnMouseMove(CFWL_MsgMouse* pMsg) {
   IFDE_TxtEdtPage* pPage = m_pOwner->m_pEdtEngine->GetPage(0);
   if (!pPage)
     return;
-  CFX_PointF pt;
-  pt.Set(pMsg->m_fx, pMsg->m_fy);
+  CFX_PointF pt(pMsg->m_fx, pMsg->m_fy);
   m_pOwner->DeviceToEngine(pt);
   FX_BOOL bBefore = TRUE;
   int32_t nIndex = pPage->GetCharIndex(pt, bBefore);
@@ -2211,14 +2150,4 @@ FX_BOOL CFWL_EditImpDelegate::OnScroll(IFWL_ScrollBar* pScrollBar,
   return TRUE;
 }
 void CFWL_EditImpDelegate::DoCursor(CFWL_MsgMouse* pMsg) {
-  if (m_pOwner->m_rtClient.Contains(pMsg->m_fx, pMsg->m_fy)) {
-    IFWL_AdapterNative* pNative = FWL_GetAdapterNative();
-    IFWL_AdapterCursorMgr* pCursorMgr = pNative->GetCursorMgr();
-    if (NULL != pCursorMgr) {
-      FWL_HCURSOR hCursor =
-          pCursorMgr->GetSystemCursor(FWL_CURSORTYPE_InputBeam);
-      pCursorMgr->SetCursor(hCursor);
-      pCursorMgr->ShowCursor(TRUE);
-    }
-  }
 }

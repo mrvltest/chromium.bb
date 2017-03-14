@@ -13,8 +13,12 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_utility_messages.h"
+
+#if defined(FULL_SAFE_BROWSING)
 #include "chrome/common/safe_browsing/zip_analyzer.h"
 #include "chrome/common/safe_browsing/zip_analyzer_results.h"
+#endif
+
 #include "chrome/utility/chrome_content_utility_ipc_whitelist.h"
 #include "chrome/utility/safe_json_parser_handler.h"
 #include "chrome/utility/utility_message_handler.h"

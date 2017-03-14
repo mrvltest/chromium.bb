@@ -4,16 +4,21 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/app/xfa_fffield.h"
+
+#include "xfa/include/fwl/basewidget/fwl_edit.h"
+#include "xfa/include/fwl/core/fwl_widgetmgr.h"
+#include "xfa/include/fwl/lightwidget/edit.h"
+#include "xfa/include/fwl/lightwidget/picturebox.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_common.h"
-#include "xfa_ffwidget.h"
-#include "xfa_fffield.h"
-#include "xfa_ffpageview.h"
-#include "xfa_ffapp.h"
-#include "xfa_ffdoc.h"
-#include "xfa_fwltheme.h"
-#include "xfa_textlayout.h"
-#include "xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffapp.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdoc.h"
+#include "xfa/src/fxfa/src/app/xfa_ffdocview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffpageview.h"
+#include "xfa/src/fxfa/src/app/xfa_ffwidget.h"
+#include "xfa/src/fxfa/src/app/xfa_fwltheme.h"
+#include "xfa/src/fxfa/src/app/xfa_textlayout.h"
+
 CXFA_FFField::CXFA_FFField(CXFA_FFPageView* pPageView, CXFA_WidgetAcc* pDataAcc)
     : CXFA_FFWidget(pPageView, pDataAcc), m_pNormalWidget(NULL) {
   m_rtUI.Set(0, 0, 0, 0);
@@ -118,7 +123,7 @@ void CXFA_FFField::SetFWLThemeProvider() {
   }
 }
 FX_BOOL CXFA_FFField::IsLoaded() {
-  return m_pNormalWidget != NULL && CXFA_FFWidget::IsLoaded();
+  return m_pNormalWidget && CXFA_FFWidget::IsLoaded();
 }
 FX_BOOL CXFA_FFField::LoadWidget() {
   SetFWLThemeProvider();
@@ -185,8 +190,7 @@ void CXFA_FFField::CapPlacement() {
   XFA_ATTRIBUTEENUM iCapPlacement = XFA_ATTRIBUTEENUM_Unknown;
   FX_FLOAT fCapReserve = 0;
   CXFA_Caption caption = m_pDataAcc->GetCaption();
-  if (caption.IsExistInXML() &&
-      caption.GetPresence() != XFA_ATTRIBUTEENUM_Hidden) {
+  if (caption && caption.GetPresence() != XFA_ATTRIBUTEENUM_Hidden) {
     iCapPlacement = (XFA_ATTRIBUTEENUM)caption.GetPlacementType();
     if (iCapPlacement == XFA_ATTRIBUTEENUM_Top && GetPrev()) {
       m_rtCaption.Set(0, 0, 0, 0);
@@ -213,11 +217,8 @@ void CXFA_FFField::CapPlacement() {
       CXFA_TextLayout* pCapTextLayout = m_pDataAcc->GetCaptionTextLayout();
       if (fCapReserve <= 0 && pCapTextLayout) {
         CFX_SizeF size;
-        size.Set(0, 0);
         CFX_SizeF minSize;
-        minSize.Set(0, 0);
         CFX_SizeF maxSize;
-        maxSize.Set(0, 0);
         pCapTextLayout->CalcSize(minSize, maxSize, size);
         if (iCapPlacement == XFA_ATTRIBUTEENUM_Top ||
             iCapPlacement == XFA_ATTRIBUTEENUM_Bottom) {
@@ -262,7 +263,7 @@ void CXFA_FFField::CapPlacement() {
   CXFA_Border borderUI = m_pDataAcc->GetUIBorder();
   if (borderUI) {
     CXFA_Margin margin = borderUI.GetMargin();
-    if (margin.IsExistInXML()) {
+    if (margin) {
       XFA_RectWidthoutMargin(m_rtUI, margin);
     }
   }
@@ -642,16 +643,14 @@ FX_BOOL CXFA_FFField::PtInActiveRect(FX_FLOAT fx, FX_FLOAT fy) {
 }
 void CXFA_FFField::LayoutCaption() {
   CXFA_TextLayout* pCapTextLayout = m_pDataAcc->GetCaptionTextLayout();
-  if (!pCapTextLayout) {
+  if (!pCapTextLayout)
     return;
-  }
-  CFX_SizeF size;
-  size.Set(m_rtCaption.width, m_rtCaption.height);
+
   FX_FLOAT fHeight = 0;
-  pCapTextLayout->Layout(size, &fHeight);
-  if (m_rtCaption.height < fHeight) {
+  pCapTextLayout->Layout(CFX_SizeF(m_rtCaption.width, m_rtCaption.height),
+                         &fHeight);
+  if (m_rtCaption.height < fHeight)
     m_rtCaption.height = fHeight;
-  }
 }
 void CXFA_FFField::RenderCaption(CFX_Graphics* pGS, CFX_Matrix* pMatrix) {
   CXFA_TextLayout* pCapTextLayout = m_pDataAcc->GetCaptionTextLayout();
@@ -659,12 +658,9 @@ void CXFA_FFField::RenderCaption(CFX_Graphics* pGS, CFX_Matrix* pMatrix) {
     return;
   }
   CXFA_Caption caption = m_pDataAcc->GetCaption();
-  if (caption.IsExistInXML() &&
-      caption.GetPresence() == XFA_ATTRIBUTEENUM_Visible) {
+  if (caption && caption.GetPresence() == XFA_ATTRIBUTEENUM_Visible) {
     if (!pCapTextLayout->IsLoaded()) {
-      CFX_SizeF size;
-      size.Set(m_rtCaption.width, m_rtCaption.height);
-      pCapTextLayout->Layout(size);
+      pCapTextLayout->Layout(CFX_SizeF(m_rtCaption.width, m_rtCaption.height));
     }
     CFX_RectF rtWidget;
     GetRectWithoutRotate(rtWidget);

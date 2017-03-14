@@ -4,15 +4,17 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_WIDGETMGR_IMP_H
-#define _FWL_WIDGETMGR_IMP_H
+#ifndef XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_WIDGETMGRIMP_H_
+#define XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_WIDGETMGRIMP_H_
+
+#include "xfa/include/fwl/core/fwl_widgetmgr.h"
+
 class CFWL_TargetImp;
 class IFWL_Widget;
 class IFWL_AdapterWidgetMgr;
-class CFWL_WidgetMgrItem;
-class CFWL_WidgetMgr;
 class CFWL_WidgetMgrDelegate;
 class IFWL_AdapterNative;
+
 class CFWL_WidgetMgrItem {
  public:
   CFWL_WidgetMgrItem()
@@ -165,4 +167,5 @@ class CFWL_WidgetMgrDelegate : public IFWL_WidgetMgrDelegate {
 
   CFWL_WidgetMgr* m_pWidgetMgr;
 };
-#endif
+
+#endif  // XFA_SRC_FWL_SRC_CORE_INCLUDE_FWL_WIDGETMGRIMP_H_

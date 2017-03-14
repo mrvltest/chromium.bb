@@ -14,7 +14,7 @@ namespace
 class TexCoordDrawTest : public ANGLETest
 {
   protected:
-    TexCoordDrawTest() : ANGLETest(), mProgram(0)
+    TexCoordDrawTest() : ANGLETest(), mProgram(0), mFramebuffer(0), mFramebufferColorTexture(0)
     {
         setWindowWidth(128);
         setWindowHeight(128);
@@ -52,12 +52,40 @@ class TexCoordDrawTest : public ANGLETest
         mProgram = CompileProgram(vertexShaderSource, fragmentShaderSource);
         ASSERT_NE(0u, mProgram);
         ASSERT_GL_NO_ERROR();
+
+        setUpFramebuffer();
     }
 
     void TearDown() override
     {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDeleteFramebuffers(1, &mFramebuffer);
+        glDeleteTextures(1, &mFramebufferColorTexture);
         glDeleteProgram(mProgram);
         ANGLETest::TearDown();
+    }
+
+    void setUpFramebuffer()
+    {
+        // We use an FBO to work around an issue where the default framebuffer applies SRGB
+        // conversion (particularly known to happen incorrectly on Intel GL drivers). It's not
+        // clear whether this issue can even be fixed on all backends. For example GLES 3.0.4 spec
+        // section 4.4 says that the format of the default framebuffer is entirely up to the window
+        // system, so it might be SRGB, and GLES 3.0 doesn't have a "FRAMEBUFFER_SRGB" to turn off
+        // SRGB conversion like desktop GL does.
+        // TODO(oetuaho): Get rid of this if the underlying issue is fixed.
+        glGenFramebuffers(1, &mFramebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+
+        glGenTextures(1, &mFramebufferColorTexture);
+        glBindTexture(GL_TEXTURE_2D, mFramebufferColorTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, getWindowWidth(), getWindowHeight(), 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                               mFramebufferColorTexture, 0);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Returns the created texture ID.
@@ -72,6 +100,10 @@ class TexCoordDrawTest : public ANGLETest
     }
 
     GLuint mProgram;
+    GLuint mFramebuffer;
+
+  private:
+    GLuint mFramebufferColorTexture;
 };
 
 class Texture2DTest : public TexCoordDrawTest
@@ -243,6 +275,109 @@ class Texture2DTest : public TexCoordDrawTest
 
     GLuint mTexture2D;
     GLint mTexture2DUniformLocation;
+};
+
+class Texture2DTestES3 : public Texture2DTest
+{
+  protected:
+    Texture2DTestES3() : Texture2DTest() {}
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "out vec2 texcoord;\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp sampler2D tex;\n"
+            "in vec2 texcoord;\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    fragColor = texture(tex, texcoord);\n"
+            "}\n");
+    }
+};
+
+class Texture2DIntegerAlpha1TestES3 : public Texture2DTest
+{
+  protected:
+    Texture2DIntegerAlpha1TestES3() : Texture2DTest() {}
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "out vec2 texcoord;\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp isampler2D tex;\n"
+            "in vec2 texcoord;\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    vec4 green = vec4(0, 1, 0, 1);\n"
+            "    vec4 black = vec4(0, 0, 0, 0);\n"
+            "    fragColor = (texture(tex, texcoord).a == 1) ? green : black;\n"
+            "}\n");
+    }
+};
+
+class Texture2DUnsignedIntegerAlpha1TestES3 : public Texture2DTest
+{
+  protected:
+    Texture2DUnsignedIntegerAlpha1TestES3() : Texture2DTest() {}
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "out vec2 texcoord;\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp usampler2D tex;\n"
+            "in vec2 texcoord;\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    vec4 green = vec4(0, 1, 0, 1);\n"
+            "    vec4 black = vec4(0, 0, 0, 0);\n"
+            "    fragColor = (texture(tex, texcoord).a == 1u) ? green : black;\n"
+            "}\n");
+    }
 };
 
 class Texture2DTestWithDrawScale : public Texture2DTest
@@ -480,7 +615,6 @@ class SamplerArrayAsFunctionParameterTest : public SamplerArrayTest
     }
 };
 
-
 class Texture2DArrayTestES3 : public TexCoordDrawTest
 {
   protected:
@@ -532,6 +666,247 @@ class Texture2DArrayTestES3 : public TexCoordDrawTest
 
     GLuint m2DArrayTexture;
     GLint mTextureArrayLocation;
+};
+
+class TextureSizeTextureArrayTest : public TexCoordDrawTest
+{
+  protected:
+    TextureSizeTextureArrayTest()
+        : TexCoordDrawTest(),
+          mTexture2DA(0),
+          mTexture2DB(0),
+          mTexture0Location(-1),
+          mTexture1Location(-1)
+    {
+    }
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp sampler2D tex2DArray[2];\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    float red = float(textureSize(tex2DArray[0], 0).x) / 255.0;\n"
+            "    float green = float(textureSize(tex2DArray[1], 0).x) / 255.0;\n"
+            "    fragColor = vec4(red, green, 0.0, 1.0);\n"
+            "}\n");
+    }
+
+    void SetUp() override
+    {
+        TexCoordDrawTest::SetUp();
+
+        mTexture0Location = glGetUniformLocation(mProgram, "tex2DArray[0]");
+        ASSERT_NE(-1, mTexture0Location);
+        mTexture1Location = glGetUniformLocation(mProgram, "tex2DArray[1]");
+        ASSERT_NE(-1, mTexture1Location);
+
+        mTexture2DA = create2DTexture();
+        mTexture2DB = create2DTexture();
+        ASSERT_GL_NO_ERROR();
+    }
+
+    void TearDown() override
+    {
+        glDeleteTextures(1, &mTexture2DA);
+        glDeleteTextures(1, &mTexture2DB);
+        TexCoordDrawTest::TearDown();
+    }
+
+    GLuint mTexture2DA;
+    GLuint mTexture2DB;
+    GLint mTexture0Location;
+    GLint mTexture1Location;
+};
+
+class ShadowSamplerPlusSampler3DTestES3 : public TexCoordDrawTest
+{
+  protected:
+    ShadowSamplerPlusSampler3DTestES3()
+        : TexCoordDrawTest(),
+          mTextureShadow(0),
+          mTexture3D(0),
+          mTextureShadowUniformLocation(-1),
+          mTexture3DUniformLocation(-1),
+          mDepthRefUniformLocation(-1)
+    {
+    }
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "out vec2 texcoord;\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp sampler2DShadow tex2DShadow;\n"
+            "uniform highp sampler3D tex3D;\n"
+            "in vec2 texcoord;\n"
+            "uniform float depthRef;\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    fragColor = vec4(texture(tex2DShadow, vec3(texcoord, depthRef)) * 0.5);\n"
+            "    fragColor += texture(tex3D, vec3(texcoord, 0.0));\n"
+            "}\n");
+    }
+
+    void SetUp() override
+    {
+        TexCoordDrawTest::SetUp();
+
+        glGenTextures(1, &mTexture3D);
+
+        glGenTextures(1, &mTextureShadow);
+        glBindTexture(GL_TEXTURE_2D, mTextureShadow);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+
+        mTextureShadowUniformLocation = glGetUniformLocation(mProgram, "tex2DShadow");
+        ASSERT_NE(-1, mTextureShadowUniformLocation);
+        mTexture3DUniformLocation = glGetUniformLocation(mProgram, "tex3D");
+        ASSERT_NE(-1, mTexture3DUniformLocation);
+        mDepthRefUniformLocation = glGetUniformLocation(mProgram, "depthRef");
+        ASSERT_NE(-1, mDepthRefUniformLocation);
+    }
+
+    void TearDown() override
+    {
+        glDeleteTextures(1, &mTextureShadow);
+        glDeleteTextures(1, &mTexture3D);
+        TexCoordDrawTest::TearDown();
+    }
+
+    GLuint mTextureShadow;
+    GLuint mTexture3D;
+    GLint mTextureShadowUniformLocation;
+    GLint mTexture3DUniformLocation;
+    GLint mDepthRefUniformLocation;
+};
+
+class SamplerTypeMixTestES3 : public TexCoordDrawTest
+{
+  protected:
+    SamplerTypeMixTestES3()
+        : TexCoordDrawTest(),
+          mTexture2D(0),
+          mTextureCube(0),
+          mTexture2DShadow(0),
+          mTextureCubeShadow(0),
+          mTexture2DUniformLocation(-1),
+          mTextureCubeUniformLocation(-1),
+          mTexture2DShadowUniformLocation(-1),
+          mTextureCubeShadowUniformLocation(-1),
+          mDepthRefUniformLocation(-1)
+    {
+    }
+
+    std::string getVertexShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "out vec2 texcoord;\n"
+            "in vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n");
+    }
+
+    std::string getFragmentShaderSource() override
+    {
+        return std::string(
+            "#version 300 es\n"
+            "precision highp float;\n"
+            "uniform highp sampler2D tex2D;\n"
+            "uniform highp samplerCube texCube;\n"
+            "uniform highp sampler2DShadow tex2DShadow;\n"
+            "uniform highp samplerCubeShadow texCubeShadow;\n"
+            "in vec2 texcoord;\n"
+            "uniform float depthRef;\n"
+            "out vec4 fragColor;\n"
+            "void main()\n"
+            "{\n"
+            "    fragColor = texture(tex2D, texcoord);\n"
+            "    fragColor += texture(texCube, vec3(1.0, 0.0, 0.0));\n"
+            "    fragColor += vec4(texture(tex2DShadow, vec3(texcoord, depthRef)) * 0.25);\n"
+            "    fragColor += vec4(texture(texCubeShadow, vec4(1.0, 0.0, 0.0, depthRef)) * "
+            "0.125);\n"
+            "}\n");
+    }
+
+    void SetUp() override
+    {
+        TexCoordDrawTest::SetUp();
+
+        glGenTextures(1, &mTexture2D);
+        glGenTextures(1, &mTextureCube);
+
+        glGenTextures(1, &mTexture2DShadow);
+        glBindTexture(GL_TEXTURE_2D, mTexture2DShadow);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+
+        glGenTextures(1, &mTextureCubeShadow);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, mTextureCubeShadow);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+
+        mTexture2DUniformLocation = glGetUniformLocation(mProgram, "tex2D");
+        ASSERT_NE(-1, mTexture2DUniformLocation);
+        mTextureCubeUniformLocation = glGetUniformLocation(mProgram, "texCube");
+        ASSERT_NE(-1, mTextureCubeUniformLocation);
+        mTexture2DShadowUniformLocation = glGetUniformLocation(mProgram, "tex2DShadow");
+        ASSERT_NE(-1, mTexture2DShadowUniformLocation);
+        mTextureCubeShadowUniformLocation = glGetUniformLocation(mProgram, "texCubeShadow");
+        ASSERT_NE(-1, mTextureCubeShadowUniformLocation);
+        mDepthRefUniformLocation = glGetUniformLocation(mProgram, "depthRef");
+        ASSERT_NE(-1, mDepthRefUniformLocation);
+
+        ASSERT_GL_NO_ERROR();
+    }
+
+    void TearDown() override
+    {
+        glDeleteTextures(1, &mTexture2D);
+        glDeleteTextures(1, &mTextureCube);
+        glDeleteTextures(1, &mTexture2DShadow);
+        glDeleteTextures(1, &mTextureCubeShadow);
+        TexCoordDrawTest::TearDown();
+    }
+
+    GLuint mTexture2D;
+    GLuint mTextureCube;
+    GLuint mTexture2DShadow;
+    GLuint mTextureCubeShadow;
+    GLint mTexture2DUniformLocation;
+    GLint mTextureCubeUniformLocation;
+    GLint mTexture2DShadowUniformLocation;
+    GLint mTextureCubeShadowUniformLocation;
+    GLint mDepthRefUniformLocation;
 };
 
 TEST_P(Texture2DTest, NegativeAPISubImage)
@@ -846,6 +1221,13 @@ TEST_P(Texture2DTest, CopySubImageFloat_RGB_RG)
 
 TEST_P(Texture2DTest, CopySubImageFloat_RGB_RGB)
 {
+    // TODO (bug 1284): Investigate RGBA32f D3D SDK Layers messages on D3D11_FL9_3
+    if (isD3D11_FL93())
+    {
+        std::cout << "Test skipped on Feature Level 9_3." << std::endl;
+        return;
+    }
+
     testFloatCopySubImage(3, 3);
 }
 
@@ -861,11 +1243,25 @@ TEST_P(Texture2DTest, CopySubImageFloat_RGBA_RG)
 
 TEST_P(Texture2DTest, CopySubImageFloat_RGBA_RGB)
 {
+    // TODO (bug 1284): Investigate RGBA32f D3D SDK Layers messages on D3D11_FL9_3
+    if (isD3D11_FL93())
+    {
+        std::cout << "Test skipped on Feature Level 9_3." << std::endl;
+        return;
+    }
+
     testFloatCopySubImage(4, 3);
 }
 
 TEST_P(Texture2DTest, CopySubImageFloat_RGBA_RGBA)
 {
+    // TODO (bug 1284): Investigate RGBA32f D3D SDK Layers messages on D3D11_FL9_3
+    if (isD3D11_FL93())
+    {
+        std::cout << "Test skipped on Feature Level 9_3." << std::endl;
+        return;
+    }
+
     testFloatCopySubImage(4, 4);
 }
 
@@ -959,6 +1355,15 @@ TEST_P(Texture2DTest, TextureNPOT_GL_ALPHA_UBYTE)
 // ANGLE previously rejected this if GL_OES_texture_npot wasn't active, which is incorrect.
 TEST_P(Texture2DTest, NPOTSubImageParameters)
 {
+    // TODO(geofflang): Allow the GL backend to accept SubImage calls with a null data ptr. (bug
+    // 1278)
+    if (getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE ||
+        getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE)
+    {
+        std::cout << "Test disabled on OpenGL." << std::endl;
+        return;
+    }
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mTexture2D);
 
@@ -973,6 +1378,42 @@ TEST_P(Texture2DTest, NPOTSubImageParameters)
     glTexSubImage2D(GL_TEXTURE_2D, 1, 0, 0, 3, 3, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
     EXPECT_GL_NO_ERROR();
+}
+
+// Test to check that texture completeness is determined correctly when the texture base level is
+// greater than 0, and also that level 0 is not sampled when base level is greater than 0.
+TEST_P(Texture2DTestES3, DrawWithBaseLevel1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    GLubyte texDataRed[4u * 4u * 4u];
+    for (size_t i = 0u; i < 4u * 4u; ++i)
+    {
+        texDataRed[i * 4u]      = 255u;
+        texDataRed[i * 4u + 1u] = 0u;
+        texDataRed[i * 4u + 2u] = 0u;
+        texDataRed[i * 4u + 3u] = 255u;
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 4, 4, 0, GL_RGBA, GL_UNSIGNED_BYTE, texDataRed);
+    GLubyte texDataGreen[2u * 2u * 4u];
+    for (size_t i = 0u; i < 2u * 2u; ++i)
+    {
+        texDataGreen[i * 4u]      = 0u;
+        texDataGreen[i * 4u + 1u] = 255u;
+        texDataGreen[i * 4u + 2u] = 0u;
+        texDataGreen[i * 4u + 3u] = 255u;
+    }
+    glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, texDataGreen);
+    glTexImage2D(GL_TEXTURE_2D, 2, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, texDataGreen);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 1);
+
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_EQ(0, 0, 0, 255, 0, 255);
 }
 
 // In the D3D11 renderer, we need to initialize some texture formats, to fill empty channels. EG RBA->RGBA8, with 1.0
@@ -1008,6 +1449,409 @@ TEST_P(Texture2DArrayTestES3, RedefineInittableArray)
     EXPECT_PIXEL_EQ(0, 0, 0, 255, 0, 255);
 
     ASSERT_GL_NO_ERROR();
+}
+
+// Test shadow sampler and regular non-shadow sampler coexisting in the same shader.
+// This test is needed especially to confirm that sampler registers get assigned correctly on
+// the HLSL backend even when there's a mix of different HLSL sampler and texture types.
+TEST_P(ShadowSamplerPlusSampler3DTestES3, ShadowSamplerPlusSampler3DDraw)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, mTexture3D);
+    GLubyte texData[4];
+    texData[0] = 0;
+    texData[1] = 60;
+    texData[2] = 0;
+    texData[3] = 255;
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, mTextureShadow);
+    GLfloat depthTexData[1];
+    depthTexData[0] = 0.5f;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 1, 1, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+                 depthTexData);
+
+    glUseProgram(mProgram);
+    glUniform1f(mDepthRefUniformLocation, 0.3f);
+    glUniform1i(mTexture3DUniformLocation, 0);
+    glUniform1i(mTextureShadowUniformLocation, 1);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    drawQuad(mProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+    // The shader writes 0.5 * <comparison result (1.0)> + <texture color>
+    EXPECT_PIXEL_NEAR(0, 0, 128, 188, 128, 255, 2);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
+    drawQuad(mProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+    // The shader writes 0.5 * <comparison result (0.0)> + <texture color>
+    EXPECT_PIXEL_NEAR(0, 0, 0, 60, 0, 255, 2);
+}
+
+// Test multiple different sampler types in the same shader.
+// This test makes sure that even if sampler / texture registers get grouped together based on type
+// or otherwise get shuffled around in the HLSL backend of the shader translator, the D3D renderer
+// still has the right register index information for each ESSL sampler.
+// The tested ESSL samplers have the following types in D3D11 HLSL:
+// sampler2D:         Texture2D   + SamplerState
+// samplerCube:       TextureCube + SamplerState
+// sampler2DShadow:   Texture2D   + SamplerComparisonState
+// samplerCubeShadow: TextureCube + SamplerComparisonState
+TEST_P(SamplerTypeMixTestES3, SamplerTypeMixDraw)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    GLubyte texData[4];
+    texData[0] = 0;
+    texData[1] = 0;
+    texData[2] = 120;
+    texData[3] = 255;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, mTextureCube);
+    texData[0] = 0;
+    texData[1] = 90;
+    texData[2] = 0;
+    texData[3] = 255;
+    glTexStorage2D(GL_TEXTURE_CUBE_MAP, 1, GL_RGBA8, 1, 1);
+    glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+                    texData);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, mTexture2DShadow);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    GLfloat depthTexData[1];
+    depthTexData[0] = 0.5f;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 1, 1, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+                 depthTexData);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, mTextureCubeShadow);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    depthTexData[0] = 0.2f;
+    glTexStorage2D(GL_TEXTURE_CUBE_MAP, 1, GL_DEPTH_COMPONENT32F, 1, 1);
+    glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 0, 0, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                    depthTexData);
+
+    EXPECT_GL_NO_ERROR();
+
+    glUseProgram(mProgram);
+    glUniform1f(mDepthRefUniformLocation, 0.3f);
+    glUniform1i(mTexture2DUniformLocation, 0);
+    glUniform1i(mTextureCubeUniformLocation, 1);
+    glUniform1i(mTexture2DShadowUniformLocation, 2);
+    glUniform1i(mTextureCubeShadowUniformLocation, 3);
+
+    drawQuad(mProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+    // The shader writes:
+    // <texture 2d color> +
+    // <cube map color> +
+    // 0.25 * <comparison result (1.0)> +
+    // 0.125 * <comparison result (0.0)>
+    EXPECT_PIXEL_NEAR(0, 0, 64, 154, 184, 255, 2);
+}
+
+// Test different base levels on textures accessed through the same sampler array.
+// Calling textureSize() on the samplers hits the D3D sampler metadata workaround.
+TEST_P(TextureSizeTextureArrayTest, BaseLevelVariesInTextureArray)
+{
+    if ((isAMD() || isIntel()) && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel and AMD D3D." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2DA);
+    GLsizei size = 64;
+    for (GLint level = 0; level < 7; ++level)
+    {
+        ASSERT_LT(0, size);
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     nullptr);
+        size = size / 2;
+    }
+    ASSERT_EQ(0, size);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 1);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, mTexture2DB);
+    size = 128;
+    for (GLint level = 0; level < 8; ++level)
+    {
+        ASSERT_LT(0, size);
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     nullptr);
+        size = size / 2;
+    }
+    ASSERT_EQ(0, size);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 3);
+    EXPECT_GL_NO_ERROR();
+
+    glUseProgram(mProgram);
+    glUniform1i(mTexture0Location, 0);
+    glUniform1i(mTexture1Location, 1);
+
+    drawQuad(mProgram, "position", 0.5f);
+    EXPECT_GL_NO_ERROR();
+    // Red channel: width of level 1 of texture A: 32.
+    // Green channel: width of level 3 of texture B: 16.
+    EXPECT_PIXEL_NEAR(0, 0, 32, 16, 0, 255, 2);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureRGBImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureLuminanceImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 1, 1, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureLuminance32ImplicitAlpha1)
+{
+    if (extensionEnabled("GL_OES_texture_float"))
+    {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, mTexture2D);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 1, 1, 0, GL_LUMINANCE, GL_FLOAT, nullptr);
+        EXPECT_GL_NO_ERROR();
+
+        drawQuad(mProgram, "position", 0.5f);
+
+        EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+    }
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureLuminance16ImplicitAlpha1)
+{
+    if (extensionEnabled("GL_OES_texture_half_float"))
+    {
+        if (isNVidia() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE)
+        {
+            std::cout << "Test skipped on NVIDIA" << std::endl;
+            return;
+        }
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, mTexture2D);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 1, 1, 0, GL_LUMINANCE, GL_HALF_FLOAT_OES,
+                     nullptr);
+        EXPECT_GL_NO_ERROR();
+
+        drawQuad(mProgram, "position", 0.5f);
+
+        EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+    }
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DUnsignedIntegerAlpha1TestES3, TextureRGB8UIImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8UI, 1, 1, 0, GL_RGB_INTEGER, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DIntegerAlpha1TestES3, TextureRGB8IImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8I, 1, 1, 0, GL_RGB_INTEGER, GL_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DUnsignedIntegerAlpha1TestES3, TextureRGB16UIImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16UI, 1, 1, 0, GL_RGB_INTEGER, GL_UNSIGNED_SHORT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DIntegerAlpha1TestES3, TextureRGB16IImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16I, 1, 1, 0, GL_RGB_INTEGER, GL_SHORT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DUnsignedIntegerAlpha1TestES3, TextureRGB32UIImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32UI, 1, 1, 0, GL_RGB_INTEGER, GL_UNSIGNED_INT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DIntegerAlpha1TestES3, TextureRGB32IImplicitAlpha1)
+{
+    if (isOSX() && isIntel())
+    {
+        std::cout << "Test disabled on OSX Intel." << std::endl;
+        return;
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32I, 1, 1, 0, GL_RGB_INTEGER, GL_INT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureRGBSNORMImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8_SNORM, 1, 1, 0, GL_RGB, GL_BYTE, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureRGB9E5ImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB9_E5, 1, 1, 0, GL_RGB, GL_UNSIGNED_INT_5_9_9_9_REV,
+                 nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureCOMPRESSEDRGB8ETC2ImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glCompressedTexImage2D(GL_TEXTURE_2D, 0, GL_COMPRESSED_RGB8_ETC2, 1, 1, 0, 8, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
+}
+
+// When sampling a texture without an alpha channel, "1" is returned as the alpha value.
+// ES 3.0.4 table 3.24
+TEST_P(Texture2DTestES3, TextureCOMPRESSEDSRGB8ETC2ImplicitAlpha1)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mTexture2D);
+    glCompressedTexImage2D(GL_TEXTURE_2D, 0, GL_COMPRESSED_SRGB8_ETC2, 1, 1, 0, 8, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    drawQuad(mProgram, "position", 0.5f);
+
+    EXPECT_PIXEL_ALPHA_EQ(0, 0, 255);
 }
 
 class TextureLimitsTest : public ANGLETest
@@ -1406,14 +2250,56 @@ TEST_P(TextureLimitsTest, DrawWithTexturePastMaximum)
 }
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
-// TODO(geofflang): Figure out why tests below fail on Intel OpenGL:
-ANGLE_INSTANTIATE_TEST(Texture2DTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(TextureCubeTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(Texture2DTestWithDrawScale, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(Sampler2DAsFunctionParameterTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(SamplerArrayTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(SamplerArrayAsFunctionParameterTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3());
-ANGLE_INSTANTIATE_TEST(Texture2DArrayTestES3, ES3_D3D11(), ES3_OPENGL());
-ANGLE_INSTANTIATE_TEST(TextureLimitsTest, ES2_D3D11(), ES2_OPENGL());
+// TODO(oetuaho): Enable all below tests on OpenGL. Requires a fix for ANGLE bug 1278.
+ANGLE_INSTANTIATE_TEST(Texture2DTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(TextureCubeTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Texture2DTestWithDrawScale,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Sampler2DAsFunctionParameterTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(SamplerArrayTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(SamplerArrayAsFunctionParameterTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES2_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Texture2DTestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Texture2DIntegerAlpha1TestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Texture2DUnsignedIntegerAlpha1TestES3,
+                       ES3_D3D11(),
+                       ES3_OPENGL(),
+                       ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(ShadowSamplerPlusSampler3DTestES3,
+                       ES3_D3D11(),
+                       ES3_OPENGL(),
+                       ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(SamplerTypeMixTestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(Texture2DArrayTestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(TextureSizeTextureArrayTest, ES3_D3D11(), ES3_OPENGL());
+ANGLE_INSTANTIATE_TEST(TextureLimitsTest, ES2_D3D11(), ES2_OPENGL(), ES2_OPENGLES());
 
 } // namespace

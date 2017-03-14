@@ -10,6 +10,7 @@
 #include "GrPipeline.h"
 #include "glsl/GrGLSLFragmentProcessor.h"
 #include "glsl/GrGLSLGeometryProcessor.h"
+#include "glsl/GrGLSLVarying.h"
 #include "glsl/GrGLSLXferProcessor.h"
 
 const int GrGLSLProgramBuilder::kVarsPerBlock = 8;
@@ -53,9 +54,13 @@ bool GrGLSLProgramBuilder::emitAndInstallProcs(GrGLSLExpr4* inputColor,
     this->emitAndInstallFragProcs(0, this->pipeline().numColorFragmentProcessors(), inputColor);
     this->emitAndInstallFragProcs(this->pipeline().numColorFragmentProcessors(), numProcs,
                                   inputCoverage);
-    this->emitAndInstallXferProc(this->pipeline().getXferProcessor(), *inputColor, *inputCoverage,
-                                 this->pipeline().ignoresCoverage());
-    this->emitFSOutputSwizzle(this->pipeline().getXferProcessor().hasSecondaryOutput());
+    if (primProc.getPixelLocalStorageState() != 
+        GrPixelLocalStorageState::kDraw_GrPixelLocalStorageState) {
+        this->emitAndInstallXferProc(this->pipeline().getXferProcessor(), *inputColor, 
+                                     *inputCoverage, this->pipeline().ignoresCoverage(),
+                                     primProc.getPixelLocalStorageState());
+        this->emitFSOutputSwizzle(this->pipeline().getXferProcessor().hasSecondaryOutput());
+    }
     return true;
 }
 
@@ -151,7 +156,8 @@ void GrGLSLProgramBuilder::emitAndInstallFragProc(const GrFragmentProcessor& fp,
 void GrGLSLProgramBuilder::emitAndInstallXferProc(const GrXferProcessor& xp,
                                                   const GrGLSLExpr4& colorIn,
                                                   const GrGLSLExpr4& coverageIn,
-                                                  bool ignoresCoverage) {
+                                                  bool ignoresCoverage,
+                                                  GrPixelLocalStorageState plsState) {
     // Program builders have a bit of state we need to clear with each effect
     AutoStageAdvance adv(this);
 
@@ -174,6 +180,7 @@ void GrGLSLProgramBuilder::emitAndInstallXferProc(const GrXferProcessor& xp,
     SkSTArray<4, GrGLSLTextureSampler> samplers(xp.numTextures());
     this->emitSamplers(xp, &samplers);
 
+    bool usePLSDstRead = (plsState == GrPixelLocalStorageState::kFinish_GrPixelLocalStorageState);
     GrGLSLXferProcessor::EmitArgs args(&fFS,
                                        this->uniformHandler(),
                                        this->glslCaps(),
@@ -181,7 +188,8 @@ void GrGLSLProgramBuilder::emitAndInstallXferProc(const GrXferProcessor& xp,
                                        ignoresCoverage ? nullptr : coverageIn.c_str(),
                                        fFS.getPrimaryColorOutputName(),
                                        fFS.getSecondaryColorOutputName(),
-                                       samplers);
+                                       samplers,
+                                       usePLSDstRead);
     fXferProcessor->emitCode(args);
 
     // We have to check that effects and the code they emit are consistent, ie if an effect
@@ -247,8 +255,7 @@ void GrGLSLProgramBuilder::nameExpression(GrGLSLExpr4* output, const char* baseN
     *output = outName;
 }
 
-void GrGLSLProgramBuilder::appendUniformDecls(ShaderVisibility visibility,
-                                              SkString* out) const {
+void GrGLSLProgramBuilder::appendUniformDecls(GrShaderFlags visibility, SkString* out) const {
     this->uniformHandler()->appendUniformDecls(visibility, out);
 }
 
@@ -257,7 +264,7 @@ void GrGLSLProgramBuilder::addRTAdjustmentUniform(GrSLPrecision precision,
                                                   const char** outName) {
         SkASSERT(!fUniformHandles.fRTAdjustmentUni.isValid());
         fUniformHandles.fRTAdjustmentUni =
-            this->uniformHandler()->addUniform(GrGLSLUniformHandler::kVertex_Visibility,
+            this->uniformHandler()->addUniform(kVertex_GrShaderFlag,
                                                kVec4f_GrSLType,
                                                precision,
                                                name,
@@ -268,7 +275,7 @@ void GrGLSLProgramBuilder::addRTHeightUniform(const char* name, const char** out
         SkASSERT(!fUniformHandles.fRTHeightUni.isValid());
         GrGLSLUniformHandler* uniformHandler = this->uniformHandler();
         fUniformHandles.fRTHeightUni =
-            uniformHandler->internalAddUniformArray(GrGLSLUniformHandler::kFragment_Visibility,
+            uniformHandler->internalAddUniformArray(kFragment_GrShaderFlag,
                                                     kFloat_GrSLType, kDefault_GrSLPrecision,
                                                     name, false, 0, outName);
 }
@@ -279,3 +286,9 @@ void GrGLSLProgramBuilder::cleanupFragmentProcessors() {
     }
 }
 
+void GrGLSLProgramBuilder::finalizeShaders() {
+    this->varyingHandler()->finalize();
+    fVS.finalize(kVertex_GrShaderFlag);
+    fFS.finalize(kFragment_GrShaderFlag);
+
+}

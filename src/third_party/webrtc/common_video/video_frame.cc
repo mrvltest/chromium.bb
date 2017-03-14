@@ -19,6 +19,10 @@
 
 namespace webrtc {
 
+// FFmpeg's decoder, used by H264DecoderImpl, requires up to 8 bytes padding due
+// to optimized bitstream readers. See avcodec_decode_video2.
+const size_t EncodedImage::kBufferPaddingBytesH264 = 8;
+
 bool EqualPlane(const uint8_t* data1,
                 const uint8_t* data2,
                 int stride,
@@ -240,6 +244,24 @@ bool VideoFrame::EqualsFrame(const VideoFrame& frame) const {
                     stride(kUPlane), half_width, half_height) &&
          EqualPlane(buffer(kVPlane), frame.buffer(kVPlane),
                     stride(kVPlane), half_width, half_height);
+}
+
+size_t EncodedImage::GetBufferPaddingBytes(VideoCodecType codec_type) {
+  switch (codec_type) {
+    case kVideoCodecVP8:
+    case kVideoCodecVP9:
+      return 0;
+    case kVideoCodecH264:
+      return kBufferPaddingBytesH264;
+    case kVideoCodecI420:
+    case kVideoCodecRED:
+    case kVideoCodecULPFEC:
+    case kVideoCodecGeneric:
+    case kVideoCodecUnknown:
+      return 0;
+  }
+  RTC_NOTREACHED();
+  return 0;
 }
 
 }  // namespace webrtc

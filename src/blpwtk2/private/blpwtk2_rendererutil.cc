@@ -176,17 +176,6 @@ void RendererUtil::drawContentsToBlob(content::RenderView        *rv,
     }
 }
 
-String RendererUtil::getLayoutTreeAsText(int renderViewRoutingId, int flags)
-{
-    DCHECK(Statics::isInApplicationMainThread());
-
-    content::RenderView* rv = content::RenderView::FromRoutingID(renderViewRoutingId);
-    blink::WebFrame* webFrame = rv->GetWebView()->mainFrame();
-    DCHECK(webFrame->isWebLocalFrame());
-
-    return fromWebString(webFrame->layoutTreeAsText(flags));
-}
-
 void RendererUtil::setLCDTextShouldBlendWithCSSBackgroundColor(int renderViewRoutingId,
                                                                bool enable)
 {

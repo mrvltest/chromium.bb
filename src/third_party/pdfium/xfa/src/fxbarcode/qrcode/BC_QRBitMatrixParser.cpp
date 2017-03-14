@@ -20,12 +20,16 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRBitMatrixParser.h"
+
+#include <memory>
+
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_QRCoderVersion.h"
-#include "BC_QRCoderFormatInformation.h"
-#include "BC_QRDataMask.h"
-#include "BC_QRBitMatrixParser.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderFormatInformation.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderVersion.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDataMask.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_QRBitMatrixParser::CBC_QRBitMatrixParser() {}
 void CBC_QRBitMatrixParser::Init(CBC_CommonBitMatrix* bitMatrix, int32_t& e) {
   m_dimension = bitMatrix->GetDimension(e);
@@ -40,15 +44,11 @@ void CBC_QRBitMatrixParser::Init(CBC_CommonBitMatrix* bitMatrix, int32_t& e) {
   m_version = NULL;
 }
 CBC_QRBitMatrixParser::~CBC_QRBitMatrixParser() {
-  if (m_parsedFormatInfo != NULL) {
-    delete m_parsedFormatInfo;
-    m_parsedFormatInfo = NULL;
-  }
-  m_version = NULL;
+  delete m_parsedFormatInfo;
 }
 CBC_QRCoderFormatInformation* CBC_QRBitMatrixParser::ReadFormatInformation(
     int32_t& e) {
-  if (m_parsedFormatInfo != NULL) {
+  if (m_parsedFormatInfo) {
     return m_parsedFormatInfo;
   }
   int32_t formatInfoBits = 0;
@@ -64,7 +64,7 @@ CBC_QRCoderFormatInformation* CBC_QRBitMatrixParser::ReadFormatInformation(
   }
   m_parsedFormatInfo =
       CBC_QRCoderFormatInformation::DecodeFormatInformation(formatInfoBits);
-  if (m_parsedFormatInfo != NULL) {
+  if (m_parsedFormatInfo) {
     return m_parsedFormatInfo;
   }
   int32_t dimension = m_bitMatrix->GetDimension(e);
@@ -79,7 +79,7 @@ CBC_QRCoderFormatInformation* CBC_QRBitMatrixParser::ReadFormatInformation(
   }
   m_parsedFormatInfo =
       CBC_QRCoderFormatInformation::DecodeFormatInformation(formatInfoBits);
-  if (m_parsedFormatInfo != NULL) {
+  if (m_parsedFormatInfo) {
     return m_parsedFormatInfo;
   }
   e = BCExceptionRead;
@@ -87,7 +87,7 @@ CBC_QRCoderFormatInformation* CBC_QRBitMatrixParser::ReadFormatInformation(
   return NULL;
 }
 CBC_QRCoderVersion* CBC_QRBitMatrixParser::ReadVersion(int32_t& e) {
-  if (m_version != NULL) {
+  if (m_version) {
     return m_version;
   }
   int32_t dimension = m_bitMatrix->GetDimension(e);
@@ -108,7 +108,7 @@ CBC_QRCoderVersion* CBC_QRBitMatrixParser::ReadVersion(int32_t& e) {
   }
   m_version = CBC_QRCoderVersion::DecodeVersionInformation(versionBits, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  if (m_version != NULL && m_version->GetDimensionForVersion() == dimension) {
+  if (m_version && m_version->GetDimensionForVersion() == dimension) {
     return m_version;
   }
   versionBits = 0;
@@ -120,7 +120,7 @@ CBC_QRCoderVersion* CBC_QRBitMatrixParser::ReadVersion(int32_t& e) {
   }
   m_version = CBC_QRCoderVersion::DecodeVersionInformation(versionBits, e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  if (m_version != NULL && m_version->GetDimensionForVersion() == dimension) {
+  if (m_version && m_version->GetDimensionForVersion() == dimension) {
     return m_version;
   }
   e = BCExceptionRead;
@@ -143,13 +143,12 @@ CFX_ByteArray* CBC_QRBitMatrixParser::ReadCodewords(int32_t& e) {
   int32_t dimension = m_bitMatrix->GetDimension(e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
   dataMask->UnmaskBitMatirx(m_bitMatrix, dimension);
-  CBC_CommonBitMatrix* cbm = version->BuildFunctionPattern(e);
+  std::unique_ptr<CBC_CommonBitMatrix> functionPattern(
+      version->BuildFunctionPattern(e));
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  CBC_AutoPtr<CBC_CommonBitMatrix> functionPattern(cbm);
   FX_BOOL readingUp = TRUE;
-  CFX_ByteArray* temp = new CFX_ByteArray;
-  temp->SetSize(version->GetTotalCodeWords());
-  CBC_AutoPtr<CFX_ByteArray> result(temp);
+  std::unique_ptr<CFX_ByteArray> result(new CFX_ByteArray);
+  result->SetSize(version->GetTotalCodeWords());
   int32_t resultOffset = 0;
   int32_t currentByte = 0;
   int32_t bitsRead = 0;

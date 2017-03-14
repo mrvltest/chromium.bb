@@ -4,17 +4,20 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_formproxyimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
-#include "xfa/src/fwl/src/basewidget/include/fwl_monthcalendarimp.h"
 #include "xfa/src/fwl/src/basewidget/include/fwl_datetimepickerimp.h"
+
+#include "xfa/include/fwl/basewidget/fwl_spinbutton.h"
+#include "xfa/src/foxitlib.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_editimp.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_formproxyimp.h"
+#include "xfa/src/fwl/src/basewidget/include/fwl_monthcalendarimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_formimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_panelimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
+
 #define FWL_DTP_WIDTH 100
 #define FWL_DTP_HEIGHT 20
 
@@ -301,11 +304,11 @@ void CFWL_DateTimeCalendarImpDelegate::OnLButtonUpEx(CFWL_MsgMouse* pMsg) {
   pPicker->m_pForm->GetWidgetRect(rt);
   rt.Set(0, 0, rt.width, rt.height);
   if (iCurSel > 0) {
-    LPDATEINFO lpDatesInfo =
-        (LPDATEINFO)m_pOwner->m_arrDates.GetAt(iCurSel - 1);
+    FWL_DATEINFO* lpDatesInfo =
+        (FWL_DATEINFO*)m_pOwner->m_arrDates.GetAt(iCurSel - 1);
     CFX_RectF rtInvalidate(lpDatesInfo->rect);
     if (iOldSel > 0 && iOldSel <= m_pOwner->m_arrDates.GetSize()) {
-      lpDatesInfo = (LPDATEINFO)m_pOwner->m_arrDates.GetAt(iOldSel - 1);
+      lpDatesInfo = (FWL_DATEINFO*)m_pOwner->m_arrDates.GetAt(iOldSel - 1);
       rtInvalidate.Union(lpDatesInfo->rect);
     }
     m_pOwner->AddSelDay(iCurSel);
@@ -394,11 +397,11 @@ void CFWL_DateTimeCalendarImpDelegate::DisForm_OnLButtonUpEx(
   }
   int32_t iCurSel = m_pOwner->GetDayAtPoint(pMsg->m_fx, pMsg->m_fy);
   if (iCurSel > 0) {
-    LPDATEINFO lpDatesInfo =
-        (LPDATEINFO)m_pOwner->m_arrDates.GetAt(iCurSel - 1);
+    FWL_DATEINFO* lpDatesInfo =
+        (FWL_DATEINFO*)m_pOwner->m_arrDates.GetAt(iCurSel - 1);
     CFX_RectF rtInvalidate(lpDatesInfo->rect);
     if (iOldSel > 0 && iOldSel <= m_pOwner->m_arrDates.GetSize()) {
-      lpDatesInfo = (LPDATEINFO)m_pOwner->m_arrDates.GetAt(iOldSel - 1);
+      lpDatesInfo = (FWL_DATEINFO*)m_pOwner->m_arrDates.GetAt(iOldSel - 1);
       rtInvalidate.Union(lpDatesInfo->rect);
     }
     m_pOwner->AddSelDay(iCurSel);
@@ -1017,7 +1020,6 @@ int32_t CFWL_DateTimePickerImpDelegate::OnProcessMessage(
   if (!pMessage)
     return 0;
   FX_DWORD dwMsgCode = pMessage->GetClassID();
-  int32_t iRet = 1;
   switch (dwMsgCode) {
     case FWL_MSGHASH_SetFocus:
     case FWL_MSGHASH_KillFocus: {
@@ -1048,7 +1050,8 @@ int32_t CFWL_DateTimePickerImpDelegate::OnProcessMessage(
       }
       break;
     }
-    default: { iRet = 0; }
+    default:
+      break;
   }
   if (dwMsgCode == FWL_MSGHASH_Key &&
       m_pOwner->m_pEdit->GetStates() & FWL_WGTSTATE_Focused) {

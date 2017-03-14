@@ -4,10 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_BARCODETP_H
-#define _FWL_BARCODETP_H
-class CFWL_WidgetTP;
-class CFWL_BarcodeTP;
+#ifndef XFA_INCLUDE_FWL_THEME_BARCODETP_H_
+#define XFA_INCLUDE_FWL_THEME_BARCODETP_H_
+
+#include "xfa/include/fwl/theme/utils.h"
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_BarcodeTP : public CFWL_WidgetTP {
  public:
   CFWL_BarcodeTP();
@@ -15,4 +17,5 @@ class CFWL_BarcodeTP : public CFWL_WidgetTP {
   virtual FX_BOOL IsValidWidget(IFWL_Widget* pWidget);
   virtual FX_BOOL DrawBackground(CFWL_ThemeBackground* pParams);
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_BARCODETP_H_

@@ -113,6 +113,11 @@ void PrefStore::SchedulePendingLossyWrites()
     // Do nothing
 }
 
+void PrefStore::ClearMutableValues()
+{
+    // Do nothing
+}
+
 void PrefStore::ReportValueChanged(const std::string& key, uint32_t flags)
 {
     FOR_EACH_OBSERVER(PrefStore::Observer, d_observers, OnPrefValueChanged(key));

@@ -175,14 +175,16 @@ class RubberbandContext {
 
     LayoutPoint calcAbsPoint(const LayoutPoint& pt) const
     {
-        LayoutUnit x = m_layerContext->m_translateX
+        LayoutUnit x = LayoutUnit(
+                          m_layerContext->m_translateX
                         - m_layerContext->m_frameScrollOffset.width()
                         - m_layerContext->m_layerScrollOffset.width()
-                        + ((pt.x() + m_layoutTopLeft.x()) * m_layerContext->m_scaleX);
-        LayoutUnit y = m_layerContext->m_translateY
+                        + ((pt.x() + m_layoutTopLeft.x()) * m_layerContext->m_scaleX));
+        LayoutUnit y = LayoutUnit(
+                          m_layerContext->m_translateY
                         - m_layerContext->m_frameScrollOffset.height()
                         - m_layerContext->m_layerScrollOffset.height()
-                        + ((pt.y() + m_layoutTopLeft.y()) * m_layerContext->m_scaleY);
+                        + ((pt.y() + m_layoutTopLeft.y()) * m_layerContext->m_scaleY));
         LayoutPoint result(x, y);
         if (m_layerContext->m_colBlock) {
             LayoutPoint tmp = result;
@@ -333,14 +335,14 @@ void WebViewImpl::rubberbandWalkLayoutObject(const RubberbandContext& context, L
             if (isClippedX || isClippedY) {
                 LayoutPoint minXminY = localContext.calcAbsPoint(LayoutPoint::zero());
                 if (isClippedX) {
-                    LayoutUnit minX = minXminY.x();
-                    LayoutUnit maxX = minX + (layer->size().width() * layerContext.m_scaleX);
+                    LayoutUnit minX = LayoutUnit(minXminY.x());
+                    LayoutUnit maxX = LayoutUnit(minX + (layer->size().width() * layerContext.m_scaleX));
                     layerContext.m_clipRect.shiftXEdgeTo(std::max(minX, layerContext.m_clipRect.x()));
                     layerContext.m_clipRect.shiftMaxXEdgeTo(std::min(maxX, layerContext.m_clipRect.maxX()));
                 }
                 if (isClippedY) {
-                    LayoutUnit minY = minXminY.y();
-                    LayoutUnit maxY = minY + (layer->size().height() * layerContext.m_scaleY);
+                    LayoutUnit minY = LayoutUnit(minXminY.y());
+                    LayoutUnit maxY = LayoutUnit(minY + (layer->size().height() * layerContext.m_scaleY));
                     layerContext.m_clipRect.shiftYEdgeTo(std::max(minY, layerContext.m_clipRect.y()));
                     layerContext.m_clipRect.shiftMaxYEdgeTo(std::min(maxY, layerContext.m_clipRect.maxY()));
                 }
@@ -444,9 +446,9 @@ void WebViewImpl::rubberbandWalkLayoutObject(const RubberbandContext& context, L
                 {
                     const Font& font = layoutObject->style()->font();
                     UChar space = ' ';
-                    candidate.m_spaceWidth = font.width(
-                        constructTextRun(font, &space, 1, layoutObject->styleRef(), candidate.m_isLTR ? LTR : RTL));
-                    candidate.m_spaceWidth *= localContext.m_layerContext->m_scaleX;
+                    candidate.m_spaceWidth = LayoutUnit(font.width(
+                          constructTextRun(font, &space, 1, layoutObject->styleRef(), candidate.m_isLTR ? LTR : RTL))
+                        * localContext.m_layerContext->m_scaleX);
                 }
             }
         }
@@ -756,8 +758,8 @@ bool WebViewImpl::preStartRubberbanding()
     if (!m_page || !m_page->mainFrame() || !m_page->mainFrame()->isLocalFrame() || !m_page->deprecatedLocalMainFrame()->document())
         return false;
 
-    RefPtr<Event> event = Event::createCancelable("rubberbandstarting");
-    if (!m_page->deprecatedLocalMainFrame()->document()->dispatchEvent(event))
+    RefPtrWillBeRawPtr<Event> event = Event::createCancelable("rubberbandstarting");
+    if (DispatchEventResult::CanceledByEventHandler == m_page->deprecatedLocalMainFrame()->document()->dispatchEvent(event))
         return false;
 
     return !event->defaultPrevented();
@@ -855,7 +857,7 @@ WebString WebViewImpl::finishRubberbanding(const WebRect& rc)
     m_rubberbandState.clear();
     m_rubberbandingForcedOn = false;
     if (m_page && m_page->mainFrame() && m_page->mainFrame()->isLocalFrame() && m_page->deprecatedLocalMainFrame()->document()) {
-        RefPtr<Event> event = Event::create("rubberbandfinished");
+        RefPtrWillBeRawPtr<Event> event = Event::create("rubberbandfinished");
         m_page->deprecatedLocalMainFrame()->document()->dispatchEvent(event);
     }
 
@@ -873,7 +875,7 @@ void WebViewImpl::abortRubberbanding()
     m_rubberbandingForcedOn = false;
 
     if (m_page && m_page->mainFrame() && m_page->mainFrame()->isLocalFrame() && m_page->deprecatedLocalMainFrame()->document()) {
-        RefPtr<Event> event = Event::create("rubberbandaborted");
+        RefPtrWillBeRawPtr<Event> event = Event::create("rubberbandaborted");
         m_page->deprecatedLocalMainFrame()->document()->dispatchEvent(event);
     }
 }

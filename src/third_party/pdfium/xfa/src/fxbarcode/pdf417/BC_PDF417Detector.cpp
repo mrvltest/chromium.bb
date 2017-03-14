@@ -20,14 +20,16 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/BC_BinaryBitmap.h"
-#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_PDF417DetectorResult.h"
-#include "BC_PDF417Detector.h"
-#define INTERGER_MAX 2147483647
+#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Detector.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectorResult.h"
+#include "xfa/src/fxbarcode/utils.h"
+
+#define INTEGER_MAX 2147483647
+
 int32_t CBC_Detector::INDEXES_START_PATTERN[] = {0, 4, 1, 5};
 int32_t CBC_Detector::INDEXES_STOP_PATTERN[] = {6, 2, 7, 3};
 int32_t CBC_Detector::INTEGER_MATH_SHIFT = 8;
@@ -44,6 +46,7 @@ int32_t CBC_Detector::MAX_PATTERN_DRIFT = 5;
 int32_t CBC_Detector::SKIPPED_ROW_COUNT_MAX = 25;
 int32_t CBC_Detector::ROW_STEP = 5;
 int32_t CBC_Detector::BARCODE_MIN_HEIGHT = 10;
+
 CBC_Detector::CBC_Detector() {}
 CBC_Detector::~CBC_Detector() {}
 CBC_PDF417DetectorResult* CBC_Detector::detect(CBC_BinaryBitmap* image,
@@ -121,10 +124,10 @@ CFX_PtrArray* CBC_Detector::detect(FX_BOOL multiple,
       for (int32_t i = 0; i < barcodeCoordinates->GetSize(); i++) {
         CFX_PtrArray* barcodeCoordinate =
             (CFX_PtrArray*)barcodeCoordinates->GetAt(i);
-        if (barcodeCoordinate->GetAt(1) != NULL) {
+        if (barcodeCoordinate->GetAt(1)) {
           row = row > ((CBC_ResultPoint*)barcodeCoordinate->GetAt(1))->GetY();
         }
-        if (barcodeCoordinate->GetAt(3) != NULL) {
+        if (barcodeCoordinate->GetAt(3)) {
           row = row > ((CBC_ResultPoint*)barcodeCoordinate->GetAt(3))->GetY();
         }
       }
@@ -139,7 +142,7 @@ CFX_PtrArray* CBC_Detector::detect(FX_BOOL multiple,
     if (!multiple) {
       break;
     }
-    if (vertices->GetAt(2) != NULL) {
+    if (vertices->GetAt(2)) {
       column = (int32_t)((CBC_ResultPoint*)vertices->GetAt(2))->GetX();
       row = (int32_t)((CBC_ResultPoint*)vertices->GetAt(2))->GetY();
     } else {
@@ -164,7 +167,7 @@ CFX_PtrArray* CBC_Detector::findVertices(CBC_CommonBitMatrix* matrix,
       sizeof(INDEXES_START_PATTERN) / sizeof(INDEXES_START_PATTERN[0]));
   startptr->RemoveAll();
   delete startptr;
-  if (result->GetAt(4) != NULL) {
+  if (result->GetAt(4)) {
     startColumn = (int32_t)((CBC_ResultPoint*)result->GetAt(4))->GetX();
     startRow = (int32_t)((CBC_ResultPoint*)result->GetAt(4))->GetY();
   }
@@ -201,12 +204,12 @@ CFX_PtrArray* CBC_Detector::findRowsWithPattern(CBC_CommonBitMatrix* matrix,
     CFX_Int32Array* loc =
         findGuardPattern(matrix, startColumn, startRow, width, FALSE, pattern,
                          patternLength, counters);
-    if (loc != NULL) {
+    if (loc) {
       while (startRow > 0) {
         CFX_Int32Array* previousRowLoc =
             findGuardPattern(matrix, startColumn, --startRow, width, FALSE,
                              pattern, patternLength, counters);
-        if (previousRowLoc != NULL) {
+        if (previousRowLoc) {
           delete loc;
           loc = previousRowLoc;
         } else {
@@ -233,8 +236,7 @@ CFX_PtrArray* CBC_Detector::findRowsWithPattern(CBC_CommonBitMatrix* matrix,
       CFX_Int32Array* loc =
           findGuardPattern(matrix, previousRowLoc[0], stopRow, width, FALSE,
                            pattern, patternLength, counters);
-      if (loc != NULL &&
-          abs(previousRowLoc[0] - loc->GetAt(0)) < MAX_PATTERN_DRIFT &&
+      if (loc && abs(previousRowLoc[0] - loc->GetAt(0)) < MAX_PATTERN_DRIFT &&
           abs(previousRowLoc[1] - loc->GetAt(1)) < MAX_PATTERN_DRIFT) {
         previousRowLoc.Copy(*loc);
         skippedRowCount = 0;
@@ -330,7 +332,7 @@ int32_t CBC_Detector::patternMatchVariance(CFX_Int32Array& counters,
     patternLength += pattern[i];
   }
   if (total < patternLength) {
-    return INTERGER_MAX;
+    return INTEGER_MAX;
   }
   int32_t unitBarWidth = (total << INTEGER_MATH_SHIFT) / patternLength;
   maxIndividualVariance =
@@ -342,7 +344,7 @@ int32_t CBC_Detector::patternMatchVariance(CFX_Int32Array& counters,
     int32_t variance = counter > scaledPattern ? counter - scaledPattern
                                                : scaledPattern - counter;
     if (variance > maxIndividualVariance) {
-      return INTERGER_MAX;
+      return INTEGER_MAX;
     }
     totalVariance += variance;
   }

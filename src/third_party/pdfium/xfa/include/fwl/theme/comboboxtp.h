@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_COMBOBOXTP_H
-#define _FWL_COMBOBOXTP_H
-class CFWL_WidgetTP;
-class CFWL_ComboBoxTP;
+#ifndef XFA_INCLUDE_FWL_THEME_COMBOBOXTP_H_
+#define XFA_INCLUDE_FWL_THEME_COMBOBOXTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_ComboBoxTP : public CFWL_WidgetTP {
  public:
   CFWL_ComboBoxTP();
@@ -24,4 +25,5 @@ class CFWL_ComboBoxTP : public CFWL_WidgetTP {
                          FX_DWORD dwStates,
                          CFX_Matrix* pMatrix);
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_COMBOBOXTP_H_

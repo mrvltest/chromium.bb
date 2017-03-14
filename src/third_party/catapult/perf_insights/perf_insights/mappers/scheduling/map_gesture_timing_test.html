@@ -6,12 +6,11 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/perf_insights/mappers/scheduling/map_gesture_timing.html">
-<link rel="import" href="/perf_insights/results/results.html">
-<link rel="import" href="/perf_insights/value/run_info.html">
-<link rel="import" href="/perf_insights/value/value.html">
+<link rel="import" href="/perf_insights/mre/mre_result.html">
+<link rel="import" href="/tracing/base/iteration_helpers.html">
 <link rel="import" href="/tracing/core/test_utils.html">
-<link rel="import" href="/tracing/extras/rail/load_interaction_record.html">
-<link rel="import" href="/tracing/extras/rail/response_interaction_record.html">
+<link rel="import" href="/tracing/model/user_model/load_expectation.html">
+<link rel="import" href="/tracing/model/user_model/response_expectation.html">
 
 <script>
 'use strict';
@@ -19,31 +18,29 @@ found in the LICENSE file.
 tr.b.unittest.testSuite(function() {
   test('mapperTest', function() {
     var m = tr.c.TestUtils.newModel(function(m) {
-      var loadIr = new tr.e.rail.LoadInteractionRecord(m, 0, 10);
-      loadIr.name = 'Load';
-      m.interactionRecords.push(loadIr);
+      var loadIr = new tr.model.um.LoadExpectation(
+          m, tr.model.um.LOAD_SUBTYPE_NAMES.SUCCESSFUL, 0, 10);
+      m.userModel.expectations.push(loadIr);
 
-      var scrollIr = new tr.e.rail.ResponseInteractionRecord(m, 50, 10);
-      scrollIr.name = 'Scroll';
-      m.interactionRecords.push(scrollIr);
+      var scrollIr = new tr.model.um.ResponseExpectation(
+          m, 'Scroll', 50, 10);
+      m.userModel.expectations.push(scrollIr);
 
-      var flingIr = new tr.e.rail.ResponseInteractionRecord(m, 60, 10);
-      flingIr.name = 'Fling';
-      m.interactionRecords.push(flingIr);
+      var flingIr = new tr.model.um.ResponseExpectation(
+          m, 'Fling', 60, 10);
+      m.userModel.expectations.push(flingIr);
 
-      var scrollIr2 = new tr.e.rail.ResponseInteractionRecord(m, 100, 20);
-      scrollIr2.name = 'Scroll';
-      m.interactionRecords.push(scrollIr2);
+      var scrollIr2 = new tr.model.um.ResponseExpectation(
+          m, 'Scroll', 100, 20);
+      m.userModel.expectations.push(scrollIr2);
     });
 
-    var results = new pi.r.Results();
-    var runInfo = new pi.v.RunInfo('my_test.json');
-    pie.mapGestureTimingForTest(results, runInfo, m);
+    var result = new pi.mre.MreResult();
+    pie.mapGestureTimingForTest(result, m);
 
-    assert.lengthOf(results.allValues, 1);
-    assert.instanceOf(results.allValues[0], pi.v.DictValue);
+    assert.equal(tr.b.dictionaryLength(result.pairs), 1);
 
-    var gestureTiming = results.allValues[0].value;
+    var gestureTiming = result.pairs.gestureTiming;
     assert.deepEqual(gestureTiming.firstGestureAfterLoadTime, [40]);
     assert.deepEqual(gestureTiming.gestureDuration, [10, 20]);
     assert.deepEqual(gestureTiming.intervalBetweenGestures, [50]);

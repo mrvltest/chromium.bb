@@ -20,15 +20,17 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
+#include "core/include/fxcrt/fx_basic.h"
 #include "xfa/src/fxbarcode/BC_ResultPoint.h"
-#include "BC_PDF417BarcodeMetadata.h"
-#include "BC_PDF417BoundingBox.h"
-#include "BC_PDF417Codeword.h"
-#include "BC_PDF417BarcodeValue.h"
-#include "BC_PDF417Common.h"
-#include "BC_PDF417DetectionResultColumn.h"
-#include "BC_PDF417DetectionResultRowIndicatorColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeMetadata.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BarcodeValue.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Codeword.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417Common.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultColumn.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417DetectionResultRowIndicatorColumn.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_DetectionResultRowIndicatorColumn::CBC_DetectionResultRowIndicatorColumn(
     CBC_BoundingBox* boundingBox,
     FX_BOOL isLeft)
@@ -40,7 +42,7 @@ CBC_DetectionResultRowIndicatorColumn::
 void CBC_DetectionResultRowIndicatorColumn::setRowNumbers() {
   for (int32_t i = 0; i < m_codewords->GetSize(); i++) {
     CBC_Codeword* codeword = (CBC_Codeword*)m_codewords->GetAt(i);
-    if (codeword != NULL) {
+    if (codeword) {
       codeword->setRowNumberAsRowIndicatorColumn();
     }
   }
@@ -117,7 +119,7 @@ CFX_Int32Array* CBC_DetectionResultRowIndicatorColumn::getRowHeights(
   result->SetSize(barcodeMetadata->getRowCount());
   for (int32_t i = 0; i < getCodewords()->GetSize(); i++) {
     CBC_Codeword* codeword = (CBC_Codeword*)getCodewords()->GetAt(i);
-    if (codeword != NULL) {
+    if (codeword) {
       result->SetAt(codeword->getRowNumber(),
                     result->GetAt(codeword->getRowNumber()) + 1);
     }

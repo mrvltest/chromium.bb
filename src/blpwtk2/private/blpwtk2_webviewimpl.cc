@@ -369,16 +369,6 @@ void WebViewImpl::drawContentsToBlob(Blob *blob, const DrawParams& params)
     RendererUtil::drawContentsToBlob(rv, blob, params);
 }
 
-String WebViewImpl::getLayoutTreeAsText(int flags) const
-{
-    DCHECK(Statics::isSingleThreadMode());
-    DCHECK(d_isMainFrameAccessible)
-        << "You should wait for didFinishLoad";
-    DCHECK(d_gotRenderViewInfo);
-
-    return RendererUtil::getLayoutTreeAsText(d_renderViewRoutingId, flags);
-}
-
 int WebViewImpl::getRoutingId() const
 {
     NOTREACHED() << "getRoutingId() not supported in WebViewImpl";
@@ -404,7 +394,8 @@ void WebViewImpl::setBackgroundColor(NativeColor color)
         DCHECK(d_gotRenderViewInfo);
 
         content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
-        rv->GetWebView()->setBaseBackgroundColor(
+        blink::WebFrameWidget* frameWidget = rv->GetWebFrameWidget();
+        frameWidget->setBaseBackgroundColor(
             SkColorSetARGB(
                 GetAValue(color),
                 GetRValue(color),

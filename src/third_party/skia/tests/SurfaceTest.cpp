@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include <functional>
 #include "SkCanvas.h"
 #include "SkData.h"
 #include "SkDevice.h"
@@ -53,7 +54,7 @@ static SkSurface* create_gpu_surface(GrContext* context, SkAlphaType at = kPremu
     if (requestedInfo) {
         *requestedInfo = info;
     }
-    return SkSurface::NewRenderTarget(context, SkSurface::kNo_Budgeted, info, 0, nullptr);
+    return SkSurface::NewRenderTarget(context, SkBudgeted::kNo, info, 0, nullptr);
 }
 static SkSurface* create_gpu_scratch_surface(GrContext* context,
                                              SkAlphaType at = kPremul_SkAlphaType,
@@ -62,7 +63,7 @@ static SkSurface* create_gpu_scratch_surface(GrContext* context,
     if (requestedInfo) {
         *requestedInfo = info;
     }
-    return SkSurface::NewRenderTarget(context, SkSurface::kYes_Budgeted, info, 0, nullptr);
+    return SkSurface::NewRenderTarget(context, SkBudgeted::kYes, info, 0, nullptr);
 }
 #endif
 
@@ -76,13 +77,13 @@ DEF_TEST(SurfaceEmpty, reporter) {
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceEmpty_Gpu, reporter, context) {
     const SkImageInfo info = SkImageInfo::Make(0, 0, kN32_SkColorType, kPremul_SkAlphaType);
     REPORTER_ASSERT(reporter, nullptr ==
-                    SkSurface::NewRenderTarget(context, SkSurface::kNo_Budgeted, info, 0, nullptr));
+                    SkSurface::NewRenderTarget(context, SkBudgeted::kNo, info, 0, nullptr));
 }
 #endif
 
 #if SK_SUPPORT_GPU
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceWrappedTexture, reporter, context) {
-    const GrGpu* gpu = context->getGpu();
+    GrGpu* gpu = context->getGpu();
     if (!gpu) {
         return;
     }
@@ -318,6 +319,133 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceBackendHandleAccessCopyOnWrite_Gpu, re
                                                          handle_access_func);
             }
         }
+    }
+}
+#endif
+
+static bool same_image(SkImage* a, SkImage* b,
+                       std::function<intptr_t(SkImage*)> getImageBackingStore) {
+    return getImageBackingStore(a) == getImageBackingStore(b);
+}
+
+static bool same_image_surf(SkImage* a, SkSurface* b,
+                            std::function<intptr_t(SkImage*)> getImageBackingStore,
+                            std::function<intptr_t(SkSurface*)> getSurfaceBackingStore) {
+    return getImageBackingStore(a) == getSurfaceBackingStore(b);
+}
+
+static void test_unique_image_snap(skiatest::Reporter* reporter, SkSurface* surface,
+                                   bool surfaceIsDirect,
+                                   std::function<intptr_t(SkImage*)> imageBackingStore,
+                                   std::function<intptr_t(SkSurface*)> surfaceBackingStore) {
+    std::function<intptr_t(SkImage*)> ibs = imageBackingStore;
+    std::function<intptr_t(SkSurface*)> sbs = surfaceBackingStore;
+    static const SkBudgeted kB = SkBudgeted::kNo;
+    {
+        SkAutoTUnref<SkImage> image(surface->newImageSnapshot(kB, SkSurface::kYes_ForceUnique));
+        REPORTER_ASSERT(reporter, !same_image_surf(image, surface, ibs, sbs));
+        REPORTER_ASSERT(reporter, image->unique());
+    }
+    {
+        SkAutoTUnref<SkImage> image1(surface->newImageSnapshot(kB, SkSurface::kYes_ForceUnique));
+        REPORTER_ASSERT(reporter, !same_image_surf(image1, surface, ibs, sbs));
+        REPORTER_ASSERT(reporter, image1->unique());
+        SkAutoTUnref<SkImage> image2(surface->newImageSnapshot(kB, SkSurface::kYes_ForceUnique));
+        REPORTER_ASSERT(reporter, !same_image_surf(image2, surface, ibs, sbs));
+        REPORTER_ASSERT(reporter, !same_image(image1, image2, ibs));
+        REPORTER_ASSERT(reporter, image2->unique());
+    }
+    {
+        SkAutoTUnref<SkImage> image1(surface->newImageSnapshot(kB, SkSurface::kNo_ForceUnique));
+        SkAutoTUnref<SkImage> image2(surface->newImageSnapshot(kB, SkSurface::kYes_ForceUnique));
+        SkAutoTUnref<SkImage> image3(surface->newImageSnapshot(kB, SkSurface::kNo_ForceUnique));
+        SkAutoTUnref<SkImage> image4(surface->newImageSnapshot(kB, SkSurface::kYes_ForceUnique));
+        // Image 1 and 3 ought to be the same (or we're missing an optimization).
+        REPORTER_ASSERT(reporter, same_image(image1, image3, ibs));
+        // If the surface is not direct then images 1 and 3 should alias the surface's
+        // store.
+        REPORTER_ASSERT(reporter, !surfaceIsDirect == same_image_surf(image1, surface, ibs, sbs));
+        // Image 2 should not be shared with any other image.
+        REPORTER_ASSERT(reporter, !same_image(image1, image2, ibs) &&
+                                  !same_image(image3, image2, ibs) &&
+                                  !same_image(image4, image2, ibs));
+        REPORTER_ASSERT(reporter, image2->unique());
+        REPORTER_ASSERT(reporter, !same_image_surf(image2, surface, ibs, sbs));
+        // Image 4 should not be shared with any other image.
+        REPORTER_ASSERT(reporter, !same_image(image1, image4, ibs) &&
+                                  !same_image(image3, image4, ibs));
+        REPORTER_ASSERT(reporter, !same_image_surf(image4, surface, ibs, sbs));
+        REPORTER_ASSERT(reporter, image4->unique());
+    }
+}
+
+DEF_TEST(UniqueImageSnapshot, reporter) {
+    auto getImageBackingStore = [reporter](SkImage* image) {
+        SkPixmap pm;
+        bool success = image->peekPixels(&pm);
+        REPORTER_ASSERT(reporter, success);
+        return reinterpret_cast<intptr_t>(pm.addr());
+    };
+    auto getSufaceBackingStore = [reporter](SkSurface* surface) {
+        SkImageInfo info;
+        size_t rowBytes;
+        const void* pixels = surface->getCanvas()->peekPixels(&info, &rowBytes);
+        REPORTER_ASSERT(reporter, pixels);
+        return reinterpret_cast<intptr_t>(pixels);
+    };
+
+    SkAutoTUnref<SkSurface> surface(create_surface());
+    test_unique_image_snap(reporter, surface, false, getImageBackingStore, getSufaceBackingStore);
+    surface.reset(create_direct_surface());
+    test_unique_image_snap(reporter, surface, true, getImageBackingStore, getSufaceBackingStore);
+}
+
+#if SK_SUPPORT_GPU
+DEF_GPUTEST_FOR_RENDERING_CONTEXTS(UniqueImageSnapshot_Gpu, reporter, context) {
+    for (auto& surface_func : { &create_gpu_surface, &create_gpu_scratch_surface }) {
+        SkAutoTUnref<SkSurface> surface(surface_func(context, kOpaque_SkAlphaType, nullptr));
+
+        auto imageBackingStore = [reporter](SkImage* image) {
+            GrTexture* texture = as_IB(image)->peekTexture();
+            if (!texture) {
+                ERRORF(reporter, "Not texture backed.");
+                return static_cast<intptr_t>(0);
+            }
+            return static_cast<intptr_t>(texture->getUniqueID());
+        };
+
+        auto surfaceBackingStore = [reporter](SkSurface* surface) {
+            GrRenderTarget* rt =
+                surface->getCanvas()->internal_private_accessTopLayerRenderTarget();
+            if (!rt) {
+                ERRORF(reporter, "Not render target backed.");
+                return static_cast<intptr_t>(0);
+            }
+            return static_cast<intptr_t>(rt->getUniqueID());
+        };
+
+        test_unique_image_snap(reporter, surface, false, imageBackingStore, surfaceBackingStore);
+
+        // Test again with a "direct" render target;
+        GrBackendObject textureObject = context->getGpu()->createTestingOnlyBackendTexture(nullptr,
+            10, 10, kRGBA_8888_GrPixelConfig);
+        GrBackendTextureDesc desc;
+        desc.fConfig = kRGBA_8888_GrPixelConfig;
+        desc.fWidth = 10;
+        desc.fHeight = 10;
+        desc.fFlags = kRenderTarget_GrBackendTextureFlag;
+        desc.fTextureHandle = textureObject;
+        GrTexture* texture = context->textureProvider()->wrapBackendTexture(desc);
+        {
+            SkAutoTUnref<SkSurface> surface(
+                SkSurface::NewRenderTargetDirect(texture->asRenderTarget()));
+            // We should be able to pass true here, but disallowing copy on write for direct GPU
+            // surfaces is not yet implemented.
+            test_unique_image_snap(reporter, surface, false, imageBackingStore,
+                                   surfaceBackingStore);
+        }
+        texture->unref();
+        context->getGpu()->deleteTestingOnlyBackendTexture(textureObject);
     }
 }
 #endif
@@ -571,22 +699,18 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceGetTexture_Gpu, reporter, context) {
 #include "SkImage_Gpu.h"
 #include "SkSurface_Gpu.h"
 
-static SkSurface::Budgeted is_budgeted(SkSurface* surf) {
-    return ((SkSurface_Gpu*)surf)->getDevice()->accessRenderTarget()->resourcePriv().isBudgeted() ?
-        SkSurface::kYes_Budgeted : SkSurface::kNo_Budgeted;
+static SkBudgeted is_budgeted(SkSurface* surf) {
+    return ((SkSurface_Gpu*)surf)->getDevice()->accessRenderTarget()->resourcePriv().isBudgeted();
 }
 
-static SkSurface::Budgeted is_budgeted(SkImage* image) {
-    return ((SkImage_Gpu*)image)->getTexture()->resourcePriv().isBudgeted() ?
-        SkSurface::kYes_Budgeted : SkSurface::kNo_Budgeted;
+static SkBudgeted is_budgeted(SkImage* image) {
+    return ((SkImage_Gpu*)image)->getTexture()->resourcePriv().isBudgeted();
 }
 
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceBudget, reporter, context) {
     SkImageInfo info = SkImageInfo::MakeN32Premul(8,8);
-    for (int i = 0; i < 2; ++i) {
-        SkSurface::Budgeted sbudgeted = i ? SkSurface::kYes_Budgeted : SkSurface::kNo_Budgeted;
-        for (int j = 0; j < 2; ++j) {
-            SkSurface::Budgeted ibudgeted = j ? SkSurface::kYes_Budgeted : SkSurface::kNo_Budgeted;
+    for (auto sbudgeted : { SkBudgeted::kNo, SkBudgeted::kYes }) {
+        for (auto ibudgeted : { SkBudgeted::kNo, SkBudgeted::kYes }) {
             SkAutoTUnref<SkSurface>
                 surface(SkSurface::NewRenderTarget(context, sbudgeted, info, 0));
             SkASSERT(surface);
@@ -658,6 +782,130 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceNoCanvas_Gpu, reporter, context) {
                 test_func(reporter, surface, mode);
             }
         }
+    }
+}
+#endif
+
+static void check_rowbytes_remain_consistent(SkSurface* surface, skiatest::Reporter* reporter) {
+    SkImageInfo info;
+    size_t rowBytes;
+    REPORTER_ASSERT(reporter, surface->peekPixels(&info, &rowBytes));
+
+    SkAutoTUnref<SkImage> image(surface->newImageSnapshot());
+    SkImageInfo im_info;
+    size_t im_rowbytes;
+    REPORTER_ASSERT(reporter, image->peekPixels(&im_info, &im_rowbytes));
+
+    REPORTER_ASSERT(reporter, rowBytes == im_rowbytes);
+
+    // trigger a copy-on-write
+    surface->getCanvas()->drawPaint(SkPaint());
+    SkAutoTUnref<SkImage> image2(surface->newImageSnapshot());
+    REPORTER_ASSERT(reporter, image->uniqueID() != image2->uniqueID());
+
+    SkImageInfo im_info2;
+    size_t im_rowbytes2;
+    REPORTER_ASSERT(reporter, image2->peekPixels(&im_info2, &im_rowbytes2));
+
+    REPORTER_ASSERT(reporter, im_rowbytes2 == im_rowbytes);
+}
+
+DEF_TEST(surface_rowbytes, reporter) {
+    const SkImageInfo info = SkImageInfo::MakeN32Premul(100, 100);
+
+    SkAutoTUnref<SkSurface> surf0(SkSurface::NewRaster(info));
+    check_rowbytes_remain_consistent(surf0, reporter);
+
+    // specify a larger rowbytes
+    SkAutoTUnref<SkSurface> surf1(SkSurface::NewRaster(info, 500, nullptr));
+    check_rowbytes_remain_consistent(surf1, reporter);
+
+    // Try some illegal rowByte values
+    SkSurface* s = SkSurface::NewRaster(info, 396, nullptr);    // needs to be at least 400
+    REPORTER_ASSERT(reporter, nullptr == s);
+    s = SkSurface::NewRaster(info, 1 << 30, nullptr); // allocation to large
+    REPORTER_ASSERT(reporter, nullptr == s);
+}
+
+#if SK_SUPPORT_GPU
+
+void test_surface_clear(skiatest::Reporter* reporter, SkSurface* surfacePtr,
+                        std::function<GrSurface*(SkSurface*)> grSurfaceGetter,
+                        uint32_t expectedValue) {
+    SkAutoTUnref<SkSurface> surface(surfacePtr);
+    if (!surface) {
+        ERRORF(reporter, "Could not create GPU SkSurface.");
+        return;
+    }
+    int w = surface->width();
+    int h = surface->height();
+    SkAutoTDeleteArray<uint32_t> pixels(new uint32_t[w * h]);
+    memset(pixels.get(), ~expectedValue, sizeof(uint32_t) * w * h);
+
+    SkAutoTUnref<GrSurface> grSurface(SkSafeRef(grSurfaceGetter(surface)));
+    if (!grSurface) {
+        ERRORF(reporter, "Could access render target of GPU SkSurface.");
+        return;
+    }
+    SkASSERT(surface->unique());
+    surface.reset();
+    grSurface->readPixels(0, 0, w, h, kRGBA_8888_GrPixelConfig, pixels.get());
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint32_t pixel = pixels.get()[y * w + x];
+            if (pixel != expectedValue) {
+                SkString msg;
+                if (expectedValue) {
+                    msg = "SkSurface should have left render target unmodified";
+                } else {
+                    msg = "SkSurface should have cleared the render target";
+                }
+                ERRORF(reporter,
+                       "%s but read 0x%08x (instead of 0x%08x) at %x,%d", msg.c_str(), pixel,
+                       expectedValue, x, y);
+                return;
+            }
+        }
+    }
+}
+
+DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SurfaceClear_Gpu, reporter, context) {
+    std::function<GrSurface*(SkSurface*)> grSurfaceGetters[] = {
+        [] (SkSurface* s){ return s->getCanvas()->internal_private_accessTopLayerRenderTarget(); },
+        [] (SkSurface* s){
+            SkBaseDevice* d =
+                s->getCanvas()->getDevice_just_for_deprecated_compatibility_testing();
+            return d->accessRenderTarget(); },
+        [] (SkSurface* s){ SkAutoTUnref<SkImage> i(s->newImageSnapshot());
+                           return i->getTexture(); },
+        [] (SkSurface* s){ SkAutoTUnref<SkImage> i(s->newImageSnapshot());
+                           return as_IB(i)->peekTexture(); },
+    };
+    for (auto grSurfaceGetter : grSurfaceGetters) {
+        for (auto& surface_func : {&create_gpu_surface, &create_gpu_scratch_surface}) {
+            SkSurface* surface = surface_func(context, kPremul_SkAlphaType, nullptr);
+            test_surface_clear(reporter, surface, grSurfaceGetter, 0x0);
+        }
+        // Wrapped RTs are *not* supposed to clear (to allow client to partially update a surface).
+        static const int kWidth = 10;
+        static const int kHeight = 10;
+        SkAutoTDeleteArray<uint32_t> pixels(new uint32_t[kWidth * kHeight]);
+        memset(pixels.get(), 0xAB, sizeof(uint32_t) * kWidth * kHeight);
+
+        GrBackendObject textureObject =
+                context->getGpu()->createTestingOnlyBackendTexture(pixels.get(), kWidth, kHeight,
+                                                                   kRGBA_8888_GrPixelConfig);
+
+        GrBackendTextureDesc desc;
+        desc.fConfig = kRGBA_8888_GrPixelConfig;
+        desc.fWidth = kWidth;
+        desc.fHeight = kHeight;
+        desc.fFlags = kRenderTarget_GrBackendTextureFlag;
+        desc.fTextureHandle = textureObject;
+
+        SkSurface* surface = SkSurface::NewFromBackendTexture(context, desc, nullptr);
+        test_surface_clear(reporter, surface, grSurfaceGetter, 0xABABABAB);
+        context->getGpu()->deleteTestingOnlyBackendTexture(textureObject);
     }
 }
 #endif

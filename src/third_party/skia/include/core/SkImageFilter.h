@@ -8,7 +8,9 @@
 #ifndef SkImageFilter_DEFINED
 #define SkImageFilter_DEFINED
 
+#include "../private/SkTArray.h"
 #include "../private/SkTemplates.h"
+#include "../private/SkMutex.h"
 #include "SkFilterQuality.h"
 #include "SkFlattenable.h"
 #include "SkMatrix.h"
@@ -21,6 +23,7 @@ class SkBaseDevice;
 class SkBitmap;
 class SkColorFilter;
 struct SkIPoint;
+class SkSpecialImage;
 
 /**
  *  Base class for image filters. If one is installed in the paint, then
@@ -40,9 +43,11 @@ public:
         static Cache* Create(size_t maxBytes);
         static Cache* Get();
         virtual bool get(const Key& key, SkBitmap* result, SkIPoint* offset) const = 0;
+        virtual SkSpecialImage* get(const Key& key, SkIPoint* offset) const = 0;
         virtual void set(const Key& key, const SkBitmap& result, const SkIPoint& offset) = 0;
+        virtual void set(const Key& key, SkSpecialImage* image, const SkIPoint& offset) = 0;
         virtual void purge() {}
-        virtual void purgeByImageFilterId(uint32_t) {}
+        virtual void purgeByKeys(const Key[], int) {}
     };
 
     class Context {
@@ -86,12 +91,9 @@ public:
          *  set, then the corresponding edge from imageBounds will be used.
          *
          *  Note: imageBounds is in "device" space, as the output cropped rectangle will be,
-         *  so the context's CTM is ignore for those. It is only applied the croprect's bounds.
-         *
-         *  The resulting rect will be intersected with the context's clip. If that intersection is
-         *  empty, then this returns false and cropped is unmodified.
+         *  so the matrix is ignored for those. It is only applied the croprect's bounds.
          */
-        bool applyTo(const SkIRect& imageBounds, const Context&, SkIRect* cropped) const;
+        void applyTo(const SkIRect& imageBounds, const SkMatrix&, SkIRect* cropped) const;
 
     private:
         SkRect fRect;
@@ -146,14 +148,26 @@ public:
      *  If the result image cannot be created, return false, in which case both
      *  the result and offset parameters will be ignored by the caller.
      */
-    bool filterImage(Proxy*, const SkBitmap& src, const Context&,
-                     SkBitmap* result, SkIPoint* offset) const;
+    bool filterImageDeprecated(Proxy*, const SkBitmap& src, const Context&,
+                               SkBitmap* result, SkIPoint* offset) const;
 
+    enum MapDirection {
+        kForward_MapDirection,
+        kReverse_MapDirection
+    };
     /**
-     *  Given the src bounds of an image, this returns the bounds of the result
-     *  image after the filter has been applied.
+     * Map a device-space rect recursively forward or backward through the
+     * filter DAG. kForward_MapDirection is used to determine which pixels of
+     * the destination canvas a source image rect would touch after filtering.
+     * kBackward_MapDirection is used to determine which rect of the source
+     * image would be required to fill the given rect (typically, clip bounds).
+     * Used for clipping and temp-buffer allocations, so the result need not
+     * be exact, but should never be smaller than the real answer. The default
+     * implementation recursively unions all input bounds, or returns false if
+     * no inputs.
      */
-    bool filterBounds(const SkIRect& src, const SkMatrix& ctm, SkIRect* dst) const;
+    bool filterBounds(const SkIRect& src, const SkMatrix& ctm, SkIRect* dst,
+                      MapDirection = kReverse_MapDirection) const;
 
     /**
      *  Returns true if the filter can be processed on the GPU.  This is most
@@ -174,8 +188,8 @@ public:
      *  relative to the src when it is drawn. The default implementation does
      *  single-pass processing using asFragmentProcessor().
      */
-    virtual bool filterImageGPU(Proxy*, const SkBitmap& src, const Context&,
-                                SkBitmap* result, SkIPoint* offset) const;
+    virtual bool filterImageGPUDeprecated(Proxy*, const SkBitmap& src, const Context&,
+                                          SkBitmap* result, SkIPoint* offset) const;
 
     /**
      *  Returns whether this image filter is a color filter and puts the color filter into the
@@ -256,8 +270,9 @@ public:
     // has a GPU implementation, it will be invoked directly.
     // Otherwise, the filter will be processed in software and
     // uploaded to the GPU.
-    bool filterInputGPU(int index, SkImageFilter::Proxy* proxy, const SkBitmap& src, const Context&,
-                        SkBitmap* result, SkIPoint* offset) const;
+    bool filterInputGPUDeprecated(int index, SkImageFilter::Proxy* proxy,
+                                  const SkBitmap& src, const Context&,
+                                  SkBitmap* result, SkIPoint* offset) const;
 #endif
 
     SK_TO_STRING_PUREVIRT()
@@ -330,20 +345,23 @@ protected:
      *  case both the result and offset parameters will be ignored by the
      *  caller.
      */
-    virtual bool onFilterImage(Proxy*, const SkBitmap& src, const Context&,
-                               SkBitmap* result, SkIPoint* offset) const;
-    // Given the bounds of the destination rect to be filled in device
-    // coordinates (first parameter), and the CTM, compute (conservatively)
-    // which rect of the source image would be required (third parameter).
-    // Used for clipping and temp-buffer allocations, so the result need not
-    // be exact, but should never be smaller than the real answer. The default
-    // implementation recursively unions all input bounds, or returns false if
-    // no inputs.
-    virtual bool onFilterBounds(const SkIRect&, const SkMatrix&, SkIRect*) const;
-    enum MapDirection {
-        kForward_MapDirection,
-        kReverse_MapDirection
-    };
+    virtual bool onFilterImageDeprecated(Proxy*, const SkBitmap& src, const Context&,
+                                         SkBitmap* result, SkIPoint* offset) const;
+
+    /**
+     * This function recurses into its inputs with the given clip rect (first
+     * argument), calls filterBounds() with the given map direction on each,
+     * and unions the result (third argument). If the rect cannot be mapped,
+     * false is returned and the destination rect is left unchanged.
+     * If a derived class has special recursion requirements (e.g., it has an
+     * input which does not participate in bounds computation), it can be
+     * overridden here.
+     *
+     * Note that this function is *not* responsible for mapping the rect for
+     * this node's filter bounds requirements (i.e., calling
+     * onFilterNodeBounds()); that is handled by filterBounds().
+     */
+    virtual bool onFilterBounds(const SkIRect&, const SkMatrix&, SkIRect*, MapDirection) const;
 
     /**
      * Performs a forwards or reverse mapping of the given rect to accommodate
@@ -365,8 +383,8 @@ protected:
     // "offset" untouched, and returns true. If the input is non-null, it
     // calls filterImage() on that input, and returns true on success.
     // i.e., return !getInput(index) || getInput(index)->filterImage(...);
-    bool filterInput(int index, Proxy*, const SkBitmap& src, const Context&,
-                     SkBitmap* result, SkIPoint* offset) const;
+    bool filterInputDeprecated(int index, Proxy*, const SkBitmap& src, const Context&,
+                               SkBitmap* result, SkIPoint* offset) const;
 
     /**
      *  Return true (and return a ref'd colorfilter) if this node in the DAG is just a
@@ -376,29 +394,28 @@ protected:
         return false;
     }
 
-    /** Given a "src" bitmap and its "srcOffset", computes source and
-     *  destination bounds for this filter. Initial bounds are the
-     *  "src" bitmap bounds offset by "srcOffset". "dstBounds" are
-     *  computed by transforming the crop rect by the context's CTM,
-     *  applying it to the initial bounds, and intersecting the result
-     *  with the context's clip bounds.  "srcBounds" (if non-null) are
-     *  computed by intersecting the initial bounds with "dstBounds", to
-     *  ensure that we never sample outside of the crop rect (this restriction
-     *  may be relaxed in the future).
+    /** Given a "srcBounds" rect, computes destination bounds for this
+     *  destination bounds for this filter. "dstBounds" are computed by
+     *  transforming the crop rect by the context's CTM, applying it to the
+     *  initial bounds, and intersecting the result with the context's clip
+     *  bounds.  "srcBounds" (if non-null) are computed by intersecting the
+     *  initial bounds with "dstBounds", to ensure that we never sample
+     *  outside of the crop rect (this restriction may be relaxed in the
+     *  future).
      */
-    bool applyCropRect(const Context&, const SkBitmap& src, const SkIPoint& srcOffset,
-                       SkIRect* dstBounds, SkIRect* srcBounds = nullptr) const;
+    bool applyCropRect(const Context&, const SkIRect& srcBounds, SkIRect* dstBounds) const;
 
-    /** Same as the above call, except that if the resulting crop rect is not
-     *  entirely contained by the source bitmap's bounds, it creates a new
-     *  bitmap in "result" and pads the edges with transparent black. In that
-     *  case, the srcOffset is modified to be the same as the bounds, since no
-     *  further adjustment is needed by the caller. This version should only
-     *  be used by filters which are not capable of processing a smaller
-     *  source bitmap into a larger destination.
+    /** A variant of the above call which takes the original source bitmap and
+     *  source offset. If the resulting crop rect is not entirely contained by
+     *  the source bitmap's bounds, it creates a new bitmap in "result" and
+     *  pads the edges with transparent black. In that case, the srcOffset is
+     *  modified to be the same as the bounds, since no further adjustment is
+     *  needed by the caller. This version should only be used by filters
+     *  which are not capable of processing a smaller source bitmap into a
+     *  larger destination.
      */
-    bool applyCropRect(const Context&, Proxy* proxy, const SkBitmap& src, SkIPoint* srcOffset,
-                       SkIRect* bounds, SkBitmap* result) const;
+    bool applyCropRectDeprecated(const Context&, Proxy* proxy, const SkBitmap& src,
+                                 SkIPoint* srcOffset, SkIRect* bounds, SkBitmap* result) const;
 
     /**
      *  Returns true if the filter can be expressed a single-pass
@@ -438,6 +455,8 @@ private:
     bool fUsesSrcInput;
     CropRect fCropRect;
     uint32_t fUniqueID; // Globally unique
+    mutable SkTArray<Cache::Key> fCacheKeys;
+    mutable SkMutex fMutex;
 };
 
 /**

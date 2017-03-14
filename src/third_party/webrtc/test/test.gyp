@@ -41,6 +41,9 @@
         'channel_transport/udp_transport_impl.cc',
         'channel_transport/udp_transport_impl.h',
       ],
+      'msvs_disabled_warnings': [
+        4302,  # cast truncation
+      ],
       'conditions': [
         ['OS=="win" and clang==1', {
           'msvs_settings': {
@@ -83,8 +86,8 @@
         'rtp_file_writer.h',
       ],
       'dependencies': [
-        '<(DEPTH)/webrtc/common.gyp:webrtc_common',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(webrtc_root)/common.gyp:webrtc_common',
         '<(webrtc_root)/modules/modules.gyp:rtp_rtcp',
       ],
     },
@@ -133,7 +136,7 @@
       'dependencies': [
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(webrtc_root)/common.gyp:gtest_prod',
+        '<(webrtc_root)/base/base.gyp:gtest_prod',
         '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
       ],
       'sources': [

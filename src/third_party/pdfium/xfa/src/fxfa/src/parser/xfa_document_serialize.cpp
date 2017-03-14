@@ -4,23 +4,26 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fxfa/src/parser/xfa_document_serialize.h"
+
+#include "xfa/src/fgas/include/fx_cpg.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_document_serialize.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+
 IXFA_PacketImport* IXFA_PacketImport::Create(CXFA_Document* pDocument) {
   return new CXFA_DataImporter(pDocument);
 }
 CXFA_DataImporter::CXFA_DataImporter(CXFA_Document* pDocument)
     : m_pDocument(pDocument) {
-  ASSERT(m_pDocument != NULL);
+  ASSERT(m_pDocument);
 }
 FX_BOOL CXFA_DataImporter::ImportData(IFX_FileRead* pDataDocument) {
   IXFA_Parser* pDataDocumentParser = IXFA_Parser::Create(m_pDocument);
@@ -42,12 +45,12 @@ FX_BOOL CXFA_DataImporter::ImportData(IFX_FileRead* pDataDocument) {
     return FALSE;
   }
   CXFA_Node* pDataModel =
-      (CXFA_Node*)m_pDocument->GetXFANode(XFA_HASHCODE_Datasets);
+      ToNode(m_pDocument->GetXFAObject(XFA_HASHCODE_Datasets));
   if (!pDataModel) {
     pDataDocumentParser->Release();
     return FALSE;
   }
-  CXFA_Node* pDataNode = (CXFA_Node*)m_pDocument->GetXFANode(XFA_HASHCODE_Data);
+  CXFA_Node* pDataNode = ToNode(m_pDocument->GetXFAObject(XFA_HASHCODE_Data));
   if (pDataNode) {
     pDataModel->RemoveChild(pDataNode);
   }
@@ -211,7 +214,7 @@ static void XFA_DataExporter_RegenerateFormFile_Changed(
   int32_t iAttrs = 0;
   const uint8_t* pAttrs = XFA_GetElementAttributes(pNode->GetClassID(), iAttrs);
   while (iAttrs--) {
-    XFA_LPCATTRIBUTEINFO pAttr =
+    const XFA_ATTRIBUTEINFO* pAttr =
         XFA_GetAttributeByID((XFA_ATTRIBUTE)pAttrs[iAttrs]);
     if (pAttr->eName == XFA_ATTRIBUTE_Name ||
         (XFA_DataExporter_AttributeSaveInDataModel(pNode, pAttr->eName) &&
@@ -396,7 +399,7 @@ static void XFA_DataExporter_RegenerateFormFile_Container(
   int32_t iAttrs = 0;
   const uint8_t* pAttrs = XFA_GetElementAttributes(pNode->GetClassID(), iAttrs);
   while (iAttrs--) {
-    XFA_LPCATTRIBUTEINFO pAttr =
+    const XFA_ATTRIBUTEINFO* pAttr =
         XFA_GetAttributeByID((XFA_ATTRIBUTE)pAttrs[iAttrs]);
     if (pAttr->eName == XFA_ATTRIBUTE_Name) {
       continue;
@@ -431,7 +434,7 @@ void XFA_DataExporter_RegenerateFormFile(CXFA_Node* pNode,
     static const FX_WCHAR* s_pwsTagName = L"<form";
     static const FX_WCHAR* s_pwsClose = L"</form\n>";
     pStream->WriteString(s_pwsTagName, FXSYS_wcslen(s_pwsTagName));
-    if (pChecksum != NULL) {
+    if (pChecksum) {
       static const FX_WCHAR* s_pwChecksum = L" checksum=\"";
       CFX_WideString wsChecksum =
           CFX_WideString::FromUTF8(pChecksum, FXSYS_strlen(pChecksum));
@@ -444,7 +447,7 @@ void XFA_DataExporter_RegenerateFormFile(CXFA_Node* pNode,
     pStream->WriteString(pURI, FXSYS_wcslen(pURI));
     CFX_WideString wsVersionNumber;
     XFA_DataExporter_RecognizeXFAVersionNumber(
-        (CXFA_Node*)pNode->GetDocument()->GetXFANode(XFA_XDPPACKET_Template),
+        ToNode(pNode->GetDocument()->GetXFAObject(XFA_XDPPACKET_Template)),
         wsVersionNumber);
     if (wsVersionNumber.IsEmpty()) {
       wsVersionNumber = FX_WSTRC(L"2.8");
@@ -468,7 +471,7 @@ IXFA_PacketExport* IXFA_PacketExport::Create(CXFA_Document* pDocument,
 }
 CXFA_DataExporter::CXFA_DataExporter(CXFA_Document* pDocument)
     : m_pDocument(pDocument) {
-  ASSERT(m_pDocument != NULL);
+  ASSERT(m_pDocument);
 }
 FX_BOOL CXFA_DataExporter::Export(IFX_FileWrite* pWrite) {
   return Export(pWrite, m_pDocument->GetRoot());
@@ -477,8 +480,8 @@ FX_BOOL CXFA_DataExporter::Export(IFX_FileWrite* pWrite,
                                   CXFA_Node* pNode,
                                   FX_DWORD dwFlag,
                                   const FX_CHAR* pChecksum) {
-  ASSERT(pWrite != NULL);
-  if (pWrite == NULL) {
+  if (!pWrite) {
+    ASSERT(false);
     return FALSE;
   }
   IFX_Stream* pStream = IFX_Stream::CreateStream(
@@ -517,7 +520,7 @@ FX_BOOL CXFA_DataExporter::Export(IFX_Stream* pStream,
           return FALSE;
         }
         CXFA_Node* pDataNode = pNode->GetNodeItem(XFA_NODEITEM_FirstChild);
-        FXSYS_assert(pDataNode != NULL);
+        FXSYS_assert(pDataNode);
         XFA_DataExporter_DealWithDataGroupNode(pDataNode);
         pXMLDoc->SaveXMLNode(pStream, pElement);
       } break;

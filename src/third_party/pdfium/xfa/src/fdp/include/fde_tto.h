@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FDE_TEXTOUT
-#define _FDE_TEXTOUT
-class IFDE_TextOut;
+#ifndef XFA_SRC_FDP_INCLUDE_FDE_TTO_H_
+#define XFA_SRC_FDP_INCLUDE_FDE_TTO_H_
+
+#include "core/include/fxge/fx_dib.h"
+#include "core/include/fxge/fx_ge.h"
+#include "xfa/src/fgas/include/fx_fnt.h"
+
 #define FDE_TTOSTYLE_Underline 0x0001
 #define FDE_TTOSTYLE_Strikeout 0x0002
 #define FDE_TTOSTYLE_VerticalLayout 0x0004
@@ -94,4 +98,5 @@ class IFDE_TextOut {
                              const CFX_RectF& rect) = 0;
   virtual int32_t GetTotalLines() = 0;
 };
-#endif
+
+#endif  // XFA_SRC_FDP_INCLUDE_FDE_TTO_H_

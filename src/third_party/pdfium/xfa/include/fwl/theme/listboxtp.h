@@ -4,11 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_LISTBOXTP_H
-#define _FWL_LISTBOXTP_H
-class CFWL_WidgetTP;
-class CFWL_ScrollBarTP;
-class CFWL_ListBoxTP;
+#ifndef XFA_INCLUDE_FWL_THEME_LISTBOXTP_H_
+#define XFA_INCLUDE_FWL_THEME_LISTBOXTP_H_
+
+#include "xfa/include/fwl/theme/widgettp.h"
+
 class CFWL_ListBoxTP : public CFWL_WidgetTP {
  public:
   CFWL_ListBoxTP();
@@ -25,4 +25,5 @@ class CFWL_ListBoxTP : public CFWL_WidgetTP {
                        void* pData = NULL,
                        CFX_Matrix* pMatrix = NULL);
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_THEME_LISTBOXTP_H_

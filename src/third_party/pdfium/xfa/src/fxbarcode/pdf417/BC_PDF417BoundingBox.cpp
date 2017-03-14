@@ -20,10 +20,11 @@
  * limitations under the License.
  */
 
-#include "xfa/src/fxbarcode/barcode.h"
 #include "xfa/src/fxbarcode/BC_ResultPoint.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
-#include "BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/pdf417/BC_PDF417BoundingBox.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 CBC_BoundingBox::CBC_BoundingBox(CBC_CommonBitMatrix* image,
                                  CBC_ResultPoint* topLeft,
                                  CBC_ResultPoint* bottomLeft,
@@ -32,8 +33,7 @@ CBC_BoundingBox::CBC_BoundingBox(CBC_CommonBitMatrix* image,
                                  int32_t& e) {
   if ((topLeft == NULL && topRight == NULL) ||
       (bottomLeft == NULL && bottomRight == NULL) ||
-      (topLeft != NULL && bottomLeft == NULL) ||
-      (topRight != NULL && bottomRight == NULL)) {
+      (topLeft && bottomLeft == NULL) || (topRight && bottomRight == NULL)) {
     e = BCExceptionNotFoundInstance;
   }
   init(image, topLeft, bottomLeft, topRight, bottomRight);

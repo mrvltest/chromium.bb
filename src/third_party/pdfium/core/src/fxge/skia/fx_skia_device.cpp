@@ -8,14 +8,14 @@
 #include "core/include/fxcodec/fx_codec.h"
 
 #include "SkDashPathEffect.h"
-#include "SkTLazy.h"
-#include "SkScan.h"
 #include "SkRasterClip.h"
+#include "SkScan.h"
 #include "SkStroke.h"
+#include "SkTLazy.h"
 
 #include "core/src/fxge/agg/include/fx_agg_driver.h"
-#include "fx_skia_blitter_new.h"
-#include "fx_skia_device.h"
+#include "core/src/fxge/skia/fx_skia_blitter_new.h"
+#include "core/src/fxge/skia/fx_skia_device.h"
 
 extern "C" {
 extern void FX_OUTPUT_LOG_FUNC(const char*, ...);

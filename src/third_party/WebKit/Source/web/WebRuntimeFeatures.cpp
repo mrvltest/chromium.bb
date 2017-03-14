@@ -130,16 +130,6 @@ bool WebRuntimeFeatures::isEncryptedMediaEnabled()
     return RuntimeEnabledFeatures::encryptedMediaEnabled();
 }
 
-void WebRuntimeFeatures::enablePrefixedEncryptedMedia(bool enable)
-{
-    RuntimeEnabledFeatures::setPrefixedEncryptedMediaEnabled(enable);
-}
-
-bool WebRuntimeFeatures::isPrefixedEncryptedMediaEnabled()
-{
-    return RuntimeEnabledFeatures::prefixedEncryptedMediaEnabled();
-}
-
 void WebRuntimeFeatures::enableExperimentalCanvasFeatures(bool enable)
 {
     RuntimeEnabledFeatures::setExperimentalCanvasFeaturesEnabled(enable);
@@ -188,6 +178,11 @@ void WebRuntimeFeatures::enableMediaRecorder(bool enable)
 void WebRuntimeFeatures::enableMediaSource(bool enable)
 {
     RuntimeEnabledFeatures::setMediaSourceEnabled(enable);
+}
+
+void WebRuntimeFeatures::enableNotificationActionIcons(bool enable)
+{
+    RuntimeEnabledFeatures::setNotificationActionIconsEnabled(enable);
 }
 
 void WebRuntimeFeatures::enableNotificationConstructor(bool enable)
@@ -243,11 +238,6 @@ void WebRuntimeFeatures::enableSlimmingPaintV2(bool enable)
 void WebRuntimeFeatures::enableTouch(bool enable)
 {
     RuntimeEnabledFeatures::setTouchEnabled(enable);
-}
-
-void WebRuntimeFeatures::enableWebAudio(bool enable)
-{
-    RuntimeEnabledFeatures::setWebAudioEnabled(enable);
 }
 
 void WebRuntimeFeatures::enableWebGLDraftExtensions(bool enable)
@@ -338,6 +328,26 @@ void WebRuntimeFeatures::enablePresentationAPI(bool enable)
 void WebRuntimeFeatures::enableWebFontsIntervention(bool enable)
 {
     RuntimeEnabledFeatures::setWebFontsInterventionEnabled(enable);
+}
+
+void WebRuntimeFeatures::enableWebFontsInterventionTrigger(bool enable)
+{
+    RuntimeEnabledFeatures::setWebFontsInterventionTriggerEnabled(enable);
+}
+
+void WebRuntimeFeatures::enableScrollAnchoring(bool enable)
+{
+    RuntimeEnabledFeatures::setScrollAnchoringEnabled(enable);
+}
+
+void WebRuntimeFeatures::enableRenderingPipelineThrottling(bool enable)
+{
+    RuntimeEnabledFeatures::setRenderingPipelineThrottlingEnabled(enable);
+}
+
+bool WebRuntimeFeatures::isServiceWorkerExtendableMessageEventEnabled()
+{
+    return RuntimeEnabledFeatures::serviceWorkerExtendableMessageEventEnabled();
 }
 
 } // namespace blink

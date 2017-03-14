@@ -4,9 +4,13 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRCODERECBLOCKS_H_
-#define _BC_QRCODERECBLOCKS_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERECBLOCKS_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERECBLOCKS_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+
 class CBC_QRCoderECB;
+
 class CBC_QRCoderECBlocks {
  private:
   int32_t m_ecCodeWordsPerBlock;
@@ -23,4 +27,5 @@ class CBC_QRCoderECBlocks {
   int32_t GetTotalECCodeWords();
   CFX_PtrArray* GetECBlocks();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERECBLOCKS_H_

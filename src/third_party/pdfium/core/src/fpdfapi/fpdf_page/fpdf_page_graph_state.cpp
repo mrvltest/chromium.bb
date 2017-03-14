@@ -4,13 +4,14 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "pageint.h"
+#include "core/src/fpdfapi/fpdf_page/pageint.h"
 
 #include "core/include/fpdfapi/fpdf_module.h"
 #include "core/include/fpdfapi/fpdf_page.h"
 #include "core/include/fpdfapi/fpdf_pageobj.h"
 #include "core/include/fpdfapi/fpdf_render.h"
 #include "core/src/fpdfapi/fpdf_render/render_int.h"
+#include "third_party/base/stl_util.h"
 
 void CPDF_GraphicStates::DefaultStates() {
   m_ColorState.New()->Default();
@@ -62,8 +63,7 @@ CPDF_ClipPathData::CPDF_ClipPathData(const CPDF_ClipPathData& src) {
     m_pTextList = FX_Alloc(CPDF_TextObject*, m_TextCount);
     for (int i = 0; i < m_TextCount; i++) {
       if (src.m_pTextList[i]) {
-        m_pTextList[i] = new CPDF_TextObject;
-        m_pTextList[i]->Copy(src.m_pTextList[i]);
+        m_pTextList[i] = src.m_pTextList[i]->Clone();
       } else {
         m_pTextList[i] = NULL;
       }
@@ -315,13 +315,13 @@ void CPDF_TextState::SetFont(CPDF_Font* pFont) {
 FX_FLOAT CPDF_TextState::GetFontSizeV() const {
   FX_FLOAT* pMatrix = GetMatrix();
   FX_FLOAT unit = FXSYS_sqrt2(pMatrix[1], pMatrix[3]);
-  FX_FLOAT size = FXSYS_Mul(unit, GetFontSize());
+  FX_FLOAT size = unit * GetFontSize();
   return (FX_FLOAT)FXSYS_fabs(size);
 }
 FX_FLOAT CPDF_TextState::GetFontSizeH() const {
   FX_FLOAT* pMatrix = GetMatrix();
   FX_FLOAT unit = FXSYS_sqrt2(pMatrix[0], pMatrix[2]);
-  FX_FLOAT size = FXSYS_Mul(unit, GetFontSize());
+  FX_FLOAT size = unit * GetFontSize();
   return (FX_FLOAT)FXSYS_fabs(size);
 }
 FX_FLOAT CPDF_TextState::GetBaselineAngle() const {
@@ -449,10 +449,10 @@ void CPDF_AllStates::SetLineDash(CPDF_Array* pArray,
                                  FX_FLOAT phase,
                                  FX_FLOAT scale) {
   CFX_GraphStateData* pData = m_GraphState.GetModify();
-  pData->m_DashPhase = FXSYS_Mul(phase, scale);
+  pData->m_DashPhase = phase * scale;
   pData->SetDashCount(pArray->GetCount());
   for (FX_DWORD i = 0; i < pArray->GetCount(); i++) {
-    pData->m_DashArray[i] = FXSYS_Mul(pArray->GetNumber(i), scale);
+    pData->m_DashArray[i] = pArray->GetNumberAt(i) * scale;
   }
 }
 void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
@@ -486,11 +486,11 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         if (!pDash)
           break;
 
-        CPDF_Array* pArray = pDash->GetArray(0);
+        CPDF_Array* pArray = pDash->GetArrayAt(0);
         if (!pArray)
           break;
 
-        SetLineDash(pArray, pDash->GetNumber(1), 1.0f);
+        SetLineDash(pArray, pDash->GetNumberAt(1), 1.0f);
         break;
       }
       case FXBSTR_ID('R', 'I', 0, 0):
@@ -501,8 +501,8 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
         if (!pFont)
           break;
 
-        m_TextState.GetModify()->m_FontSize = pFont->GetNumber(1);
-        m_TextState.SetFont(pParser->FindFont(pFont->GetString(0)));
+        m_TextState.GetModify()->m_FontSize = pFont->GetNumberAt(1);
+        m_TextState.SetFont(pParser->FindFont(pFont->GetStringAt(0)));
         break;
       }
       case FXBSTR_ID('T', 'R', 0, 0):
@@ -516,11 +516,11 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
       case FXBSTR_ID('B', 'M', 0, 0): {
         CPDF_Array* pArray = pObject->AsArray();
         CFX_ByteString mode =
-            pArray ? pArray->GetString(0) : pObject->GetString();
+            pArray ? pArray->GetStringAt(0) : pObject->GetString();
 
         pGeneralState->SetBlendMode(mode);
         if (pGeneralState->m_BlendType > FXDIB_BLEND_MULTIPLY) {
-          pParser->GetObjectList()->m_bBackgroundAlphaNeeded = TRUE;
+          pParser->GetPageObjectHolder()->SetBackgroundAlphaNeeded(TRUE);
         }
         break;
       }
@@ -587,69 +587,70 @@ void CPDF_AllStates::ProcessExtGS(CPDF_Dictionary* pGS,
   }
   pGeneralState->m_Matrix = m_CTM;
 }
-CPDF_ContentMarkItem::CPDF_ContentMarkItem() {
-  m_ParamType = None;
-}
+CPDF_ContentMarkItem::CPDF_ContentMarkItem()
+    : m_ParamType(None), m_pParam(nullptr) {}
 CPDF_ContentMarkItem::CPDF_ContentMarkItem(const CPDF_ContentMarkItem& src) {
   m_MarkName = src.m_MarkName;
   m_ParamType = src.m_ParamType;
   if (m_ParamType == DirectDict) {
-    m_pParam = ToDictionary(static_cast<CPDF_Object*>(src.m_pParam))->Clone();
+    m_pParam = ToDictionary(src.m_pParam->Clone());
   } else {
     m_pParam = src.m_pParam;
   }
 }
 CPDF_ContentMarkItem::~CPDF_ContentMarkItem() {
-  if (m_ParamType == DirectDict && m_pParam) {
-    ToDictionary(static_cast<CPDF_Object*>(m_pParam))->Release();
-  }
+  if (m_ParamType == DirectDict && m_pParam)
+    m_pParam->Release();
 }
 FX_BOOL CPDF_ContentMarkItem::HasMCID() const {
   if (m_pParam &&
       (m_ParamType == DirectDict || m_ParamType == PropertiesDict)) {
-    return ToDictionary(static_cast<CPDF_Object*>(m_pParam))->KeyExist("MCID");
+    return m_pParam->KeyExist("MCID");
   }
   return FALSE;
 }
-CPDF_ContentMarkData::CPDF_ContentMarkData(const CPDF_ContentMarkData& src) {
-  for (int i = 0; i < src.m_Marks.GetSize(); i++) {
-    m_Marks.Add(src.m_Marks[i]);
-  }
+
+CPDF_ContentMarkData::CPDF_ContentMarkData(const CPDF_ContentMarkData& src)
+    : m_Marks(src.m_Marks) {}
+
+int CPDF_ContentMarkData::CountItems() const {
+  return pdfium::CollectionSize<int>(m_Marks);
 }
+
 int CPDF_ContentMarkData::GetMCID() const {
-  CPDF_ContentMarkItem::ParamType type = CPDF_ContentMarkItem::None;
-  for (int i = 0; i < m_Marks.GetSize(); i++) {
-    type = m_Marks[i].GetParamType();
+  for (const auto& mark : m_Marks) {
+    CPDF_ContentMarkItem::ParamType type = mark.GetParamType();
     if (type == CPDF_ContentMarkItem::PropertiesDict ||
         type == CPDF_ContentMarkItem::DirectDict) {
-      CPDF_Dictionary* pDict =
-          ToDictionary(static_cast<CPDF_Object*>(m_Marks[i].GetParam()));
-      if (pDict->KeyExist("MCID")) {
-        return pDict->GetInteger("MCID");
-      }
+      CPDF_Dictionary* pDict = mark.GetParam();
+      if (pDict->KeyExist("MCID"))
+        return pDict->GetIntegerBy("MCID");
     }
   }
   return -1;
 }
+
 void CPDF_ContentMarkData::AddMark(const CFX_ByteString& name,
                                    CPDF_Dictionary* pDict,
                                    FX_BOOL bDirect) {
-  CPDF_ContentMarkItem& item = m_Marks.Add();
+  CPDF_ContentMarkItem item;
   item.SetName(name);
-  if (!pDict) {
-    return;
+  if (pDict) {
+    if (bDirect) {
+      item.SetParam(CPDF_ContentMarkItem::DirectDict,
+                    ToDictionary(pDict->Clone()));
+    } else {
+      item.SetParam(CPDF_ContentMarkItem::PropertiesDict, pDict);
+    }
   }
-  item.SetParam(bDirect ? CPDF_ContentMarkItem::DirectDict
-                        : CPDF_ContentMarkItem::PropertiesDict,
-                bDirect ? pDict->Clone() : pDict);
+  m_Marks.push_back(item);
 }
+
 void CPDF_ContentMarkData::DeleteLastMark() {
-  int size = m_Marks.GetSize();
-  if (size == 0) {
-    return;
-  }
-  m_Marks.RemoveAt(size - 1);
+  if (!m_Marks.empty())
+    m_Marks.pop_back();
 }
+
 FX_BOOL CPDF_ContentMark::HasMark(const CFX_ByteStringC& mark) const {
   if (!m_pObject) {
     return FALSE;
@@ -673,7 +674,7 @@ FX_BOOL CPDF_ContentMark::LookupMark(const CFX_ByteStringC& mark,
       pDict = NULL;
       if (item.GetParamType() == CPDF_ContentMarkItem::PropertiesDict ||
           item.GetParamType() == CPDF_ContentMarkItem::DirectDict) {
-        pDict = ToDictionary(static_cast<CPDF_Object*>(item.GetParam()));
+        pDict = item.GetParam();
       }
       return TRUE;
     }

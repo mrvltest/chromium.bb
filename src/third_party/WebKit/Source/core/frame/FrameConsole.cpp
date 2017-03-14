@@ -28,13 +28,12 @@
 
 #include "core/frame/FrameConsole.h"
 
-#include "bindings/core/v8/ScriptCallStackFactory.h"
+#include "bindings/core/v8/ScriptCallStack.h"
 #include "core/frame/FrameHost.h"
 #include "core/inspector/ConsoleAPITypes.h"
 #include "core/inspector/ConsoleMessage.h"
 #include "core/inspector/ConsoleMessageStorage.h"
 #include "core/inspector/InspectorConsoleInstrumentation.h"
-#include "core/inspector/ScriptCallStack.h"
 #include "core/page/ChromeClient.h"
 #include "core/page/Page.h"
 #include "core/workers/WorkerGlobalScopeProxy.h"
@@ -89,10 +88,10 @@ void FrameConsole::addMessage(PassRefPtrWillBeRawPtr<ConsoleMessage> prpConsoleM
     String messageURL;
     unsigned lineNumber = 0;
     unsigned columnNumber = 0;
-    if (consoleMessage->callStack() && consoleMessage->callStack()->size()) {
-        lineNumber = consoleMessage->callStack()->at(0).lineNumber();
-        columnNumber = consoleMessage->callStack()->at(0).columnNumber();
-        messageURL = consoleMessage->callStack()->at(0).sourceURL();
+    if (consoleMessage->callStack() && !consoleMessage->callStack()->isEmpty()) {
+        lineNumber = consoleMessage->callStack()->topLineNumber();
+        columnNumber = consoleMessage->callStack()->topColumnNumber();
+        messageURL = consoleMessage->callStack()->topSourceURL();
     } else {
         lineNumber = consoleMessage->lineNumber();
         columnNumber = consoleMessage->columnNumber();
@@ -104,7 +103,7 @@ void FrameConsole::addMessage(PassRefPtrWillBeRawPtr<ConsoleMessage> prpConsoleM
     if (consoleMessage->source() == NetworkMessageSource)
         return;
 
-    RefPtrWillBeRawPtr<ScriptCallStack> reportedCallStack = nullptr;
+    RefPtr<ScriptCallStack> reportedCallStack;
     if (consoleMessage->source() != ConsoleAPIMessageSource) {
         if (consoleMessage->callStack() && (consoleMessage->level() >= ErrorMessageLevel || frame().chromeClient().shouldReportDetailedMessageForSource(frame(), messageURL)))
             reportedCallStack = consoleMessage->callStack();
@@ -116,12 +115,12 @@ void FrameConsole::addMessage(PassRefPtrWillBeRawPtr<ConsoleMessage> prpConsoleM
             return;
 
         if (consoleMessage->level() >= ErrorMessageLevel || frame().chromeClient().shouldReportDetailedMessageForSource(frame(), messageURL))
-            reportedCallStack = currentScriptCallStack(ScriptCallStack::maxCallStackSizeToCapture);
+            reportedCallStack = ScriptCallStack::capture();
     }
 
     String stackTrace;
     if (reportedCallStack)
-        stackTrace = FrameConsole::formatStackTraceString(consoleMessage->message(), reportedCallStack);
+        stackTrace = reportedCallStack->toString();
     frame().chromeClient().addMessageToConsole(m_frame, consoleMessage->source(), consoleMessage->level(), consoleMessage->message(), lineNumber, columnNumber, messageURL, stackTrace);
 }
 
@@ -137,24 +136,6 @@ void FrameConsole::reportResourceResponseReceived(DocumentLoader* loader, unsign
     RefPtrWillBeRawPtr<ConsoleMessage> consoleMessage = ConsoleMessage::create(NetworkMessageSource, ErrorMessageLevel, message, response.url().string());
     consoleMessage->setRequestIdentifier(requestIdentifier);
     addMessage(consoleMessage.release());
-}
-
-String FrameConsole::formatStackTraceString(const String& originalMessage, PassRefPtrWillBeRawPtr<ScriptCallStack> callStack)
-{
-    StringBuilder stackTrace;
-    for (size_t i = 0; i < callStack->size(); ++i) {
-        const ScriptCallFrame& frame = callStack->at(i);
-        stackTrace.append("\n    at " + (frame.functionName().length() ? frame.functionName() : "(anonymous function)"));
-        stackTrace.appendLiteral(" (");
-        stackTrace.append(frame.sourceURL());
-        stackTrace.append(':');
-        stackTrace.appendNumber(frame.lineNumber());
-        stackTrace.append(':');
-        stackTrace.appendNumber(frame.columnNumber());
-        stackTrace.append(')');
-    }
-
-    return stackTrace.toString();
 }
 
 void FrameConsole::mute()

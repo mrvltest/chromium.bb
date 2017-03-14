@@ -11,6 +11,7 @@
 #include "SkJpegUtility.h"
 #include "SkColorPriv.h"
 #include "SkDither.h"
+#include "SkMSAN.h"
 #include "SkScaledBitmapSampler.h"
 #include "SkStream.h"
 #include "SkTemplates.h"
@@ -508,6 +509,8 @@ SkImageDecoder::Result SkJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* 
     for (int y = 0;; y++) {
         JSAMPLE* rowptr = (JSAMPLE*)srcRow;
         int row_count = jpeg_read_scanlines(&cinfo, &rowptr, 1);
+        sk_msan_mark_initialized(srcRow, srcRow + cinfo.output_width * srcBytesPerPixel,
+                                 "skbug.com/4550");
         if (0 == row_count) {
             // if row_count == 0, then we didn't get a scanline,
             // so return early.  We will return a partial image.
@@ -523,6 +526,7 @@ SkImageDecoder::Result SkJPEGImageDecoder::onDecode(SkStream* stream, SkBitmap* 
         if (JCS_CMYK == cinfo.out_color_space) {
             convert_CMYK_to_RGB(srcRow, cinfo.output_width);
         }
+
 
         sampler.next(srcRow);
         if (bm->height() - 1 == y) {
@@ -958,6 +962,7 @@ protected:
         cinfo.input_gamma = 1;
 
         jpeg_set_defaults(&cinfo);
+        cinfo.optimize_coding = TRUE;
         jpeg_set_quality(&cinfo, quality, TRUE /* limit to baseline-JPEG values */);
 #ifdef DCT_IFAST_SUPPORTED
         cinfo.dct_method = JDCT_IFAST;

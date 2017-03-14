@@ -206,6 +206,10 @@ class VIEWS_EXPORT HWNDMessageHandler :
   // Updates the window style to reflect whether it can be resized or maximized.
   void SizeConstraintsChanged();
 
+  // Returns true if content is rendered to a child window instead of directly
+  // to this window.
+  bool HasChildRenderingWindow();
+
   void set_reroute_mouse_wheel_to_any_related_window(bool reroute_mouse_wheel_to_any_related_window) {
     reroute_mouse_wheel_to_any_related_window_ = reroute_mouse_wheel_to_any_related_window;
   }
@@ -259,7 +263,10 @@ class VIEWS_EXPORT HWNDMessageHandler :
 
   // Called after the WM_ACTIVATE message has been processed by the default
   // windows procedure.
-  void PostProcessActivateMessage(int activation_state, bool minimized);
+  void PostProcessActivateMessage(
+      int activation_state,
+      bool minimized,
+      HWND window_gaining_or_losing_activation);
 
   // Enables disabled owner windows that may have been disabled due to this
   // window's modality.
@@ -506,6 +513,11 @@ class VIEWS_EXPORT HWNDMessageHandler :
                                   WPARAM w_param,
                                   LPARAM l_param);
 
+  // Helper function for setting the bounds of the HWND. For more information
+  // please refer to the SetBounds() function.
+  void SetBoundsInternal(const gfx::Rect& bounds_in_pixels,
+                         bool force_size_changed);
+
   HWNDMessageHandlerDelegate* delegate_;
 
   scoped_ptr<FullscreenHandler> fullscreen_handler_;
@@ -652,6 +664,10 @@ class VIEWS_EXPORT HWNDMessageHandler :
   // Set to true if the left mouse button has been pressed on the caption.
   // Defaults to false.
   bool left_button_down_on_caption_;
+
+  // Set to true if the window is a background fullscreen window, i.e a
+  // fullscreen window which lost activation. Defaults to false.
+  bool background_fullscreen_hack_;
 
   // The WeakPtrFactories below must occur last in the class definition so they
   // get destroyed last.

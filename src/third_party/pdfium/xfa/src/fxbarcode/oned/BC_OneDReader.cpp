@@ -21,14 +21,17 @@
  */
 
 #include <algorithm>
+#include <memory>
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/BC_BinaryBitmap.h"
+#include "xfa/src/fxbarcode/BC_Reader.h"
 #include "xfa/src/fxbarcode/common/BC_CommonBitArray.h"
-#include "BC_OneDReader.h"
+#include "xfa/src/fxbarcode/oned/BC_OneDReader.h"
+#include "xfa/src/fxbarcode/utils.h"
+
 const int32_t CBC_OneDReader::INTEGER_MATH_SHIFT = 8;
 const int32_t CBC_OneDReader::PATTERN_MATCH_RESULT_SCALE_FACTOR = 1 << 8;
+
 CBC_OneDReader::CBC_OneDReader() {}
 CBC_OneDReader::~CBC_OneDReader() {}
 CFX_ByteString CBC_OneDReader::Decode(CBC_BinaryBitmap* image, int32_t& e) {
@@ -47,7 +50,6 @@ CFX_ByteString CBC_OneDReader::DeDecode(CBC_BinaryBitmap* image,
                                         int32_t hints,
                                         int32_t& e) {
   int32_t height = image->GetHeight();
-  CBC_CommonBitArray* row = NULL;
   int32_t middle = height >> 1;
   FX_BOOL tryHarder = FALSE;
   int32_t rowStep = std::max(1, height >> (tryHarder ? 8 : 5));
@@ -66,33 +68,22 @@ CFX_ByteString CBC_OneDReader::DeDecode(CBC_BinaryBitmap* image,
     if (rowNumber < 0 || rowNumber >= height) {
       break;
     }
-    row = image->GetBlackRow(rowNumber, NULL, e);
+    std::unique_ptr<CBC_CommonBitArray> row(
+        image->GetBlackRow(rowNumber, nullptr, e));
     if (e != BCExceptionNO) {
       e = BCExceptionNO;
-      if (row != NULL) {
-        delete row;
-        row = NULL;
-      }
       continue;
     }
     for (int32_t attempt = 0; attempt < 2; attempt++) {
       if (attempt == 1) {
         row->Reverse();
       }
-      CFX_ByteString result = DecodeRow(rowNumber, row, hints, e);
+      CFX_ByteString result = DecodeRow(rowNumber, row.get(), hints, e);
       if (e != BCExceptionNO) {
         e = BCExceptionNO;
         continue;
       }
-      if (row != NULL) {
-        delete row;
-        row = NULL;
-      }
       return result;
-    }
-    if (row != NULL) {
-      delete row;
-      row = NULL;
     }
   }
   e = BCExceptionNotFound;

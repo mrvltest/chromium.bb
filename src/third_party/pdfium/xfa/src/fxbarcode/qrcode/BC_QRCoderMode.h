@@ -4,9 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRCODERMODE_H_
-#define _BC_QRCODERMODE_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERMODE_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERMODE_H_
+
+#include <stdint.h>
+
+#include "core/include/fxcrt/fx_string.h"
+
 class CBC_QRCoderVersion;
+
 class CBC_QRCoderMode {
  private:
   int32_t* m_characterCountBitsForVersions;
@@ -41,4 +47,5 @@ class CBC_QRCoderMode {
   CFX_ByteString GetName();
   static void Destroy();
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERMODE_H_

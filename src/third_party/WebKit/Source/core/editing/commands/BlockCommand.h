@@ -34,12 +34,12 @@ class BlockCommand : public CompositeEditCommand {
 protected:
     explicit BlockCommand(Document&);
 
-    virtual void formatBlockExtent(PassRefPtr<Node> prpFirstNode, PassRefPtr<Node> prpLastNode, Node* stayWithin);
-    virtual void formatBlockSiblings(PassRefPtr<Node> prpFirstSibling, PassRefPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode);
+    virtual void formatBlockExtent(PassRefPtrWillBeRawPtr<Node> prpFirstNode, PassRefPtrWillBeRawPtr<Node> prpLastNode, Node* stayWithin, EditingState *editingState);
+    virtual void formatBlockSiblings(PassRefPtrWillBeRawPtr<Node> prpFirstSibling, PassRefPtrWillBeRawPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode, EditingState *editingState);
 
 private:
-    virtual void doApply();
-    void formatSelection(const VisiblePosition& startOfSelection, const VisiblePosition& endOfSelection);
+    void doApply(EditingState *editingState) override;
+    void formatSelection(const VisiblePosition& startOfSelection, const VisiblePosition& endOfSelection, EditingState *editingState);
 };
 
 } // namespace blink

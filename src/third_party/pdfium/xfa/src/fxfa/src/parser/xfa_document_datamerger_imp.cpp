@@ -5,19 +5,19 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_basic_imp.h"
-#include "xfa_document_datadescription_imp.h"
-#include "xfa_document_datamerger_imp.h"
-#include "xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_basic_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_datadescription_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_datamerger_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
 static FX_BOOL XFA_GetOccurInfo(CXFA_Node* pOccurNode,
                                 int32_t& iMin,
                                 int32_t& iMax,
@@ -109,7 +109,7 @@ static void XFA_DataMerge_CreateDataBinding(CXFA_Node* pFormNode,
   FXSYS_assert(pWidgetData);
   FX_BOOL bNotify = FALSE;
   XFA_ELEMENT eUIType = pWidgetData->GetUIType();
-  CXFA_Value defValue = pFormNode->GetProperty(0, XFA_ELEMENT_Value);
+  CXFA_Value defValue(pFormNode->GetProperty(0, XFA_ELEMENT_Value));
   if (!bDataToForm) {
     CFX_WideString wsValue;
     CFX_WideString wsFormatedValue;
@@ -141,11 +141,10 @@ static void XFA_DataMerge_CreateDataBinding(CXFA_Node* pFormNode,
           int32_t iSize = wsSelTextArray.GetSize();
           if (iSize >= 1) {
             CXFA_Node* pValue = NULL;
-            IFDE_XMLNode* pValueXMLNode = NULL;
             for (int32_t i = 0; i < iSize; i++) {
               pValue = pDataNode->CreateSamePacketNode(XFA_ELEMENT_DataValue);
               pValue->SetCData(XFA_ATTRIBUTE_Name, FX_WSTRC(L"value"));
-              pValueXMLNode = pValue->CreateXMLMappingNode();
+              pValue->CreateXMLMappingNode();
               pDataNode->InsertChild(pValue);
               pValue->SetCData(XFA_ATTRIBUTE_Value, wsSelTextArray[i]);
             }
@@ -170,7 +169,6 @@ static void XFA_DataMerge_CreateDataBinding(CXFA_Node* pFormNode,
         break;
       case XFA_ELEMENT_ExclGroup: {
         CXFA_Node* pChecked = NULL;
-        XFA_ELEMENT eValueType = XFA_ELEMENT_UNKNOWN;
         CXFA_Node* pChild = pFormNode->GetNodeItem(XFA_NODEITEM_FirstChild);
         for (; pChild; pChild = pChild->GetNodeItem(XFA_NODEITEM_NextSibling)) {
           if (pChild->GetClassID() != XFA_ELEMENT_Field) {
@@ -196,7 +194,6 @@ static void XFA_DataMerge_CreateDataBinding(CXFA_Node* pFormNode,
           CFX_WideString wsContent;
           if (pText->TryContent(wsContent) && (wsContent == wsValue)) {
             pChecked = pChild;
-            eValueType = pText->GetClassID();
             wsFormatedValue = wsValue;
             pDataNode->SetAttributeValue(wsValue, wsFormatedValue);
             pFormNode->SetCData(XFA_ATTRIBUTE_Value, wsContent);
@@ -294,7 +291,7 @@ static void XFA_DataMerge_CreateDataBinding(CXFA_Node* pFormNode,
               wsNormailizeValue += wsItem;
             }
             CXFA_ExData exData = defValue.GetExData();
-            FXSYS_assert(exData != NULL);
+            FXSYS_assert(exData);
             exData.SetContentType((iCounts == 1) ? FX_WSTRC(L"text/plain")
                                                  : FX_WSTRC(L"text/xml"));
           }
@@ -459,11 +456,11 @@ static CXFA_Node* XFA_DataMerge_FindDataRefDataNode(CXFA_Document* pDocument,
       rs.dwFlags == XFA_RESOLVENODE_RSTYPE_CreateNodeMidAll ||
       rs.nodes.GetSize() > 1) {
     return pDocument->GetNotBindNode(rs.nodes);
-  } else if (rs.dwFlags == XFA_RESOLVENODE_RSTYPE_CreateNodeOne) {
+  }
+  if (rs.dwFlags == XFA_RESOLVENODE_RSTYPE_CreateNodeOne) {
     CXFA_Object* pObject = (rs.nodes.GetSize() > 0) ? rs.nodes[0] : NULL;
-    CXFA_Node* pNode =
-        (pObject && pObject->IsNode()) ? (CXFA_Node*)pObject : NULL;
-    if (!bForceBind && (pNode != NULL) && pNode->HasBindItem()) {
+    CXFA_Node* pNode = ToNode(pObject);
+    if (!bForceBind && pNode && pNode->HasBindItem()) {
       pNode = NULL;
     }
     return pNode;
@@ -704,7 +701,7 @@ static CXFA_Node* XFA_DataMerge_FindMatchingDataNode(
       default:
         break;
     }
-    if (pCurTemplateNode == pTemplateNode && pResult != NULL) {
+    if (pCurTemplateNode == pTemplateNode && pResult) {
       bSelfMatch = TRUE;
     }
     break;
@@ -774,7 +771,7 @@ static CXFA_Node* XFA_DataMerge_CopyContainer_SubformSet(
             : NULL;
     if (CXFA_Node* pOccurTemplateNode =
             pTemplateNode->GetFirstChildByClass(XFA_ELEMENT_Occur)) {
-      pOccurNode = pInstMgrNode != NULL
+      pOccurNode = pInstMgrNode
                        ? XFA_NodeMerge_CloneOrMergeContainer(
                              pDocument, pInstMgrNode, pOccurTemplateNode, FALSE)
                        : pOccurTemplateNode;
@@ -840,7 +837,8 @@ static CXFA_Node* XFA_DataMerge_CopyContainer_SubformSet(
       subformMapArray.GetStartPosition();
       for (int32_t iIndex = 0; iIndex < subformArray.GetSize(); iIndex++) {
         CXFA_Node* pSubform = subformArray[iIndex];
-        CXFA_Node* pDataNode = (CXFA_Node*)subformMapArray.GetValueAt(pSubform);
+        CXFA_Node* pDataNode =
+            reinterpret_cast<CXFA_Node*>(subformMapArray.GetValueAt(pSubform));
         for (CXFA_Node* pTemplateChild =
                  pTemplateNode->GetNodeItem(XFA_NODEITEM_FirstChild);
              pTemplateChild; pTemplateChild = pTemplateChild->GetNodeItem(
@@ -1095,8 +1093,7 @@ CXFA_Node* CXFA_Document::DataMerge_CopyContainer(CXFA_Node* pTemplateNode,
   }
   return NULL;
 }
-#define XFA_DATAMERGE_UPDATEBINDINGRELATIONS_DFS
-#ifdef XFA_DATAMERGE_UPDATEBINDINGRELATIONS_DFS
+
 static void XFA_DataMerge_UpdateBindingRelations(CXFA_Document* pDocument,
                                                  CXFA_Node* pFormNode,
                                                  CXFA_Node* pDataScope,
@@ -1162,7 +1159,7 @@ static void XFA_DataMerge_UpdateBindingRelations(CXFA_Document* pDocument,
                                               ? XFA_ELEMENT_DataGroup
                                               : XFA_ELEMENT_DataValue;
               CXFA_Node* pRecordNode =
-                  (CXFA_Node*)pDocument->GetXFANode(XFA_HASHCODE_Record);
+                  ToNode(pDocument->GetXFAObject(XFA_HASHCODE_Record));
               pDataNode = XFA_DataDescription_MaybeCreateDataNode(
                   pDocument, pRecordNode, eDataNodeType,
                   pFormNode->GetCData(XFA_ATTRIBUTE_Name));
@@ -1192,8 +1189,7 @@ static void XFA_DataMerge_UpdateBindingRelations(CXFA_Document* pDocument,
           pDocument->GetScriptContext()->ResolveObjects(pDataScope, wsRef, rs,
                                                         dFlags, pTemplateNode);
           CXFA_Object* pObject = (rs.nodes.GetSize() > 0) ? rs.nodes[0] : NULL;
-          pDataNode =
-              (pObject && pObject->IsNode()) ? (CXFA_Node*)pObject : NULL;
+          pDataNode = ToNode(pObject);
           if (pDataNode) {
             XFA_DataMerge_CreateDataBinding(
                 pFormNode, pDataNode,
@@ -1227,106 +1223,6 @@ static void XFA_DataMerge_UpdateBindingRelations(CXFA_Document* pDocument,
     }
   }
 }
-#else
-static void XFA_DataMerge_UpdateBindingRelations(CXFA_Document* pDocument, CXFA_Node* pFormNode, CXFA_Node* pDataScope, CFX_PtrList& rgFormNodeList, CFX_PtrList& rgDataScopeList, FX_BOOL bD _DEBUG
-#ifdef _DEBUG
-        CFX_WideString wsFormSOM; CFX_WideString wsDataScopeSOM;
-        pFormNode->GetSOMExpression(wsFormSOM); pDataScope->GetSOMExpression(wsDataScopeSOM);
-#endif
-        XFA_ELEMENT eClassID = pFormNode->GetClassID();
-        CXFA_Node* pDataNode = pFormNode->GetBindData();
-        if(eClassID == XFA_ELEMENT_Subform || eClassID == XFA_ELEMENT_ExclGroup || eClassID == XFA_ELEMENT_Field)
-{
-  CXFA_Node* pTemplateNode = pFormNode->GetTemplateNode();
-  CXFA_Node* pTemplateNodeBind =
-      pTemplateNode ? pTemplateNode->GetFirstChildByClass(XFA_ELEMENT_Bind)
-                    : NULL;
-  XFA_ATTRIBUTEENUM eMatch =
-      pTemplateNodeBind ? pTemplateNodeBind->GetEnum(XFA_ATTRIBUTE_Match)
-                        : XFA_ATTRIBUTEENUM_Once;
-  switch (eMatch) {
-    case XFA_ATTRIBUTEENUM_None:
-      break;
-    case XFA_ATTRIBUTEENUM_Once: {
-      if (!pDataNode) {
-        if (pFormNode->GetNameHash() != 0 &&
-            pFormNode->GetEnum(XFA_ATTRIBUTE_Scope) != XFA_ATTRIBUTEENUM_None) {
-          XFA_ELEMENT eDataNodeType = eClassID == XFA_ELEMENT_Subform
-                                          ? XFA_ELEMENT_DataGroup
-                                          : XFA_ELEMENT_DataValue;
-          pDataNode = XFA_DataDescription_MaybeCreateDataNode(
-              pDocument, pDataScope, eDataNodeType,
-              pFormNode->GetCData(XFA_ATTRIBUTE_Name));
-          if (pDataNode) {
-            XFA_DataMerge_CreateDataBinding(pFormNode, pDataNode, FALSE);
-          }
-        }
-      } else {
-        CXFA_Node* pDataParent = pDataNode->GetNodeItem(XFA_NODEITEM_Parent);
-        if (pDataParent != pDataScope) {
-          FXSYS_assert(pDataParent);
-          pDataParent->RemoveChild(pDataNode);
-          pDataScope->InsertChild(pDataNode);
-        }
-      }
-    } break;
-    case XFA_ATTRIBUTEENUM_Global: {
-      FX_DWORD dwNameHash = pFormNode->GetNameHash();
-      if (dwNameHash != 0 && !pDataNode) {
-        pDataNode = XFA_DataMerge_GetGlobalBinding(pDocument, dwNameHash);
-        if (!pDataNode) {
-          XFA_ELEMENT eDataNodeType = eClassID == XFA_ELEMENT_Subform
-                                          ? XFA_ELEMENT_DataGroup
-                                          : XFA_ELEMENT_DataValue;
-          CXFA_Node* pRecordNode =
-              (CXFA_Node*)pDocument->GetXFANode(XFA_HASHCODE_Record);
-          pDataNode = XFA_DataDescription_MaybeCreateDataNode(
-              pDocument, pRecordNode, eDataNodeType,
-              pFormNode->GetCData(XFA_ATTRIBUTE_Name));
-        }
-        if (pDataNode) {
-          XFA_DataMerge_CreateDataBinding(pFormNode, pDataNode, FALSE);
-          XFA_DataMerge_RegisterGlobalBinding(
-              pDocument, pFormNode->GetNameHash(), pDataNode);
-        }
-      }
-    } break;
-    case XFA_ATTRIBUTEENUM_DataRef: {
-      if (!pDataNode) {
-        CFX_WideStringC wsRef = pTemplateNodeBind->GetCData(XFA_ATTRIBUTE_Ref);
-        FX_DWORD dFlags = XFA_RESOLVENODE_Children |
-                          XFA_RESOLVENODE_Attributes |
-                          XFA_RESOLVENODE_Siblings | XFA_RESOLVENODE_Parent |
-                          XFA_RESOLVENODE_CreateNode;
-        XFA_RESOLVENODE_RS rs;
-        pDocument->GetScriptContext()->ResolveObjects(pDataScope, wsRef, rs,
-                                                      dFlags, pTemplateNode);
-        CXFA_Object* pObject = (rs.nodes.GetSize() > 0) ? rs.nodes[0] : NULL;
-        pDataNode = (pObject && pObject->IsNode()) ? (CXFA_Node*)pObject : NULL;
-        if (pDataNode) {
-          XFA_DataMerge_CreateDataBinding(pFormNode, pDataNode, FALSE);
-        }
-      }
-    } break;
-  }
-}
-if(eClassID == XFA_ELEMENT_Subform || eClassID == XFA_ELEMENT_ExclGroup || eClassID == XFA_ELEMENT_SubformSet || eClassID == XFA_ELEMENT_Area || eClassID == XFA_ELEMENT_PageArea)
-{
-  for (CXFA_Node* pFormChild = pFormNode->GetNodeItem(XFA_NODEITEM_FirstChild);
-       pFormChild;
-       pFormChild = pFormChild->GetNodeItem(XFA_NODEITEM_NextSibling)) {
-    if (pFormChild->GetObjectType() != XFA_OBJECTTYPE_ContainerNode) {
-      continue;
-    }
-    if (pFormChild->HasFlag(XFA_NODEFLAG_UnusedNode)) {
-      continue;
-    }
-    rgFormNodeList.AddTail(pFormChild);
-    rgDataScopeList.AddTail(pDataNode ? pDataNode : pDataScope);
-  }
-}
-}
-#endif
 CXFA_Node* XFA_DataMerge_FindDataScope(CXFA_Node* pParentFormNode) {
   for (CXFA_Node* pRootBoundNode = pParentFormNode;
        pRootBoundNode &&
@@ -1337,8 +1233,8 @@ CXFA_Node* XFA_DataMerge_FindDataScope(CXFA_Node* pParentFormNode) {
       return pDataScope;
     }
   }
-  return (CXFA_Node*)pParentFormNode->GetDocument()->GetXFANode(
-      XFA_HASHCODE_Data);
+  return ToNode(
+      pParentFormNode->GetDocument()->GetXFAObject(XFA_HASHCODE_Data));
 }
 void CXFA_Document::DataMerge_UpdateBindingRelations(
     CXFA_Node* pFormUpdateRoot) {
@@ -1347,43 +1243,21 @@ void CXFA_Document::DataMerge_UpdateBindingRelations(
   if (!pDataScope) {
     return;
   }
-#ifdef XFA_DATAMERGE_UPDATEBINDINGRELATIONS_DFS
   XFA_DataMerge_UpdateBindingRelations(this, pFormUpdateRoot, pDataScope, FALSE,
                                        FALSE);
   XFA_DataMerge_UpdateBindingRelations(this, pFormUpdateRoot, pDataScope, TRUE,
                                        FALSE);
-#else
-  CFX_PtrList rgFormNodeList, rgDataScopeList;
-  rgFormNodeList.AddTail(pFormUpdateRoot);
-  rgDataScopeList.AddTail(pDataScope);
-  while (rgFormNodeList.GetCount()) {
-    FX_POSITION pos;
-    pos = rgFormNodeList.GetHeadPosition();
-    CXFA_Node* pCurFormNode = (CXFA_Node*)rgFormNodeList.GetAt(pos);
-    rgFormNodeList.RemoveAt(pos);
-    pos = rgDataScopeList.GetHeadPosition();
-    CXFA_Node* pCurDataScope = (CXFA_Node*)rgDataScopeList.GetAt(pos);
-    rgDataScopeList.RemoveAt(pos);
-    XFA_DataMerge_UpdateBindingRelations(this, pCurFormNode, pCurDataScope,
-                                         rgFormNodeList, rgDataScopeList);
-  }
-#endif
 }
 CXFA_Node* CXFA_Document::GetNotBindNode(CXFA_ObjArray& arrayNodes) {
   for (int32_t i = 0; i < arrayNodes.GetSize(); i++) {
-    CXFA_Object* pObject = arrayNodes[i];
-    if (!pObject->IsNode()) {
-      continue;
-    }
-    if (((CXFA_Node*)pObject)->HasBindItem()) {
-      continue;
-    }
-    return ((CXFA_Node*)pObject);
+    CXFA_Node* pNode = arrayNodes[i]->AsNode();
+    if (pNode && !pNode->HasBindItem())
+      return pNode;
   }
-  return NULL;
+  return nullptr;
 }
 void CXFA_Document::DoDataMerge() {
-  CXFA_Node* pDatasetsRoot = (CXFA_Node*)GetXFANode(XFA_HASHCODE_Datasets);
+  CXFA_Node* pDatasetsRoot = ToNode(GetXFAObject(XFA_HASHCODE_Datasets));
   if (!pDatasetsRoot) {
     IFDE_XMLElement* pDatasetsXMLNode =
         IFDE_XMLElement::Create(FX_WSTRC(L"xfa:datasets"));
@@ -1537,7 +1411,7 @@ void CXFA_Document::DoDataMerge() {
   }
 }
 void CXFA_Document::DoDataRemerge(FX_BOOL bDoDataMerge) {
-  CXFA_Node* pFormRoot = (CXFA_Node*)this->GetXFANode(XFA_HASHCODE_Form);
+  CXFA_Node* pFormRoot = ToNode(GetXFAObject(XFA_HASHCODE_Form));
   if (pFormRoot) {
     while (CXFA_Node* pNode = pFormRoot->GetNodeItem(XFA_NODEITEM_FirstChild)) {
       pFormRoot->RemoveChild(pNode);

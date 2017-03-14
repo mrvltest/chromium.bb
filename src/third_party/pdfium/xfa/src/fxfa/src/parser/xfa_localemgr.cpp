@@ -6,16 +6,16 @@
 
 #include "core/include/fxcrt/fx_xml.h"
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_locale.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_locale.h"
 
 const uint8_t g_enUS_Locale[] = {
     0x78, 0x9C, 0x95, 0x56, 0xD1, 0x6E, 0x9B, 0x30, 0x14, 0x7D, 0x9F, 0xB4,
@@ -1157,9 +1157,8 @@ IFX_Locale* CXFA_LocaleMgr::GetDefLocale() {
     return (IFX_Locale*)m_XMLLocaleArray[0];
   }
   m_pDefLocale = GetLocale(m_dwDeflcid);
-  if (m_pDefLocale != NULL) {
+  if (m_pDefLocale)
     m_XMLLocaleArray.Add(m_pDefLocale);
-  }
   return m_pDefLocale;
 }
 IFX_Locale* CXFA_LocaleMgr::GetLocale(FX_WORD lcid) {
@@ -1237,9 +1236,8 @@ IFX_Locale* CXFA_LocaleMgr::GetLocaleByName(
   }
   FX_WORD dwLangueID = XFA_GetLanguage(wsLocaleName);
   IFX_Locale* pLocale = GetLocale(dwLangueID);
-  if (pLocale != NULL) {
+  if (pLocale)
     m_XMLLocaleArray.Add(pLocale);
-  }
   return pLocale;
 }
 void CXFA_LocaleMgr::SetDefLocale(IFX_Locale* pLocale) {

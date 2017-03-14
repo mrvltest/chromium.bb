@@ -4,10 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef FWL_ADAPTERTHREADMGR_H_
-#define FWL_ADAPTERTHREADMGR_H_
+#ifndef XFA_INCLUDE_FWL_ADAPTER_FWL_ADAPTERTHREADMGR_H_
+#define XFA_INCLUDE_FWL_ADAPTER_FWL_ADAPTERTHREADMGR_H_
 
-class IFWL_Thread;
+#include "core/include/fxcrt/fx_system.h"
+#include "xfa/include/fwl/core/fwl_error.h"
+#include "xfa/include/fwl/core/fwl_thread.h"
 
 class IFWL_AdapterThreadMgr {
  public:
@@ -21,4 +23,4 @@ class IFWL_AdapterThreadMgr {
   virtual FWL_ERR Stop(FWL_HTHREAD hThread, int32_t iExitCode) = 0;
   virtual IFWL_Thread* GetCurrentThread() = 0;
 };
-#endif  // FWL_ADAPTERTHREADMGR_H_
+#endif  // XFA_INCLUDE_FWL_ADAPTER_FWL_ADAPTERTHREADMGR_H_

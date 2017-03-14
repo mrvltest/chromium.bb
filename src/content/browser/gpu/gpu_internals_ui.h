@@ -16,7 +16,7 @@ class GpuInternalsUI : public WebUIController {
  public:
   explicit GpuInternalsUI(WebUI* web_ui);
 
-  CONTENT_EXPORT static scoped_ptr<base::DictionaryValue> GetGpuMemoryBufferInfo();
+  CONTENT_EXPORT static scoped_ptr<base::ListValue> GetGpuMemoryBufferInfo();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GpuInternalsUI);

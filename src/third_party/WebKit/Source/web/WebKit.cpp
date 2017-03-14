@@ -46,9 +46,11 @@
 // commented out due to the duplicate include of trace_event_common.h from LayoutTheme.h
 // #include "gin/public/v8_platform.h"
 #include "modules/InitModules.h"
+#include "platform/Histogram.h"
 #include "platform/LayoutTestSupport.h"
 #include "platform/Logging.h"
 #include "platform/RuntimeEnabledFeatures.h"
+#include "platform/ThreadSafeFunctional.h"
 #include "platform/fonts/FontCacheMemoryDumpProvider.h"
 #include "platform/graphics/ImageDecodingStore.h"
 #include "platform/heap/GCTaskRunner.h"
@@ -82,22 +84,6 @@ public:
         V8GCController::reportDOMMemoryUsageToV8(mainThreadIsolate());
         V8Initializer::reportRejectedPromisesOnMainThread();
     }
-};
-
-class MainThreadTaskRunner_private: public WebTaskRunner::Task {
-    WTF_MAKE_NONCOPYABLE(MainThreadTaskRunner_private);
-public:
-    MainThreadTaskRunner_private(WTF::MainThreadFunction* function, void* context)
-        : m_function(function)
-        , m_context(context) { }
-
-    void run() override
-    {
-        m_function(m_context);
-    }
-private:
-    WTF::MainThreadFunction* m_function;
-    void* m_context;
 };
 
 } // namespace
@@ -136,24 +122,21 @@ v8::Isolate* mainThreadIsolate()
     return V8PerIsolateData::mainThreadIsolate();
 }
 
-static double currentTimeFunction()
+static void maxObservedSizeFunction(size_t sizeInMB)
 {
-    return Platform::current()->currentTimeSeconds();
-}
+    const size_t supportedMaxSizeInMB = 4 * 1024;
+    if (sizeInMB >= supportedMaxSizeInMB)
+        sizeInMB = supportedMaxSizeInMB - 1;
 
-static double monotonicallyIncreasingTimeFunction()
-{
-    return Platform::current()->monotonicallyIncreasingTimeSeconds();
-}
-
-static void histogramEnumerationFunction(const char* name, int sample, int boundaryValue)
-{
-    Platform::current()->histogramEnumeration(name, sample, boundaryValue);
+    // Send a UseCounter only when we see the highest memory usage
+    // we've ever seen.
+    DEFINE_STATIC_LOCAL(EnumerationHistogram, committedSizeHistogram, ("PartitionAlloc.CommittedSize", supportedMaxSizeInMB));
+    committedSizeHistogram.count(sizeInMB);
 }
 
 static void callOnMainThreadFunction(WTF::MainThreadFunction function, void* context)
 {
-    Platform::current()->mainThread()->taskRunner()->postTask(BLINK_FROM_HERE, new MainThreadTaskRunner_private(function, context));
+    Platform::current()->mainThread()->taskRunner()->postTask(BLINK_FROM_HERE, threadSafeBind(function, AllowCrossThreadAccess(context)));
 }
 
 static void adjustAmountOfExternalAllocatedMemory(int size)
@@ -166,10 +149,11 @@ void initializeWithoutV8(Platform* platform)
     ASSERT(!s_webKitInitialized);
     s_webKitInitialized = true;
 
+    WTF::Partitions::initialize(maxObservedSizeFunction);
     ASSERT(platform);
     Platform::initialize(platform);
 
-    WTF::initialize(currentTimeFunction, monotonicallyIncreasingTimeFunction, histogramEnumerationFunction, adjustAmountOfExternalAllocatedMemory);
+    WTF::initialize(adjustAmountOfExternalAllocatedMemory);
     WTF::initializeMainThread(callOnMainThreadFunction);
     Heap::init();
 
@@ -226,10 +210,7 @@ void shutdown()
     v8::Isolate* isolate = V8PerIsolateData::mainThreadIsolate();
     V8PerIsolateData::willBeDestroyed(isolate);
 
-    // Make sure we stop WorkerThreads before the main thread's ThreadState
-    // and later shutdown steps starts freeing up resources needed during
-    // worker termination.
-    WorkerThread::terminateAndWaitForAllWorkers();
+    CoreInitializer::terminateThreads();
 
     ModulesInitializer::terminateThreads();
 
@@ -250,6 +231,7 @@ void shutdownWithoutV8()
     WTF::shutdown();
     Platform::shutdown();
     WebPrerenderingSupport::shutdown();
+    WTF::Partitions::shutdown();
 }
 
 // TODO(tkent): The following functions to wrap LayoutTestSupport should be

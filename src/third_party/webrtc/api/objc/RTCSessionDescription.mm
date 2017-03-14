@@ -56,7 +56,7 @@
 }
 
 - (instancetype)initWithNativeDescription:
-    (webrtc::SessionDescriptionInterface *)nativeDescription {
+    (const webrtc::SessionDescriptionInterface *)nativeDescription {
   NSParameterAssert(nativeDescription);
   std::string sdp;
   nativeDescription->ToString(&sdp);
@@ -86,6 +86,7 @@
     return RTCSdpTypeAnswer;
   } else {
     RTC_NOTREACHED();
+    return RTCSdpTypeOffer;
   }
 }
 

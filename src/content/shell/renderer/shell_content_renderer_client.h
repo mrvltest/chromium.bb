@@ -30,10 +30,12 @@ class ShellContentRendererClient : public ContentRendererClient {
   // need that outside of layout tests?
   bool IsPluginAllowedToUseCompositorAPI(const GURL& url) override;
   bool IsPluginAllowedToUseDevChannelAPIs() override;
+  base::StringPiece GetOriginTrialPublicKey() override;
 
  private:
   scoped_ptr<web_cache::WebCacheRenderProcessObserver> web_cache_observer_;
   scoped_ptr<SpellCheck> spellcheck_;
+  base::StringPiece origin_trial_public_key_;
 };
 
 }  // namespace content

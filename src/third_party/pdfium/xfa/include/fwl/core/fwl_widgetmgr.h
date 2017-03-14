@@ -4,11 +4,16 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_WIDGETMGR_H
-#define _FWL_WIDGETMGR_H
+#ifndef XFA_INCLUDE_FWL_CORE_FWL_WIDGETMGR_H_
+#define XFA_INCLUDE_FWL_CORE_FWL_WIDGETMGR_H_
+
+#include "xfa/include/fwl/core/fwl_note.h"
+
 class IFWL_Widget;
-class IFWL_WidgetMgr;
-class IFWL_WidgetMgrDelegate;
+
+#define FWL_WGTMGR_DisableThread 0x00000001
+#define FWL_WGTMGR_DisableForm 0x00000002
+
 enum FWL_WGTRELATION {
   FWL_WGTRELATION_Parent = 0,
   FWL_WGTRELATION_Owner,
@@ -20,6 +25,7 @@ enum FWL_WGTRELATION {
   FWL_WGTRELATION_LastChild,
   FWL_WGTRELATION_SystemForm
 };
+
 class IFWL_WidgetMgr {
  public:
   virtual ~IFWL_WidgetMgr() {}
@@ -36,8 +42,7 @@ class IFWL_WidgetMgr {
 };
 IFWL_WidgetMgr* FWL_GetWidgetMgr();
 FX_BOOL FWL_WidgetIsChild(IFWL_Widget* parent, IFWL_Widget* find);
-#define FWL_WGTMGR_DisableThread 0x00000001
-#define FWL_WGTMGR_DisableForm 0x00000002
+
 class IFWL_WidgetMgrDelegate {
  public:
   virtual ~IFWL_WidgetMgrDelegate() {}
@@ -51,4 +56,5 @@ class IFWL_WidgetMgrDelegate {
 FWL_ERR FWL_WidgetMgrSnapshot(IFWL_Widget* pWidget,
                               const CFX_WideString* saveFile,
                               const CFX_Matrix* pMatrix = NULL);
-#endif
+
+#endif  // XFA_INCLUDE_FWL_CORE_FWL_WIDGETMGR_H_

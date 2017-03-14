@@ -5,17 +5,17 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_script_nodehelper.h"
-#include "xfa_script_imp.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_nodehelper.h"
 CXFA_NodeHelper::CXFA_NodeHelper(void)
     : m_eLastCreateType(XFA_ELEMENT_DataValue),
       m_pCreateParent(NULL),
@@ -43,14 +43,15 @@ int32_t CXFA_NodeHelper::XFA_CountSiblings(CXFA_Node* pNode,
                                            XFA_LOGIC_TYPE eLogicType,
                                            CXFA_NodeArray* pSiblings,
                                            FX_BOOL bIsClassName) {
+  if (!pNode)
+    return 0;
   CXFA_Node* parent =
       XFA_ResolveNodes_GetParent(pNode, XFA_LOGIC_NoTransparent);
-  if (parent == NULL) {
+  if (!parent)
     return 0;
-  }
-  XFA_LPCPROPERTY pPropert = XFA_GetPropertyOfElement(
+  const XFA_PROPERTY* pProperty = XFA_GetPropertyOfElement(
       parent->GetClassID(), pNode->GetClassID(), XFA_XDPPACKET_UNKNOWN);
-  if (!pPropert && eLogicType == XFA_LOGIC_Transparent) {
+  if (!pProperty && eLogicType == XFA_LOGIC_Transparent) {
     parent = XFA_ResolveNodes_GetParent(pNode, XFA_LOGIC_Transparent);
     if (parent == NULL) {
       return 0;
@@ -264,7 +265,7 @@ void CXFA_NodeHelper::XFA_GetNameExpression(CXFA_Node* refNode,
     CFX_WideString wsParent;
     CXFA_Node* parent =
         XFA_ResolveNodes_GetParent(refNode, XFA_LOGIC_NoTransparent);
-    while (parent != NULL) {
+    while (parent) {
       XFA_GetNameExpression(parent, wsParent, FALSE, eLogicType);
       wsParent += L".";
       wsParent += wsName;
@@ -272,24 +273,25 @@ void CXFA_NodeHelper::XFA_GetNameExpression(CXFA_Node* refNode,
       parent = XFA_ResolveNodes_GetParent(parent, XFA_LOGIC_NoTransparent);
     }
     return;
-  } else {
-    CFX_WideStringC wsTagName;
-    CFX_WideString ws;
-    FX_BOOL bIsProperty = XFA_NodeIsProperty(refNode);
-    if (refNode->IsUnnamed() ||
-        (bIsProperty && refNode->GetClassID() != XFA_ELEMENT_PageSet)) {
-      refNode->GetClassName(wsTagName);
-      ws = wsTagName;
-      wsName.Format(L"#%s[%d]", (const FX_WCHAR*)ws,
-                    XFA_GetIndex(refNode, eLogicType, bIsProperty, TRUE));
-      return;
-    }
-    ws = refNode->GetCData(XFA_ATTRIBUTE_Name);
-    ws.Replace(L".", L"\\.");
-    wsName.Format(L"%s[%d]", (const FX_WCHAR*)ws,
-                  XFA_GetIndex(refNode, eLogicType, bIsProperty, FALSE));
   }
+
+  CFX_WideStringC wsTagName;
+  CFX_WideString ws;
+  FX_BOOL bIsProperty = XFA_NodeIsProperty(refNode);
+  if (refNode->IsUnnamed() ||
+      (bIsProperty && refNode->GetClassID() != XFA_ELEMENT_PageSet)) {
+    refNode->GetClassName(wsTagName);
+    ws = wsTagName;
+    wsName.Format(L"#%s[%d]", (const FX_WCHAR*)ws,
+                  XFA_GetIndex(refNode, eLogicType, bIsProperty, TRUE));
+    return;
+  }
+  ws = refNode->GetCData(XFA_ATTRIBUTE_Name);
+  ws.Replace(L".", L"\\.");
+  wsName.Format(L"%s[%d]", (const FX_WCHAR*)ws,
+                XFA_GetIndex(refNode, eLogicType, bIsProperty, FALSE));
 }
+
 FX_BOOL CXFA_NodeHelper::XFA_NodeIsTransparent(CXFA_Node* refNode) {
   if (refNode == NULL) {
     return FALSE;
@@ -306,8 +308,8 @@ FX_BOOL CXFA_NodeHelper::XFA_CreateNode_ForCondition(
     CFX_WideString& wsCondition) {
   int32_t iLen = wsCondition.GetLength();
   CFX_WideString wsIndex = FX_WSTRC(L"0");
-  ;
   FX_BOOL bAll = FALSE;
+
   if (iLen == 0) {
     m_iCreateFlag = XFA_RESOLVENODE_RSTYPE_CreateNodeOne;
     return FALSE;
@@ -353,8 +355,8 @@ FX_BOOL CXFA_NodeHelper::XFA_ResolveNodes_CreateNode(
   FX_BOOL bResult = FALSE;
   if (wsName.GetAt(0) == '!') {
     wsName = wsName.Right(wsName.GetLength() - 1);
-    m_pCreateParent = (CXFA_Node*)pScriptContext->GetDocument()->GetXFANode(
-        XFA_HASHCODE_Datasets);
+    m_pCreateParent = ToNode(
+        pScriptContext->GetDocument()->GetXFAObject(XFA_HASHCODE_Datasets));
   }
   if (wsName.GetAt(0) == '#') {
     bIsClassName = TRUE;
@@ -364,7 +366,7 @@ FX_BOOL CXFA_NodeHelper::XFA_ResolveNodes_CreateNode(
     XFA_CreateNode_ForCondition(wsCondition);
   }
   if (bIsClassName) {
-    XFA_LPCELEMENTINFO lpElement = XFA_GetElementByName(wsName);
+    const XFA_ELEMENTINFO* lpElement = XFA_GetElementByName(wsName);
     if (lpElement == NULL) {
       return FALSE;
     }
@@ -417,15 +419,9 @@ void CXFA_NodeHelper::XFA_SetCreateNodeType(CXFA_Node* refNode) {
   }
 }
 FX_BOOL CXFA_NodeHelper::XFA_NodeIsProperty(CXFA_Node* refNode) {
-  FX_BOOL bRes = FALSE;
   CXFA_Node* parent =
       XFA_ResolveNodes_GetParent(refNode, XFA_LOGIC_NoTransparent);
-  if (parent != NULL && refNode != NULL) {
-    XFA_LPCPROPERTY pPropert = XFA_GetPropertyOfElement(
-        parent->GetClassID(), refNode->GetClassID(), XFA_XDPPACKET_UNKNOWN);
-    if (pPropert) {
-      bRes = TRUE;
-    }
-  }
-  return bRes;
+  return parent && refNode &&
+         XFA_GetPropertyOfElement(parent->GetClassID(), refNode->GetClassID(),
+                                  XFA_XDPPACKET_UNKNOWN);
 }

@@ -20,15 +20,14 @@
 #include "webrtc/common_audio/channel_buffer.h"
 #include "webrtc/common_audio/include/audio_util.h"
 #include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
-extern "C" {
 #include "webrtc/modules/audio_processing/aec/aec_core.h"
-}
 #include "webrtc/modules/audio_processing/agc/agc_manager_direct.h"
 #include "webrtc/modules/audio_processing/audio_buffer.h"
 #include "webrtc/modules/audio_processing/beamformer/nonlinear_beamformer.h"
 #include "webrtc/modules/audio_processing/common.h"
 #include "webrtc/modules/audio_processing/echo_cancellation_impl.h"
 #include "webrtc/modules/audio_processing/echo_control_mobile_impl.h"
+#include "webrtc/modules/audio_processing/gain_control_for_experimental_agc.h"
 #include "webrtc/modules/audio_processing/gain_control_impl.h"
 #include "webrtc/modules/audio_processing/high_pass_filter_impl.h"
 #include "webrtc/modules/audio_processing/intelligibility/intelligibility_enhancer.h"
@@ -47,7 +46,7 @@ extern "C" {
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
 #else
-#include "webrtc/audio_processing/debug.pb.h"
+#include "webrtc/modules/audio_processing/debug.pb.h"
 #endif
 #endif  // WEBRTC_AUDIOPROC_DEBUG_DUMP
 
@@ -80,72 +79,6 @@ static bool LayoutHasKeyboard(AudioProcessing::ChannelLayout layout) {
 // Throughout webrtc, it's assumed that success is represented by zero.
 static_assert(AudioProcessing::kNoError == 0, "kNoError must be zero");
 
-// This class has two main functionalities:
-//
-// 1) It is returned instead of the real GainControl after the new AGC has been
-//    enabled in order to prevent an outside user from overriding compression
-//    settings. It doesn't do anything in its implementation, except for
-//    delegating the const methods and Enable calls to the real GainControl, so
-//    AGC can still be disabled.
-//
-// 2) It is injected into AgcManagerDirect and implements volume callbacks for
-//    getting and setting the volume level. It just caches this value to be used
-//    in VoiceEngine later.
-class GainControlForNewAgc : public GainControl, public VolumeCallbacks {
- public:
-  explicit GainControlForNewAgc(GainControlImpl* gain_control)
-      : real_gain_control_(gain_control), volume_(0) {}
-
-  // GainControl implementation.
-  int Enable(bool enable) override {
-    return real_gain_control_->Enable(enable);
-  }
-  bool is_enabled() const override { return real_gain_control_->is_enabled(); }
-  int set_stream_analog_level(int level) override {
-    volume_ = level;
-    return AudioProcessing::kNoError;
-  }
-  int stream_analog_level() override { return volume_; }
-  int set_mode(Mode mode) override { return AudioProcessing::kNoError; }
-  Mode mode() const override { return GainControl::kAdaptiveAnalog; }
-  int set_target_level_dbfs(int level) override {
-    return AudioProcessing::kNoError;
-  }
-  int target_level_dbfs() const override {
-    return real_gain_control_->target_level_dbfs();
-  }
-  int set_compression_gain_db(int gain) override {
-    return AudioProcessing::kNoError;
-  }
-  int compression_gain_db() const override {
-    return real_gain_control_->compression_gain_db();
-  }
-  int enable_limiter(bool enable) override { return AudioProcessing::kNoError; }
-  bool is_limiter_enabled() const override {
-    return real_gain_control_->is_limiter_enabled();
-  }
-  int set_analog_level_limits(int minimum, int maximum) override {
-    return AudioProcessing::kNoError;
-  }
-  int analog_level_minimum() const override {
-    return real_gain_control_->analog_level_minimum();
-  }
-  int analog_level_maximum() const override {
-    return real_gain_control_->analog_level_maximum();
-  }
-  bool stream_is_saturated() const override {
-    return real_gain_control_->stream_is_saturated();
-  }
-
-  // VolumeCallbacks implementation.
-  void SetMicVolume(int volume) override { volume_ = volume; }
-  int GetMicVolume() override { return volume_; }
-
- private:
-  GainControl* real_gain_control_;
-  int volume_;
-};
-
 struct AudioProcessingImpl::ApmPublicSubmodules {
   ApmPublicSubmodules()
       : echo_cancellation(nullptr),
@@ -155,15 +88,16 @@ struct AudioProcessingImpl::ApmPublicSubmodules {
   EchoCancellationImpl* echo_cancellation;
   EchoControlMobileImpl* echo_control_mobile;
   GainControlImpl* gain_control;
-  rtc::scoped_ptr<HighPassFilterImpl> high_pass_filter;
-  rtc::scoped_ptr<LevelEstimatorImpl> level_estimator;
-  rtc::scoped_ptr<NoiseSuppressionImpl> noise_suppression;
-  rtc::scoped_ptr<VoiceDetectionImpl> voice_detection;
-  rtc::scoped_ptr<GainControlForNewAgc> gain_control_for_new_agc;
+  std::unique_ptr<HighPassFilterImpl> high_pass_filter;
+  std::unique_ptr<LevelEstimatorImpl> level_estimator;
+  std::unique_ptr<NoiseSuppressionImpl> noise_suppression;
+  std::unique_ptr<VoiceDetectionImpl> voice_detection;
+  std::unique_ptr<GainControlForExperimentalAgc>
+      gain_control_for_experimental_agc;
 
   // Accessed internally from both render and capture.
-  rtc::scoped_ptr<TransientSuppressor> transient_suppressor;
-  rtc::scoped_ptr<IntelligibilityEnhancer> intelligibility_enhancer;
+  std::unique_ptr<TransientSuppressor> transient_suppressor;
+  std::unique_ptr<IntelligibilityEnhancer> intelligibility_enhancer;
 };
 
 struct AudioProcessingImpl::ApmPrivateSubmodules {
@@ -171,8 +105,8 @@ struct AudioProcessingImpl::ApmPrivateSubmodules {
       : beamformer(beamformer) {}
   // Accessed internally from capture or during initialization
   std::list<ProcessingComponent*> component_list;
-  rtc::scoped_ptr<Beamformer<float>> beamformer;
-  rtc::scoped_ptr<AgcManagerDirect> agc_manager;
+  std::unique_ptr<Beamformer<float>> beamformer;
+  std::unique_ptr<AgcManagerDirect> agc_manager;
 };
 
 const int AudioProcessing::kNativeSampleRatesHz[] = {
@@ -248,8 +182,9 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
         new NoiseSuppressionImpl(&crit_capture_));
     public_submodules_->voice_detection.reset(
         new VoiceDetectionImpl(&crit_capture_));
-    public_submodules_->gain_control_for_new_agc.reset(
-        new GainControlForNewAgc(public_submodules_->gain_control));
+    public_submodules_->gain_control_for_experimental_agc.reset(
+        new GainControlForExperimentalAgc(public_submodules_->gain_control,
+                                          &crit_capture_));
 
     private_submodules_->component_list.push_back(
         public_submodules_->echo_cancellation);
@@ -264,10 +199,10 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
 
 AudioProcessingImpl::~AudioProcessingImpl() {
   // Depends on gain_control_ and
-  // public_submodules_->gain_control_for_new_agc.
+  // public_submodules_->gain_control_for_experimental_agc.
   private_submodules_->agc_manager.reset();
   // Depends on gain_control_.
-  public_submodules_->gain_control_for_new_agc.reset();
+  public_submodules_->gain_control_for_experimental_agc.reset();
   while (!private_submodules_->component_list.empty()) {
     ProcessingComponent* component =
         private_submodules_->component_list.front();
@@ -647,6 +582,7 @@ int AudioProcessingImpl::ProcessStream(const float* const* src,
          ++i)
       msg->add_output_channel(dest[i], channel_size);
     RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                          &debug_dump_.num_bytes_left_for_log_,
                                           &crit_debug_, &debug_dump_.capture));
   }
 #endif
@@ -734,6 +670,7 @@ int AudioProcessingImpl::ProcessStream(AudioFrame* frame) {
         sizeof(int16_t) * frame->samples_per_channel_ * frame->num_channels_;
     msg->set_output_data(frame->data_, data_size);
     RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                          &debug_dump_.num_bytes_left_for_log_,
                                           &crit_debug_, &debug_dump_.capture));
   }
 #endif
@@ -757,7 +694,7 @@ int AudioProcessingImpl::ProcessStreamLocked() {
 
   AudioBuffer* ca = capture_.capture_audio.get();  // For brevity.
 
-  if (constants_.use_new_agc &&
+  if (constants_.use_experimental_agc &&
       public_submodules_->gain_control->is_enabled()) {
     private_submodules_->agc_manager->AnalyzePreProcess(
         ca->channels()[0], ca->num_channels(),
@@ -767,12 +704,6 @@ int AudioProcessingImpl::ProcessStreamLocked() {
   bool data_processed = is_data_processed();
   if (analysis_needed(data_processed)) {
     ca->SplitIntoFrequencyBands();
-  }
-
-  if (constants_.intelligibility_enabled) {
-    public_submodules_->intelligibility_enhancer->AnalyzeCaptureAudio(
-        ca->split_channels_f(kBand0To8kHz), capture_nonlocked_.split_rate,
-        ca->num_channels());
   }
 
   if (capture_nonlocked_.beamformer_enabled) {
@@ -791,11 +722,16 @@ int AudioProcessingImpl::ProcessStreamLocked() {
     ca->CopyLowPassToReference();
   }
   public_submodules_->noise_suppression->ProcessCaptureAudio(ca);
+  if (constants_.intelligibility_enabled) {
+    RTC_DCHECK(public_submodules_->noise_suppression->is_enabled());
+    public_submodules_->intelligibility_enhancer->SetCaptureNoiseEstimate(
+        public_submodules_->noise_suppression->NoiseEstimate());
+  }
   RETURN_ON_ERR(
       public_submodules_->echo_control_mobile->ProcessCaptureAudio(ca));
   public_submodules_->voice_detection->ProcessCaptureAudio(ca);
 
-  if (constants_.use_new_agc &&
+  if (constants_.use_experimental_agc &&
       public_submodules_->gain_control->is_enabled() &&
       (!capture_nonlocked_.beamformer_enabled ||
        private_submodules_->beamformer->is_target_present())) {
@@ -901,6 +837,7 @@ int AudioProcessingImpl::AnalyzeReverseStreamLocked(
          i < formats_.api_format.reverse_input_stream().num_channels(); ++i)
       msg->add_channel(src[i], channel_size);
     RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                          &debug_dump_.num_bytes_left_for_log_,
                                           &crit_debug_, &debug_dump_.render));
   }
 #endif
@@ -969,6 +906,7 @@ int AudioProcessingImpl::AnalyzeReverseStream(AudioFrame* frame) {
         sizeof(int16_t) * frame->samples_per_channel_ * frame->num_channels_;
     msg->set_data(frame->data_, data_size);
     RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                          &debug_dump_.num_bytes_left_for_log_,
                                           &crit_debug_, &debug_dump_.render));
   }
 #endif
@@ -995,7 +933,7 @@ int AudioProcessingImpl::ProcessReverseStreamLocked() {
   RETURN_ON_ERR(public_submodules_->echo_cancellation->ProcessRenderAudio(ra));
   RETURN_ON_ERR(
       public_submodules_->echo_control_mobile->ProcessRenderAudio(ra));
-  if (!constants_.use_new_agc) {
+  if (!constants_.use_experimental_agc) {
     RETURN_ON_ERR(public_submodules_->gain_control->ProcessRenderAudio(ra));
   }
 
@@ -1054,7 +992,8 @@ int AudioProcessingImpl::delay_offset_ms() const {
 }
 
 int AudioProcessingImpl::StartDebugRecording(
-    const char filename[AudioProcessing::kMaxFilenameSize]) {
+    const char filename[AudioProcessing::kMaxFilenameSize],
+    int64_t max_log_size_bytes) {
   // Run in a single-threaded manner.
   rtc::CritScope cs_render(&crit_render_);
   rtc::CritScope cs_capture(&crit_capture_);
@@ -1065,6 +1004,7 @@ int AudioProcessingImpl::StartDebugRecording(
   }
 
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
+  debug_dump_.num_bytes_left_for_log_ = max_log_size_bytes;
   // Stop any ongoing recording.
   if (debug_dump_.debug_file->Open()) {
     if (debug_dump_.debug_file->CloseFile() == -1) {
@@ -1085,7 +1025,8 @@ int AudioProcessingImpl::StartDebugRecording(
 #endif  // WEBRTC_AUDIOPROC_DEBUG_DUMP
 }
 
-int AudioProcessingImpl::StartDebugRecording(FILE* handle) {
+int AudioProcessingImpl::StartDebugRecording(FILE* handle,
+                                             int64_t max_log_size_bytes) {
   // Run in a single-threaded manner.
   rtc::CritScope cs_render(&crit_render_);
   rtc::CritScope cs_capture(&crit_capture_);
@@ -1095,6 +1036,8 @@ int AudioProcessingImpl::StartDebugRecording(FILE* handle) {
   }
 
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
+  debug_dump_.num_bytes_left_for_log_ = max_log_size_bytes;
+
   // Stop any ongoing recording.
   if (debug_dump_.debug_file->Open()) {
     if (debug_dump_.debug_file->CloseFile() == -1) {
@@ -1120,7 +1063,7 @@ int AudioProcessingImpl::StartDebugRecordingForPlatformFile(
   rtc::CritScope cs_render(&crit_render_);
   rtc::CritScope cs_capture(&crit_capture_);
   FILE* stream = rtc::FdopenPlatformFileForWriting(handle);
-  return StartDebugRecording(stream);
+  return StartDebugRecording(stream, -1);
 }
 
 int AudioProcessingImpl::StopDebugRecording() {
@@ -1156,8 +1099,8 @@ EchoControlMobile* AudioProcessingImpl::echo_control_mobile() const {
 GainControl* AudioProcessingImpl::gain_control() const {
   // Adding a lock here has no effect as it allows any access to the submodule
   // from the returned pointer.
-  if (constants_.use_new_agc) {
-    return public_submodules_->gain_control_for_new_agc.get();
+  if (constants_.use_experimental_agc) {
+    return public_submodules_->gain_control_for_experimental_agc.get();
   }
   return public_submodules_->gain_control;
 }
@@ -1187,46 +1130,23 @@ VoiceDetection* AudioProcessingImpl::voice_detection() const {
 }
 
 bool AudioProcessingImpl::is_data_processed() const {
-  if (capture_nonlocked_.beamformer_enabled) {
+  // The beamformer, noise suppressor and highpass filter
+  // modify the data.
+  if (capture_nonlocked_.beamformer_enabled ||
+      public_submodules_->high_pass_filter->is_enabled() ||
+      public_submodules_->noise_suppression->is_enabled()) {
     return true;
   }
 
-  int enabled_count = 0;
+  // All of the private submodules modify the data.
   for (auto item : private_submodules_->component_list) {
     if (item->is_component_enabled()) {
-      enabled_count++;
+      return true;
     }
-  }
-  if (public_submodules_->high_pass_filter->is_enabled()) {
-    enabled_count++;
-  }
-  if (public_submodules_->noise_suppression->is_enabled()) {
-    enabled_count++;
-  }
-  if (public_submodules_->level_estimator->is_enabled()) {
-    enabled_count++;
-  }
-  if (public_submodules_->voice_detection->is_enabled()) {
-    enabled_count++;
   }
 
-  // Data is unchanged if no components are enabled, or if only
-  // public_submodules_->level_estimator
-  // or public_submodules_->voice_detection is enabled.
-  if (enabled_count == 0) {
-    return false;
-  } else if (enabled_count == 1) {
-    if (public_submodules_->level_estimator->is_enabled() ||
-        public_submodules_->voice_detection->is_enabled()) {
-      return false;
-    }
-  } else if (enabled_count == 2) {
-    if (public_submodules_->level_estimator->is_enabled() &&
-        public_submodules_->voice_detection->is_enabled()) {
-      return false;
-    }
-  }
-  return true;
+  // The capture data is otherwise unchanged.
+  return false;
 }
 
 bool AudioProcessingImpl::output_copy_needed(bool is_data_processed) const {
@@ -1262,8 +1182,7 @@ bool AudioProcessingImpl::analysis_needed(bool is_data_processed) const {
 }
 
 bool AudioProcessingImpl::is_rev_processed() const {
-  return constants_.intelligibility_enabled &&
-         public_submodules_->intelligibility_enhancer->active();
+  return constants_.intelligibility_enabled;
 }
 
 bool AudioProcessingImpl::render_check_rev_conversion_needed() const {
@@ -1276,11 +1195,11 @@ bool AudioProcessingImpl::rev_conversion_needed() const {
 }
 
 void AudioProcessingImpl::InitializeExperimentalAgc() {
-  if (constants_.use_new_agc) {
+  if (constants_.use_experimental_agc) {
     if (!private_submodules_->agc_manager.get()) {
       private_submodules_->agc_manager.reset(new AgcManagerDirect(
           public_submodules_->gain_control,
-          public_submodules_->gain_control_for_new_agc.get(),
+          public_submodules_->gain_control_for_experimental_agc.get(),
           constants_.agc_startup_min_volume));
     }
     private_submodules_->agc_manager->Initialize();
@@ -1314,12 +1233,9 @@ void AudioProcessingImpl::InitializeBeamformer() {
 
 void AudioProcessingImpl::InitializeIntelligibility() {
   if (constants_.intelligibility_enabled) {
-    IntelligibilityEnhancer::Config config;
-    config.sample_rate_hz = capture_nonlocked_.split_rate;
-    config.num_capture_channels = capture_.capture_audio->num_channels();
-    config.num_render_channels = render_.render_audio->num_channels();
     public_submodules_->intelligibility_enhancer.reset(
-        new IntelligibilityEnhancer(config));
+        new IntelligibilityEnhancer(capture_nonlocked_.split_rate,
+                                    render_.render_audio->num_channels()));
   }
 }
 
@@ -1416,6 +1332,7 @@ void AudioProcessingImpl::UpdateHistogramsOnCallEnd() {
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
 int AudioProcessingImpl::WriteMessageToDebugFile(
     FileWrapper* debug_file,
+    int64_t* filesize_limit_bytes,
     rtc::CriticalSection* crit_debug,
     ApmDebugDumpThreadState* debug_state) {
   int32_t size = debug_state->event_msg->ByteSize();
@@ -1433,7 +1350,19 @@ int AudioProcessingImpl::WriteMessageToDebugFile(
 
   {
     // Ensure atomic writes of the message.
-    rtc::CritScope cs_capture(crit_debug);
+    rtc::CritScope cs_debug(crit_debug);
+
+    RTC_DCHECK(debug_file->Open());
+    // Update the byte counter.
+    if (*filesize_limit_bytes >= 0) {
+      *filesize_limit_bytes -=
+          (sizeof(int32_t) + debug_state->event_str.length());
+      if (*filesize_limit_bytes < 0) {
+        // Not enough bytes are left to write this message, so stop logging.
+        debug_file->CloseFile();
+        return kNoError;
+      }
+    }
     // Write message preceded by its size.
     if (!debug_file->Write(&size, sizeof(int32_t))) {
       return kFileError;
@@ -1468,6 +1397,7 @@ int AudioProcessingImpl::WriteInitMessage() {
   // debug_dump_.capture.event_msg.
 
   RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                        &debug_dump_.num_bytes_left_for_log_,
                                         &crit_debug_, &debug_dump_.capture));
   return kNoError;
 }
@@ -1497,7 +1427,7 @@ int AudioProcessingImpl::WriteConfigMessage(bool forced) {
       static_cast<int>(public_submodules_->gain_control->mode()));
   config.set_agc_limiter_enabled(
       public_submodules_->gain_control->is_limiter_enabled());
-  config.set_noise_robust_agc_enabled(constants_.use_new_agc);
+  config.set_noise_robust_agc_enabled(constants_.use_experimental_agc);
 
   config.set_hpf_enabled(public_submodules_->high_pass_filter->is_enabled());
 
@@ -1520,6 +1450,7 @@ int AudioProcessingImpl::WriteConfigMessage(bool forced) {
   debug_dump_.capture.event_msg->mutable_config()->CopyFrom(config);
 
   RETURN_ON_ERR(WriteMessageToDebugFile(debug_dump_.debug_file.get(),
+                                        &debug_dump_.num_bytes_left_for_log_,
                                         &crit_debug_, &debug_dump_.capture));
   return kNoError;
 }

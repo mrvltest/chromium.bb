@@ -305,7 +305,6 @@ typedef struct _IPDF_JsPlatform {
 
   /* Version 3. */
   /* Version 3 moves m_Isolate and m_v8EmbedderSlot to FPDF_LIBRARY_CONFIG. */
-
 } IPDF_JSPLATFORM;
 
 // Flags for Cursor type
@@ -709,7 +708,7 @@ typedef struct _FPDF_FORMFILLINFO {
     * Method: FFI_DisplayCaret
     *           This method will show the caret at specified position.
     * Interface Version:
-    *           1
+    *           2
     * Implementation Required:
     *           yes
     * Parameters:
@@ -739,7 +738,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_GetCurrentPageIndex
   *           This method will get the current page index.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -756,7 +755,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_SetCurrentPage
   *           This method will set the current page.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -775,7 +774,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_GotoURL
   *           This method will link to the specified URL.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           no
   * Parameters:
@@ -794,7 +793,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_GetPageViewRect
   *           This method will get the current page view rectangle.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -818,11 +817,30 @@ typedef struct _FPDF_FORMFILLINFO {
                               double* top,
                               double* right,
                               double* bottom);
+
+  /**
+  * Method: FFI_PageEvent
+  *     This method fires when pages have been added or deleted.
+  * Interface Version:
+  *     2
+  * Implementation Required:
+  *     yes
+  * Parameters:
+  *     pThis       -   Pointer to the interface structure itself.
+  *     page_index  -   0-based page number.
+  *     event_type  -   See FXFA_PAGEVIEWEVENT_* above.
+  * Return value:
+  *       None.
+  **/
+  void (*FFI_PageEvent)(struct _FPDF_FORMFILLINFO* pThis,
+                        int page_index,
+                        FPDF_DWORD event_type);
+
   /**
   * Method: FFI_PopupMenu
   *           This method will track the right context menu for XFA fields.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -845,7 +863,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_OpenFile
   *           This method will open the specified file with the specified mode.
   * Interface Version
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -868,7 +886,7 @@ typedef struct _FPDF_FORMFILLINFO {
   *           This method will email the specified file stream to the specified
   *contacter.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -899,7 +917,7 @@ typedef struct _FPDF_FORMFILLINFO {
   *           This method will get upload the specified file stream to the
   *specified URL.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -920,7 +938,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_GetPlatform
   *           This method will get the current platform.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -940,7 +958,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_GetLanguage
   *           This method will get the current language.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -960,7 +978,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_DownloadFromURL
   *           This method will download the specified file from the URL.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -975,7 +993,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_PostRequestURL
   *           This method will post the request to the server URL.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -998,7 +1016,7 @@ typedef struct _FPDF_FORMFILLINFO {
   * Method: FFI_PutRequestURL
   *           This method will put the request to the server URL.
   * Interface Version:
-  *           1
+  *           2
   * Implementation Required:
   *           yes
   * Parameters:
@@ -1012,7 +1030,6 @@ typedef struct _FPDF_FORMFILLINFO {
   **/
   FPDF_BOOL   (*FFI_PutRequestURL)(struct _FPDF_FORMFILLINFO* pThis, FPDF_WIDESTRING wsURL, FPDF_WIDESTRING wsData, FPDF_WIDESTRING wsEncode);
 #endif  // PDF_ENABLE_XFA
-
 } FPDF_FORMFILLINFO;
 
 /**

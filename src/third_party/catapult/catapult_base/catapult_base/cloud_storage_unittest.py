@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# pylint: disable=unused-argument
 import os
 import sys
 import unittest
@@ -30,6 +29,8 @@ def _FakeCalulateHashNewHash(_):
 class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
 
   def setUp(self):
+    self.original_environ = os.environ.copy()
+    os.environ['DISABLE_CLOUD_STORAGE_IO'] = ''
     self.setUpPyfakefs()
     self.fs.CreateFile(
         os.path.join(util.GetCatapultDir(), 'third_party', 'gsutil', 'gsutil'))
@@ -40,6 +41,7 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
 
   def tearDown(self):
     self.tearDownPyfakefs()
+    os.environ = self.original_environ
 
   def _FakeRunCommand(self, cmd):
     pass
@@ -47,7 +49,7 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
   def _FakeGet(self, bucket, remote_path, local_path):
     pass
 
-  def _assertRunCommandRaisesError(self, communicate_strs, error):
+  def _AssertRunCommandRaisesError(self, communicate_strs, error):
     with mock.patch('catapult_base.cloud_storage.subprocess.Popen') as popen:
       p_mock = mock.Mock()
       popen.return_value = p_mock
@@ -59,24 +61,24 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
   def testRunCommandCredentialsError(self):
     strs = ['You are attempting to access protected data with no configured',
             'Failure: No handler was ready to authenticate.']
-    self._assertRunCommandRaisesError(strs, cloud_storage.CredentialsError)
+    self._AssertRunCommandRaisesError(strs, cloud_storage.CredentialsError)
 
   def testRunCommandPermissionError(self):
     strs = ['status=403', 'status 403', '403 Forbidden']
-    self._assertRunCommandRaisesError(strs, cloud_storage.PermissionError)
+    self._AssertRunCommandRaisesError(strs, cloud_storage.PermissionError)
 
   def testRunCommandNotFoundError(self):
     strs = ['InvalidUriError', 'No such object', 'No URLs matched',
             'One or more URLs matched no', 'InvalidUriError']
-    self._assertRunCommandRaisesError(strs, cloud_storage.NotFoundError)
+    self._AssertRunCommandRaisesError(strs, cloud_storage.NotFoundError)
 
   def testRunCommandServerError(self):
     strs = ['500 Internal Server Error']
-    self._assertRunCommandRaisesError(strs, cloud_storage.ServerError)
+    self._AssertRunCommandRaisesError(strs, cloud_storage.ServerError)
 
   def testRunCommandGenericError(self):
     strs = ['Random string']
-    self._assertRunCommandRaisesError(strs, cloud_storage.CloudStorageError)
+    self._AssertRunCommandRaisesError(strs, cloud_storage.CloudStorageError)
 
   def testInsertCreatesValidCloudUrl(self):
     orig_run_command = cloud_storage._RunCommand
@@ -107,7 +109,7 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
   @mock.patch('catapult_base.cloud_storage._GetLocked')
   @mock.patch('catapult_base.cloud_storage._PseudoFileLock')
   @mock.patch('catapult_base.cloud_storage.os.path')
-  def testGetIfHashChanged(self, path_mock, lock_mock, get_mock,
+  def testGetIfHashChanged(self, path_mock, unused_lock_mock, get_mock,
                            calc_hash_mock):
     path_mock.exists.side_effect = [False, True, True]
     calc_hash_mock.return_value = 'hash'
@@ -140,7 +142,7 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
     get_mock.reset_mock()
 
   @mock.patch('catapult_base.cloud_storage._PseudoFileLock')
-  def testGetIfChanged(self, lock_mock):
+  def testGetIfChanged(self, unused_lock_mock):
     orig_get = cloud_storage._GetLocked
     orig_read_hash = cloud_storage.ReadHash
     orig_calculate_hash = cloud_storage.CalculateHash
@@ -210,3 +212,27 @@ class CloudStorageUnitTest(fake_filesystem_unittest.TestCase):
       cloud_storage.Copy('bucket1', 'bucket2', 'remote_path1', 'remote_path2')
     finally:
       cloud_storage._RunCommand = orig_run_command
+
+
+  @mock.patch('catapult_base.cloud_storage._PseudoFileLock')
+  def testDisableCloudStorageIo(self, unused_lock_mock):
+    os.environ['DISABLE_CLOUD_STORAGE_IO'] = '1'
+    dir_path = 'real_dir_path'
+    self.fs.CreateDirectory(dir_path)
+    file_path = os.path.join(dir_path, 'file1')
+    file_path_sha = file_path + '.sha1'
+    self.CreateFiles([file_path, file_path_sha])
+    with open(file_path_sha, 'w') as f:
+      f.write('hash1234')
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.Copy('bucket1', 'bucket2', 'remote_path1', 'remote_path2')
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.Get('bucket', 'foo', file_path)
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.GetIfChanged(file_path, 'foo')
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.GetIfHashChanged('bar', file_path, 'bucket', 'hash1234')
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.Insert('bucket', 'foo', file_path)
+    with self.assertRaises(cloud_storage.CloudStorageIODisabled):
+      cloud_storage.GetFilesInDirectoryIfChanged(dir_path, 'bucket')

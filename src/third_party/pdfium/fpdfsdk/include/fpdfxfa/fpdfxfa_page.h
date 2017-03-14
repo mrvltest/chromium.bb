@@ -4,8 +4,8 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FPDFXFA_PAGEVIEW_H_
-#define _FPDFXFA_PAGEVIEW_H_
+#ifndef FPDFSDK_INCLUDE_FPDFXFA_FPDFXFA_PAGE_H_
+#define FPDFSDK_INCLUDE_FPDFXFA_FPDFXFA_PAGE_H_
 
 class CPDFXFA_Page {
  public:
@@ -20,6 +20,7 @@ class CPDFXFA_Page {
   int GetPageIndex() { return m_iPageIndex; }
   CPDF_Page* GetPDFPage() { return m_pPDFPage; }
   IXFA_PageView* GetXFAPageView() { return m_pXFAPageView; }
+  void SetXFAPageView(IXFA_PageView* pPageView) { m_pXFAPageView = pPageView; }
 
   FX_FLOAT GetPageWidth();
   FX_FLOAT GetPageHeight();
@@ -62,4 +63,4 @@ class CPDFXFA_Page {
   int m_iRef;
 };
 
-#endif
+#endif  // FPDFSDK_INCLUDE_FPDFXFA_FPDFXFA_PAGE_H_

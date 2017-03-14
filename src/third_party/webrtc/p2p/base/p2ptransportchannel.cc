@@ -12,13 +12,15 @@
 
 #include <algorithm>
 #include <set>
-#include "webrtc/p2p/base/common.h"
-#include "webrtc/p2p/base/relayport.h"  // For RELAY_PORT_TYPE.
-#include "webrtc/p2p/base/stunport.h"  // For STUN_PORT_TYPE.
+
 #include "webrtc/base/common.h"
 #include "webrtc/base/crc32.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/base/stringencode.h"
+#include "webrtc/p2p/base/candidate.h"
+#include "webrtc/p2p/base/common.h"
+#include "webrtc/p2p/base/relayport.h"  // For RELAY_PORT_TYPE.
+#include "webrtc/p2p/base/stunport.h"   // For STUN_PORT_TYPE.
 #include "webrtc/system_wrappers/include/field_trial.h"
 
 namespace {
@@ -39,9 +41,20 @@ cricket::PortInterface::CandidateOrigin GetOrigin(cricket::PortInterface* port,
     return cricket::PortInterface::ORIGIN_OTHER_PORT;
 }
 
-// Compares two connections based only on static information about them.
+// Compares two connections based only on the candidate and network information.
+// Returns positive if |a| is better than |b|.
 int CompareConnectionCandidates(cricket::Connection* a,
                                 cricket::Connection* b) {
+  uint32_t a_cost = a->ComputeNetworkCost();
+  uint32_t b_cost = b->ComputeNetworkCost();
+  // Smaller cost is better.
+  if (a_cost < b_cost) {
+    return 1;
+  }
+  if (a_cost > b_cost) {
+    return -1;
+  }
+
   // Compare connection priority. Lower values get sorted last.
   if (a->priority() > b->priority())
     return 1;
@@ -206,8 +219,12 @@ P2PTransportChannel::P2PTransportChannel(const std::string& transport_name,
                                          int component,
                                          P2PTransport* transport,
                                          PortAllocator* allocator)
+    : P2PTransportChannel(transport_name, component, allocator) {}
+
+P2PTransportChannel::P2PTransportChannel(const std::string& transport_name,
+                                         int component,
+                                         PortAllocator* allocator)
     : TransportChannelImpl(transport_name, component),
-      transport_(transport),
       allocator_(allocator),
       worker_thread_(rtc::Thread::Current()),
       incoming_only_(false),
@@ -453,6 +470,8 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession *session,
   port->SignalUnknownAddress.connect(
       this, &P2PTransportChannel::OnUnknownAddress);
   port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
+  port->SignalNetworkInactive.connect(
+      this, &P2PTransportChannel::OnPortNetworkInactive);
   port->SignalRoleConflict.connect(
       this, &P2PTransportChannel::OnRoleConflict);
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
@@ -552,8 +571,6 @@ void P2PTransportChannel::OnUnknownAddress(
     }
   } else {
     // Create a new candidate with this address.
-    int remote_candidate_priority;
-
     // The priority of the candidate is set to the PRIORITY attribute
     // from the request.
     const StunUInt32Attribute* priority_attr =
@@ -566,7 +583,11 @@ void P2PTransportChannel::OnUnknownAddress(
                                      STUN_ERROR_REASON_BAD_REQUEST);
       return;
     }
-    remote_candidate_priority = priority_attr->value();
+    int remote_candidate_priority = priority_attr->value();
+
+    const StunUInt32Attribute* cost_attr =
+        stun_msg->GetUInt32(STUN_ATTR_NETWORK_COST);
+    uint32_t network_cost = (cost_attr) ? cost_attr->value() : 0;
 
     // RFC 5245
     // If the source transport address of the request does not match any
@@ -581,8 +602,8 @@ void P2PTransportChannel::OnUnknownAddress(
     // from the foundation for all other remote candidates.
     remote_candidate.set_foundation(
         rtc::ToString<uint32_t>(rtc::ComputeCrc32(remote_candidate.id())));
-
     remote_candidate.set_priority(remote_candidate_priority);
+    remote_candidate.set_network_cost(network_cost);
   }
 
   // RFC5245, the agent constructs a pair whose local candidate is equal to
@@ -1311,7 +1332,7 @@ void P2PTransportChannel::PingConnection(Connection* conn) {
   if (remote_ice_mode_ == ICEMODE_FULL && ice_role_ == ICEROLE_CONTROLLING) {
     use_candidate = (conn == best_connection_) || (best_connection_ == NULL) ||
                     (!best_connection_->writable()) ||
-                    (conn->priority() > best_connection_->priority());
+                    (CompareConnectionCandidates(best_connection_, conn) < 0);
   } else if (remote_ice_mode_ == ICEMODE_LITE && conn == best_connection_) {
     use_candidate = best_connection_->writable();
   }
@@ -1400,6 +1421,23 @@ void P2PTransportChannel::OnPortDestroyed(PortInterface* port) {
 
   LOG(INFO) << "Removed port from p2p socket: "
             << static_cast<int>(ports_.size()) << " remaining";
+}
+
+void P2PTransportChannel::OnPortNetworkInactive(PortInterface* port) {
+  // If it does not gather continually, the port will be removed from the list
+  // when ICE restarts.
+  if (!gather_continually_) {
+    return;
+  }
+  auto it = std::find(ports_.begin(), ports_.end(), port);
+  // Don't need to do anything if the port has been deleted from the port list.
+  if (it == ports_.end()) {
+    return;
+  }
+  ports_.erase(it);
+  LOG(INFO) << "Removed port due to inactive networks: " << ports_.size()
+            << " remaining";
+  // TODO(honghaiz): Signal candidate removals to the remote side.
 }
 
 // We data is available, let listeners know

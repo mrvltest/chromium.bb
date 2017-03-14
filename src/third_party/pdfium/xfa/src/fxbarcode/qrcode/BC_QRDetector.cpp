@@ -20,26 +20,27 @@
  * limitations under the License.
  */
 
-#include <algorithm>
+#include "xfa/src/fxbarcode/qrcode/BC_QRDetector.h"
 
-#include "xfa/src/fxbarcode/barcode.h"
-#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include <algorithm>
+#include <memory>
+
 #include "xfa/src/fxbarcode/BC_ResultPoint.h"
-#include "BC_QRFinderPattern.h"
-#include "BC_QRCoderVersion.h"
-#include "BC_FinderPatternInfo.h"
-#include "BC_QRGridSampler.h"
-#include "BC_QRAlignmentPatternFinder.h"
-#include "BC_QRFinderPatternFinder.h"
-#include "BC_QRDetectorResult.h"
-#include "BC_QRDetector.h"
+#include "xfa/src/fxbarcode/common/BC_CommonBitMatrix.h"
+#include "xfa/src/fxbarcode/qrcode/BC_FinderPatternInfo.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRAlignmentPatternFinder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRCoderVersion.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRDetectorResult.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRFinderPattern.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRFinderPatternFinder.h"
+#include "xfa/src/fxbarcode/qrcode/BC_QRGridSampler.h"
+
 CBC_QRDetector::CBC_QRDetector(CBC_CommonBitMatrix* image) : m_image(image) {}
 CBC_QRDetector::~CBC_QRDetector() {}
 CBC_QRDetectorResult* CBC_QRDetector::Detect(int32_t hints, int32_t& e) {
   CBC_QRFinderPatternFinder finder(m_image);
-  CBC_QRFinderPatternInfo* qpi = finder.Find(hints, e);
+  std::unique_ptr<CBC_QRFinderPatternInfo> info(finder.Find(hints, e));
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
-  CBC_AutoPtr<CBC_QRFinderPatternInfo> info(qpi);
   CBC_QRDetectorResult* qdr = ProcessFinderPatternInfo(info.get(), e);
   BC_EXCEPTION_CHECK_ReturnValue(e, NULL);
   return qdr;
@@ -47,9 +48,9 @@ CBC_QRDetectorResult* CBC_QRDetector::Detect(int32_t hints, int32_t& e) {
 CBC_QRDetectorResult* CBC_QRDetector::ProcessFinderPatternInfo(
     CBC_QRFinderPatternInfo* info,
     int32_t& e) {
-  CBC_AutoPtr<CBC_QRFinderPattern> topLeft(info->GetTopLeft());
-  CBC_AutoPtr<CBC_QRFinderPattern> topRight(info->GetTopRight());
-  CBC_AutoPtr<CBC_QRFinderPattern> bottomLeft(info->GetBottomLeft());
+  std::unique_ptr<CBC_QRFinderPattern> topLeft(info->GetTopLeft());
+  std::unique_ptr<CBC_QRFinderPattern> topRight(info->GetTopRight());
+  std::unique_ptr<CBC_QRFinderPattern> bottomLeft(info->GetBottomLeft());
   FX_FLOAT moduleSize =
       CalculateModuleSize(topLeft.get(), topRight.get(), bottomLeft.get());
   if (moduleSize < 1.0f) {
@@ -115,7 +116,7 @@ CBC_CommonBitMatrix* CBC_QRDetector::SampleGrid(
   FX_FLOAT bottomRightY;
   FX_FLOAT sourceBottomRightX;
   FX_FLOAT sourceBottomRightY;
-  if (alignmentPattern != NULL) {
+  if (alignmentPattern) {
     bottomRightX = alignmentPattern->GetX();
     bottomRightY = alignmentPattern->GetY();
     sourceBottomRightX = sourceBottomRightY = dimMinusThree - 3.0f;

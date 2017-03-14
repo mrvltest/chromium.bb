@@ -4,8 +4,12 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _BC_QRCODERENCODER_H_
-#define _BC_QRCODERENCODER_H_
+#ifndef XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERENCODER_H_
+#define XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERENCODER_H_
+
+#include "core/include/fxcrt/fx_basic.h"
+#include "core/include/fxcrt/fx_string.h"
+
 class Make_Pair;
 class CBC_QRCoder;
 class CBC_QRCoderErrorCorrectionLevel;
@@ -13,7 +17,7 @@ class CBC_QRCoderMode;
 class CBC_QRCoderBitVector;
 class CBC_CommonByteArray;
 class CBC_CommonByteMatrix;
-class CBC_QRCoderEncoder;
+
 class CBC_QRCoderEncoder {
  private:
   const static int32_t m_alphaNumbericTable[96];
@@ -126,4 +130,5 @@ class CBC_QRCoderEncoder {
                                       CFX_ByteString& encoding,
                                       int32_t& e);
 };
-#endif
+
+#endif  // XFA_SRC_FXBARCODE_QRCODE_BC_QRCODERENCODER_H_

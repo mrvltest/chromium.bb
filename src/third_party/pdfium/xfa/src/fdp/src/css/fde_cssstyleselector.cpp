@@ -4,10 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
+#include "xfa/src/fdp/src/css/fde_csscache.h"
+#include "xfa/src/fdp/src/css/fde_cssdeclaration.h"
+#include "xfa/src/fdp/src/css/fde_cssstyleselector.h"
 #include "xfa/src/foxitlib.h"
-#include "fde_csscache.h"
-#include "fde_cssdeclaration.h"
-#include "fde_cssstyleselector.h"
+
 int32_t CFDE_CSSCounterStyle::FindIndex(const FX_WCHAR* pszIdentifier) {
   int32_t iCount = m_arrCounterData.GetSize();
   for (int32_t i = 0; i < iCount; i++) {
@@ -80,9 +81,9 @@ FDE_CSSTEXTEMPHASISMARK CFDE_CSSComputedStyle::GetTextEmphasisMark() const {
   }
   return FDE_CSSTEXTEMPHASISMARK_Sesame;
 }
-_FDE_CSSRULEDATA::_FDE_CSSRULEDATA(IFDE_CSSSelector* pSel,
-                                   IFDE_CSSDeclaration* pDecl,
-                                   FX_DWORD dwPos)
+FDE_CSSRULEDATA::FDE_CSSRULEDATA(IFDE_CSSSelector* pSel,
+                                 IFDE_CSSDeclaration* pDecl,
+                                 FX_DWORD dwPos)
     : pSelector(pSel), pDeclaration(pDecl), dwPriority(dwPos), pNext(NULL) {
   static const FX_DWORD s_Specific[5] = {0x00010000, 0x00010000, 0x00100000,
                                          0x00100000, 0x01000000};
@@ -128,7 +129,7 @@ void CFDE_CSSRuleCollection::AddRulesFrom(IFDE_CSSStyleSheet* pStyleSheet,
       for (int32_t i = 0; i < iSelectors; ++i) {
         IFDE_CSSSelector* pSelector = pStyleRule->GetSelectorList(i);
         if (pSelector->GetType() == FDE_CSSSELECTORTYPE_Persudo) {
-          FDE_LPCSSRULEDATA pData = NewRuleData(pSelector, pDeclaration);
+          FDE_CSSRULEDATA* pData = NewRuleData(pSelector, pDeclaration);
           AddRuleTo(m_pPersudoRules, pData);
           continue;
         }
@@ -139,7 +140,7 @@ void CFDE_CSSRuleCollection::AddRulesFrom(IFDE_CSSStyleSheet* pStyleSheet,
         }
         IFDE_CSSSelector* pNext = pSelector->GetNextSelector();
         if (pNext == NULL) {
-          FDE_LPCSSRULEDATA pData = NewRuleData(pSelector, pDeclaration);
+          FDE_CSSRULEDATA* pData = NewRuleData(pSelector, pDeclaration);
           AddRuleTo(m_pUniversalRules, pData);
           continue;
         }
@@ -180,31 +181,34 @@ void CFDE_CSSRuleCollection::AddRuleTo(CFX_MapPtrToPtr& map,
                                        IFDE_CSSSelector* pSel,
                                        IFDE_CSSDeclaration* pDecl) {
   void* pKey = (void*)(uintptr_t)dwKey;
-  FDE_LPCSSRULEDATA pData = NewRuleData(pSel, pDecl);
-  FDE_LPCSSRULEDATA pList = NULL;
+  FDE_CSSRULEDATA* pData = NewRuleData(pSel, pDecl);
+  FDE_CSSRULEDATA* pList = NULL;
   if (!map.Lookup(pKey, (void*&)pList)) {
     map.SetAt(pKey, pData);
   } else if (AddRuleTo(pList, pData)) {
     map.SetAt(pKey, pList);
   }
 }
-inline FX_BOOL CFDE_CSSRuleCollection::AddRuleTo(FDE_LPCSSRULEDATA& pList,
-                                                 FDE_LPCSSRULEDATA pData) {
-  if (pList == NULL) {
-    pList = pData;
-    return TRUE;
-  } else {
+
+FX_BOOL CFDE_CSSRuleCollection::AddRuleTo(FDE_CSSRULEDATA*& pList,
+                                          FDE_CSSRULEDATA* pData) {
+  if (pList) {
     pData->pNext = pList->pNext;
     pList->pNext = pData;
     return FALSE;
   }
+
+  pList = pData;
+  return TRUE;
 }
-inline FDE_LPCSSRULEDATA CFDE_CSSRuleCollection::NewRuleData(
+
+FDE_CSSRULEDATA* CFDE_CSSRuleCollection::NewRuleData(
     IFDE_CSSSelector* pSel,
     IFDE_CSSDeclaration* pDecl) {
-  return FDE_NewWith(m_pStaticStore)
+  return FXTARGET_NewWith(m_pStaticStore)
       FDE_CSSRULEDATA(pSel, pDecl, ++m_iSelectors);
 }
+
 IFDE_CSSStyleSelector* IFDE_CSSStyleSelector::Create() {
   return new CFDE_CSSStyleSelector;
 }
@@ -254,8 +258,8 @@ IFDE_CSSComputedStyle* CFDE_CSSStyleSelector::CreateComputedStyle(
                                             sizeof(CFDE_CSSComputedStyle));
     FXSYS_assert(m_pFixedStyleStore != NULL);
   }
-  CFDE_CSSComputedStyle* pStyle =
-      FDE_NewWith(m_pFixedStyleStore) CFDE_CSSComputedStyle(m_pFixedStyleStore);
+  CFDE_CSSComputedStyle* pStyle = FXTARGET_NewWith(m_pFixedStyleStore)
+      CFDE_CSSComputedStyle(m_pFixedStyleStore);
   if (pParentStyle) {
     pStyle->m_InheritedData =
         ((CFDE_CSSComputedStyle*)pParentStyle)->m_InheritedData;
@@ -316,7 +320,7 @@ int32_t CFDE_CSSStyleSelector::MatchDeclarations(
     CFDE_CSSDeclarationArray& matchedDecls,
     FDE_CSSPERSUDO ePersudoType) {
   FXSYS_assert(m_pAccelerator != NULL && pTag != NULL);
-  FDE_LPCSSTAGCACHE pCache = m_pAccelerator->GetTopElement();
+  FDE_CSSTAGCACHE* pCache = m_pAccelerator->GetTopElement();
   FXSYS_assert(pCache != NULL && pCache->GetTag() == pTag);
   matchedDecls.RemoveAt(0, matchedDecls.GetSize());
   for (int32_t ePriority = FDE_CSSSTYLESHEETPRIORITY_MAX - 1; ePriority >= 0;
@@ -341,24 +345,29 @@ int32_t CFDE_CSSStyleSelector::MatchDeclarations(
     } else {
       MatchRules(pCache, rules.GetPersudoRuleData(), ePersudoType);
     }
-    if (m_MatchedRules.GetSize() > 0) {
-      SortRulesTo(matchedDecls);
-      m_MatchedRules.RemoveAt(0, m_MatchedRules.GetSize());
-    }
+
+    std::sort(m_MatchedRules.begin(), m_MatchedRules.end(),
+              [](const FDE_CSSRULEDATA* p1, const FDE_CSSRULEDATA* p2) {
+                return p1->dwPriority < p2->dwPriority;
+              });
+    for (const auto& rule : m_MatchedRules)
+      matchedDecls.Add(rule->pDeclaration);
+    m_MatchedRules.clear();
   }
   return matchedDecls.GetSize();
 }
-inline void CFDE_CSSStyleSelector::MatchRules(FDE_LPCSSTAGCACHE pCache,
-                                              FDE_LPCSSRULEDATA pList,
-                                              FDE_CSSPERSUDO ePersudoType) {
-  while (pList != NULL) {
-    if (MatchSelector(pCache, pList->pSelector, ePersudoType)) {
-      m_MatchedRules.Add(pList);
-    }
+
+void CFDE_CSSStyleSelector::MatchRules(FDE_CSSTAGCACHE* pCache,
+                                       FDE_CSSRULEDATA* pList,
+                                       FDE_CSSPERSUDO ePersudoType) {
+  while (pList) {
+    if (MatchSelector(pCache, pList->pSelector, ePersudoType))
+      m_MatchedRules.push_back(pList);
     pList = pList->pNext;
   }
 }
-FX_BOOL CFDE_CSSStyleSelector::MatchSelector(FDE_LPCSSTAGCACHE pCache,
+
+FX_BOOL CFDE_CSSStyleSelector::MatchSelector(FDE_CSSTAGCACHE* pCache,
                                              IFDE_CSSSelector* pSel,
                                              FDE_CSSPERSUDO ePersudoType) {
   FX_DWORD dwHash;
@@ -407,29 +416,14 @@ FX_BOOL CFDE_CSSStyleSelector::MatchSelector(FDE_LPCSSTAGCACHE pCache,
   }
   return pSel == NULL && pCache != NULL;
 }
-void CFDE_CSSStyleSelector::SortRulesTo(CFDE_CSSDeclarationArray& matchDecls) {
-  for (int32_t j = m_MatchedRules.GetUpperBound(); j >= 0; --j) {
-    FDE_LPCSSRULEDATA& pMin = m_MatchedRules.ElementAt(j);
-    FX_DWORD dwMin = pMin->dwPriority;
-    for (int32_t i = j - 1; i >= 0; --i) {
-      FDE_LPCSSRULEDATA& pCur = m_MatchedRules.ElementAt(i);
-      if (dwMin > pCur->dwPriority) {
-        dwMin = pCur->dwPriority;
-        FDE_LPCSSRULEDATA p = pMin;
-        pMin = pCur;
-        pCur = p;
-      }
-    }
-    matchDecls.Add(pMin->pDeclaration);
-  }
-}
+
 void CFDE_CSSStyleSelector::ComputeStyle(
     IFDE_CSSTagProvider* pTag,
     const IFDE_CSSDeclaration** ppDeclArray,
     int32_t iDeclCount,
     IFDE_CSSComputedStyle* pDestStyle) {
-  CFDE_CSSComputedStyle* pComputedStyle = (CFDE_CSSComputedStyle*)pDestStyle;
-  FXSYS_assert(pTag && iDeclCount >= 0 && pComputedStyle != NULL);
+  FXSYS_assert(iDeclCount >= 0);
+  FXSYS_assert(pDestStyle);
   FX_POSITION pos = pTag->GetFirstAttribute();
   if (pos != NULL) {
     if (m_pInlineStyleStore == NULL) {
@@ -448,12 +442,12 @@ void CFDE_CSSStyleSelector::ComputeStyle(
           FX_HashCode_String_GetW(L"align", 5, TRUE);
       if (dwAttriHash == s_dwStyleHash) {
         if (pDecl == NULL) {
-          pDecl = FDE_NewWith(m_pInlineStyleStore) CFDE_CSSDeclaration;
+          pDecl = FXTARGET_NewWith(m_pInlineStyleStore) CFDE_CSSDeclaration;
         }
         AppendInlineStyle(pDecl, wsValue.GetPtr(), wsValue.GetLength());
       } else if (dwAttriHash == s_dwAlignHash) {
         if (pDecl == NULL) {
-          pDecl = FDE_NewWith(m_pInlineStyleStore) CFDE_CSSDeclaration;
+          pDecl = FXTARGET_NewWith(m_pInlineStyleStore) CFDE_CSSDeclaration;
         }
         FDE_CSSPROPERTYARGS args;
         args.pStringCache = NULL;

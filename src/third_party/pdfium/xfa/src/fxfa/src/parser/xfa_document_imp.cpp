@@ -5,23 +5,23 @@
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/src/foxitlib.h"
-#include "xfa/src/fxfa/src/common/xfa_utils.h"
-#include "xfa/src/fxfa/src/common/xfa_object.h"
-#include "xfa/src/fxfa/src/common/xfa_document.h"
-#include "xfa/src/fxfa/src/common/xfa_parser.h"
-#include "xfa/src/fxfa/src/common/xfa_script.h"
 #include "xfa/src/fxfa/src/common/xfa_docdata.h"
 #include "xfa/src/fxfa/src/common/xfa_doclayout.h"
-#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_document.h"
 #include "xfa/src/fxfa/src/common/xfa_fm2jsapi.h"
-#include "xfa_basic_imp.h"
-#include "xfa_document_layout_imp.h"
-#include "xfa_script_datawindow.h"
-#include "xfa_script_eventpseudomodel.h"
-#include "xfa_script_hostpseudomodel.h"
-#include "xfa_script_logpseudomodel.h"
-#include "xfa_script_layoutpseudomodel.h"
-#include "xfa_script_signaturepseudomodel.h"
+#include "xfa/src/fxfa/src/common/xfa_localemgr.h"
+#include "xfa/src/fxfa/src/common/xfa_object.h"
+#include "xfa/src/fxfa/src/common/xfa_parser.h"
+#include "xfa/src/fxfa/src/common/xfa_script.h"
+#include "xfa/src/fxfa/src/common/xfa_utils.h"
+#include "xfa/src/fxfa/src/parser/xfa_basic_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_document_layout_imp.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_datawindow.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_eventpseudomodel.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_hostpseudomodel.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_layoutpseudomodel.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_logpseudomodel.h"
+#include "xfa/src/fxfa/src/parser/xfa_script_signaturepseudomodel.h"
 CXFA_Document::CXFA_Document(IXFA_DocParser* pParser)
     : m_pParser(pParser),
       m_pScriptContext(nullptr),
@@ -90,14 +90,14 @@ void CXFA_Document::SetRoot(CXFA_Node* pNewRoot) {
 IXFA_Notify* CXFA_Document::GetNotify() const {
   return m_pParser->GetNotify();
 }
-CXFA_Object* CXFA_Document::GetXFANode(const CFX_WideStringC& wsNodeName) {
-  return GetXFANode(
+CXFA_Object* CXFA_Document::GetXFAObject(const CFX_WideStringC& wsNodeName) {
+  return GetXFAObject(
       FX_HashCode_String_GetW(wsNodeName.GetPtr(), wsNodeName.GetLength()));
 }
-CXFA_Object* CXFA_Document::GetXFANode(FX_DWORD dwNodeNameHash) {
+CXFA_Object* CXFA_Document::GetXFAObject(FX_DWORD dwNodeNameHash) {
   switch (dwNodeNameHash) {
     case XFA_HASHCODE_Data: {
-      CXFA_Node* pDatasetsNode = (CXFA_Node*)GetXFANode(XFA_HASHCODE_Datasets);
+      CXFA_Node* pDatasetsNode = ToNode(GetXFAObject(XFA_HASHCODE_Datasets));
       if (!pDatasetsNode) {
         return NULL;
       }
@@ -124,7 +124,7 @@ CXFA_Object* CXFA_Document::GetXFANode(FX_DWORD dwNodeNameHash) {
     }
       return NULL;
     case XFA_HASHCODE_Record: {
-      CXFA_Node* pData = (CXFA_Node*)GetXFANode(XFA_HASHCODE_Data);
+      CXFA_Node* pData = ToNode(GetXFAObject(XFA_HASHCODE_Data));
       return pData ? pData->GetFirstChildByClass(XFA_ELEMENT_DataGroup) : NULL;
     }
     case XFA_HASHCODE_DataWindow: {
@@ -168,15 +168,14 @@ CXFA_Object* CXFA_Document::GetXFANode(FX_DWORD dwNodeNameHash) {
   }
 }
 CXFA_Node* CXFA_Document::CreateNode(FX_DWORD dwPacket, XFA_ELEMENT eElement) {
-  XFA_LPCPACKETINFO pPacket = XFA_GetPacketByID(dwPacket);
-  return CreateNode(pPacket, eElement);
+  return CreateNode(XFA_GetPacketByID(dwPacket), eElement);
 }
-CXFA_Node* CXFA_Document::CreateNode(XFA_LPCPACKETINFO pPacket,
+CXFA_Node* CXFA_Document::CreateNode(const XFA_PACKETINFO* pPacket,
                                      XFA_ELEMENT eElement) {
   if (pPacket == NULL) {
     return NULL;
   }
-  XFA_LPCELEMENTINFO pElement = XFA_GetElementByID(eElement);
+  const XFA_ELEMENTINFO* pElement = XFA_GetElementByID(eElement);
   if (pElement && (pElement->dwPackets & pPacket->eName)) {
     CXFA_Node* pNode = new CXFA_Node(this, pPacket->eName, pElement->eName);
     if (pNode) {
@@ -212,7 +211,7 @@ FX_BOOL CXFA_Document::IsInteractive() {
   if (m_dwDocFlags & XFA_DOCFLAG_HasInteractive) {
     return m_dwDocFlags & XFA_DOCFLAG_Interactive;
   }
-  CXFA_Node* pConfig = (CXFA_Node*)this->GetXFANode(XFA_HASHCODE_Config);
+  CXFA_Node* pConfig = ToNode(GetXFAObject(XFA_HASHCODE_Config));
   if (!pConfig) {
     return FALSE;
   }
@@ -239,9 +238,9 @@ FX_BOOL CXFA_Document::IsInteractive() {
 CXFA_LocaleMgr* CXFA_Document::GetLocalMgr() {
   if (!m_pLocalMgr) {
     CFX_WideString wsLanguage;
-    this->GetParser()->GetNotify()->GetAppProvider()->GetLanguage(wsLanguage);
+    GetParser()->GetNotify()->GetAppProvider()->GetLanguage(wsLanguage);
     m_pLocalMgr = new CXFA_LocaleMgr(
-        (CXFA_Node*)this->GetXFANode(XFA_HASHCODE_LocaleSet), wsLanguage);
+        ToNode(GetXFAObject(XFA_HASHCODE_LocaleSet)), wsLanguage);
   }
   return m_pLocalMgr;
 }
@@ -355,7 +354,7 @@ static void XFA_ProtoMerge_MergeNode(CXFA_Document* pDocument,
   }
 }
 void CXFA_Document::DoProtoMerge() {
-  CXFA_Node* pTemplateRoot = (CXFA_Node*)GetXFANode(XFA_HASHCODE_Template);
+  CXFA_Node* pTemplateRoot = ToNode(GetXFAObject(XFA_HASHCODE_Template));
   if (!pTemplateRoot) {
     return;
   }
@@ -424,7 +423,7 @@ void CXFA_Document::DoProtoMerge() {
       int32_t iRet = m_pScriptContext->ResolveObjects(pUseHrefNode, wsSOM,
                                                       resoveNodeRS, dwFlag);
       if (iRet > 0 && resoveNodeRS.nodes[0]->IsNode()) {
-        pProtoNode = (CXFA_Node*)resoveNodeRS.nodes[0];
+        pProtoNode = resoveNodeRS.nodes[0]->AsNode();
       }
     } else if (!wsID.IsEmpty()) {
       if (!mIDMap.Lookup(

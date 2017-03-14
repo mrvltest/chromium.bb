@@ -28,7 +28,6 @@
 #define LocalDOMWindow_h
 
 #include "core/CoreExport.h"
-#include "core/dom/MessagePort.h"
 #include "core/events/EventTarget.h"
 #include "core/frame/DOMWindow.h"
 #include "core/frame/DOMWindowLifecycleNotifier.h"
@@ -148,7 +147,7 @@ public:
     void cancelAnimationFrame(int id) override;
     int requestIdleCallback(IdleRequestCallback*, const IdleRequestOptions&) override;
     void cancelIdleCallback(int id) override;
-    void schedulePostMessage(PassRefPtrWillBeRawPtr<MessageEvent>, LocalDOMWindow* source, SecurityOrigin* target, PassRefPtrWillBeRawPtr<ScriptCallStack> stackTrace);
+    void schedulePostMessage(PassRefPtrWillBeRawPtr<MessageEvent>, SecurityOrigin* target, PassRefPtr<ScriptCallStack>);
 
     void registerProperty(DOMWindowProperty*);
     void unregisterProperty(DOMWindowProperty*);
@@ -171,16 +170,14 @@ public:
 
     void postMessageTimerFired(PostMessageTimer*);
     void removePostMessageTimer(PostMessageTimer*);
-    void dispatchMessageEventWithOriginCheck(SecurityOrigin* intendedTargetOrigin, PassRefPtrWillBeRawPtr<Event>, PassRefPtrWillBeRawPtr<ScriptCallStack>);
+    void dispatchMessageEventWithOriginCheck(SecurityOrigin* intendedTargetOrigin, PassRefPtrWillBeRawPtr<Event>, PassRefPtr<ScriptCallStack>);
 
     // Events
     // EventTarget API
     void removeAllEventListeners() override;
 
     using EventTarget::dispatchEvent;
-    bool dispatchEvent(PassRefPtrWillBeRawPtr<Event> prpEvent, PassRefPtrWillBeRawPtr<EventTarget> prpTarget);
-
-    void dispatchLoadEvent();
+    DispatchEventResult dispatchEvent(PassRefPtrWillBeRawPtr<Event> prpEvent, PassRefPtrWillBeRawPtr<EventTarget> prpTarget);
 
     void finishedLoading();
 
@@ -240,6 +237,7 @@ private:
     explicit LocalDOMWindow(LocalFrame&);
     void dispose();
 
+    void dispatchLoadEvent();
     void clearDocument();
     void willDestroyDocumentInFrame();
 

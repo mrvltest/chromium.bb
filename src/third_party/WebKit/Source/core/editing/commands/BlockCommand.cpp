@@ -45,10 +45,10 @@ BlockCommand::BlockCommand(Document& document)
 {
 }
 
-void BlockCommand::formatBlockExtent(PassRefPtr<Node> prpFirstNode, PassRefPtr<Node> prpLastNode, Node* stayWithin)
+void BlockCommand::formatBlockExtent(PassRefPtrWillBeRawPtr<Node> prpFirstNode, PassRefPtrWillBeRawPtr<Node> prpLastNode, Node* stayWithin, EditingState *editingState)
 {
-    RefPtr<Node> currentNode = prpFirstNode;
-    RefPtr<Node> endNode = prpLastNode;
+    RefPtrWillBeRawPtr<Node> currentNode = prpFirstNode;
+    RefPtrWillBeRawPtr<Node> endNode = prpLastNode;
 
     while (currentNode->isDescendantOf(endNode.get()))
         endNode = endNode->lastChild();
@@ -59,43 +59,43 @@ void BlockCommand::formatBlockExtent(PassRefPtr<Node> prpFirstNode, PassRefPtr<N
             currentNode = currentNode->firstChild();
         }
 
-        RefPtr<Node> firstSibling = currentNode;
-        RefPtr<Node> lastSibling = currentNode;
+        RefPtrWillBeRawPtr<Node> firstSibling = currentNode;
+        RefPtrWillBeRawPtr<Node> lastSibling = currentNode;
 
         while (lastSibling != endNode) {
-            RefPtr<Node> nextSibling = lastSibling->nextSibling();
+            RefPtrWillBeRawPtr<Node> nextSibling = lastSibling->nextSibling();
             if (!nextSibling || endNode->isDescendantOf(nextSibling.get()))
                 break;
             lastSibling = nextSibling;
         }
 
-        RefPtr<Node> nextNode = lastSibling == endNode ? 0 : NodeTraversal::nextSkippingChildren(*lastSibling, stayWithin);
-        formatBlockSiblings(firstSibling, lastSibling, stayWithin, endNode.get());
+        RefPtrWillBeRawPtr<Node> nextNode = lastSibling == endNode ? 0 : NodeTraversal::nextSkippingChildren(*lastSibling, stayWithin);
+        formatBlockSiblings(firstSibling, lastSibling, stayWithin, endNode.get(), editingState);
         currentNode = nextNode;
     }
 }
 
-void BlockCommand::formatBlockSiblings(PassRefPtr<Node> prpFirstSibling, PassRefPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode)
+void BlockCommand::formatBlockSiblings(PassRefPtrWillBeRawPtr<Node> prpFirstSibling, PassRefPtrWillBeRawPtr<Node> prpLastSibling, Node* stayWithin, Node* lastNode, EditingState *editingState)
 {
     ASSERT_NOT_REACHED();
 }
 
-void BlockCommand::doApply()
+void BlockCommand::doApply(EditingState *editingState)
 {
     VisiblePosition startOfSelection;
     VisiblePosition endOfSelection;
-    RefPtr<ContainerNode> startScope;
-    RefPtr<ContainerNode> endScope;
+    RefPtrWillBeRawPtr<ContainerNode> startScope;
+    RefPtrWillBeRawPtr<ContainerNode> endScope;
     int startIndex;
     int endIndex;
 
     if (!prepareForBlockCommand(startOfSelection, endOfSelection, startScope, endScope, startIndex, endIndex, true))
         return;
-    formatSelection(startOfSelection, endOfSelection);
+    formatSelection(startOfSelection, endOfSelection, editingState);
     finishBlockCommand(startScope, endScope, startIndex, endIndex);
 }
 
-void BlockCommand::formatSelection(const VisiblePosition& startOfSelection, const VisiblePosition& endOfSelection)
+void BlockCommand::formatSelection(const VisiblePosition& startOfSelection, const VisiblePosition& endOfSelection, EditingState *editingState)
 {
     // might be null if the recursion below goes awry
     if (startOfSelection.isNull() || endOfSelection.isNull())
@@ -108,11 +108,11 @@ void BlockCommand::formatSelection(const VisiblePosition& startOfSelection, cons
         if (startEnclosingCell && (!endEnclosingCell || !endEnclosingCell->isDescendantOf(startEnclosingCell))) {
             VisiblePosition newEnd = createVisiblePosition(lastPositionInNode(startEnclosingCell));
             VisiblePosition nextStart = nextPositionOf(newEnd);
-            while (isRenderedTableElement(nextStart.deepEquivalent().anchorNode()))
+            while (isDisplayInsideTable(nextStart.deepEquivalent().anchorNode()))
                 nextStart = nextPositionOf(nextStart);
             // TODO: fix recursion!
-            formatSelection(startOfSelection, newEnd);
-            formatSelection(nextStart, endOfSelection);
+            formatSelection(startOfSelection, newEnd, editingState);
+            formatSelection(nextStart, endOfSelection, editingState);
             return;
         }
 
@@ -120,11 +120,11 @@ void BlockCommand::formatSelection(const VisiblePosition& startOfSelection, cons
 
         VisiblePosition nextStart = createVisiblePosition(firstPositionInNode(endEnclosingCell));
         VisiblePosition newEnd = previousPositionOf(nextStart);
-        while (isRenderedTableElement(newEnd.deepEquivalent().anchorNode()))
+        while (isDisplayInsideTable(newEnd.deepEquivalent().anchorNode()))
             newEnd = previousPositionOf(newEnd);
         // TODO: fix recursion!
-        formatSelection(startOfSelection, newEnd);
-        formatSelection(nextStart, endOfSelection);
+        formatSelection(startOfSelection, newEnd, editingState);
+        formatSelection(nextStart, endOfSelection, editingState);
         return;
     }
 
@@ -133,13 +133,13 @@ void BlockCommand::formatSelection(const VisiblePosition& startOfSelection, cons
     if (!root || root == startOfSelection.deepEquivalent().anchorNode())
         return;
 
-    RefPtr<Node> currentNode = blockExtentStart(startOfSelection.deepEquivalent().anchorNode(), root);
-    RefPtr<Node> endNode = blockExtentEnd(endOfSelection.deepEquivalent().anchorNode(), root);
+    RefPtrWillBeRawPtr<Node> currentNode = blockExtentStart(startOfSelection.deepEquivalent().anchorNode(), root);
+    RefPtrWillBeRawPtr<Node> endNode = blockExtentEnd(endOfSelection.deepEquivalent().anchorNode(), root);
 
     while (currentNode->isDescendantOf(endNode.get()))
         endNode = endNode->lastChild();
 
-    formatBlockExtent(currentNode, endNode, root);
+    formatBlockExtent(currentNode, endNode, root, editingState);
 }
 
 }

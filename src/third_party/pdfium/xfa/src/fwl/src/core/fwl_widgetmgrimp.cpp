@@ -4,12 +4,18 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#include "xfa/src/foxitlib.h"
-#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
 #include "xfa/src/fwl/src/core/include/fwl_widgetmgrimp.h"
-#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+
+#include "xfa/include/fwl/adapter/fwl_adapternative.h"
+#include "xfa/include/fwl/adapter/fwl_adapterwidgetmgr.h"
+#include "xfa/include/fwl/core/fwl_app.h"
+#include "xfa/include/fwl/core/fwl_form.h"
+#include "xfa/src/foxitlib.h"
 #include "xfa/src/fwl/src/core/include/fwl_appimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_noteimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_targetimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_threadimp.h"
+#include "xfa/src/fwl/src/core/include/fwl_widgetimp.h"
 
 FX_BOOL FWL_UseOffscreen(IFWL_Widget* pWidget) {
 #if (_FX_OS_ == _FX_MACOSX_)
@@ -33,13 +39,6 @@ CFWL_WidgetMgr::CFWL_WidgetMgr(IFWL_AdapterNative* pAdapterNative)
   m_mapWidgetItem.SetAt(NULL, pRoot);
 #if (_FX_OS_ == _FX_WIN32_DESKTOP_) || (_FX_OS_ == _FX_WIN64_)
   m_rtScreen.Reset();
-  IFWL_AdapterMonitorMgr* pMonitorMgr = pAdapterNative->GetMonitorMgr();
-  if (pMonitorMgr) {
-    FWL_HMONITOR monitor = pMonitorMgr->GetCurrentMonitor();
-    if (monitor) {
-      pMonitorMgr->GetMonitorSize(monitor, m_rtScreen.width, m_rtScreen.height);
-    }
-  }
 #endif
 }
 CFWL_WidgetMgr::~CFWL_WidgetMgr() {
@@ -863,13 +862,15 @@ void CFWL_WidgetMgrDelegate::DrawWidgetAfter(IFWL_Widget* pWidget,
   CFWL_WidgetMgrItem* pItem = m_pWidgetMgr->GetWidgetMgrItem(pWidget);
   pItem->iRedrawCounter = 0;
 }
+
 #define FWL_NEEDREPAINTHIT_Point 12
 #define FWL_NEEDREPAINTHIT_Piece 3
-typedef struct _FWL_NeedRepaintHitData {
+struct FWL_NEEDREPAINTHITDATA {
   CFX_PointF hitPoint;
   FX_BOOL bNotNeedRepaint;
   FX_BOOL bNotContainByDirty;
-} FWL_NeedRepaintHitData;
+};
+
 FX_BOOL CFWL_WidgetMgrDelegate::IsNeedRepaint(IFWL_Widget* pWidget,
                                               CFX_Matrix* pMatrix,
                                               const CFX_RectF& rtDirty) {
@@ -907,8 +908,8 @@ FX_BOOL CFWL_WidgetMgrDelegate::IsNeedRepaint(IFWL_Widget* pWidget,
   FX_BOOL bOrginPtIntersectWidthChild = FALSE;
   FX_BOOL bOrginPtIntersectWidthDirty =
       rtDirty.Contains(rtWidget.left, rtWidget.top);
-  static FWL_NeedRepaintHitData hitPoint[FWL_NEEDREPAINTHIT_Point];
-  static int32_t iSize = sizeof(FWL_NeedRepaintHitData);
+  static FWL_NEEDREPAINTHITDATA hitPoint[FWL_NEEDREPAINTHIT_Point];
+  int32_t iSize = sizeof(FWL_NEEDREPAINTHITDATA);
   FXSYS_memset(hitPoint, 0, iSize);
   FX_FLOAT fxPiece = rtWidget.width / FWL_NEEDREPAINTHIT_Piece;
   FX_FLOAT fyPiece = rtWidget.height / FWL_NEEDREPAINTHIT_Piece;

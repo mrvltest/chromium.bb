@@ -4,11 +4,11 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FWL_CARET_H
-#define _FWL_CARET_H
-class CFWL_WidgetImpProperties;
-class IFWL_Widget;
-class IFWL_Caret;
+#ifndef XFA_INCLUDE_FWL_BASEWIDGET_FWL_CARET_H_
+#define XFA_INCLUDE_FWL_BASEWIDGET_FWL_CARET_H_
+
+#include "xfa/include/fwl/core/fwl_widget.h"
+
 #define FWL_CLASS_Caret L"FWL_CARET"
 #define FWL_CLASSHASH_Caret 671181879
 #define FWL_STATE_CAT_HightLight 1
@@ -28,4 +28,5 @@ class IFWL_Caret : public IFWL_Widget {
  protected:
   IFWL_Caret();
 };
-#endif
+
+#endif  // XFA_INCLUDE_FWL_BASEWIDGET_FWL_CARET_H_

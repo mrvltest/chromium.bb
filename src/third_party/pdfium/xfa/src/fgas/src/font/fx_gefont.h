@@ -4,14 +4,15 @@
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
-#ifndef _FX_GRAPHOBJS_IMP
-#define _FX_GRAPHOBJS_IMP
-#ifndef _FXPLUS
-class CFX_GEFontMgr;
-#ifndef FXFONT_SUBST_ITALIC
+#ifndef XFA_SRC_FGAS_SRC_FONT_FX_GEFONT_H_
+#define XFA_SRC_FGAS_SRC_FONT_FX_GEFONT_H_
+
+#include "xfa/src/fgas/include/fx_fnt.h"
+#include "xfa/src/fgas/include/fx_utl.h"
+
 #define FXFONT_SUBST_ITALIC 0x02
-#endif
-class CFX_GEFont : public IFX_Font, public CFX_ThreadLock {
+
+class CFX_GEFont : public IFX_Font {
  public:
   CFX_GEFont(const CFX_GEFont& src, FX_DWORD dwFontStyles);
   CFX_GEFont(IFX_FontMgr* pFontMgr);
@@ -53,6 +54,7 @@ class CFX_GEFont : public IFX_Font, public CFX_ThreadLock {
     m_dwLogFontStyle = dwLogFontStyle;
   };
 #endif
+
  protected:
 #if _FXM_PLATFORM_ != _FXM_PLATFORM_WINDOWS_
   FX_BOOL m_bUseLogFontStyle;
@@ -86,5 +88,5 @@ class CFX_GEFont : public IFX_Font, public CFX_ThreadLock {
                         IFX_Font** ppFont,
                         FX_BOOL bCharCode = FALSE);
 };
-#endif
-#endif
+
+#endif  // XFA_SRC_FGAS_SRC_FONT_FX_GEFONT_H_
