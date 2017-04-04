@@ -46,6 +46,9 @@ class IPC_EXPORT AttachmentBrokerPrivilegedWin
   // observers. Otherwise, send it in an IPC to its destination.
   void RouteDuplicatedHandle(const HandleWireFormat& wire_format);
 
+  // Sends the message from the Browser IO thread
+  void SendInBrowserIOThread(const HandleWireFormat& wire_format, SRWLOCK* lock);
+
   DISALLOW_COPY_AND_ASSIGN(AttachmentBrokerPrivilegedWin);
 };
 

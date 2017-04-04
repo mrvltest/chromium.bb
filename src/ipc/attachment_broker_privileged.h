@@ -48,7 +48,7 @@ class IPC_EXPORT AttachmentBrokerPrivileged : public IPC::AttachmentBroker {
   static void CreateBrokerForSingleProcessTests();
 
   // AttachmentBroker overrides.
-  void RegisterCommunicationChannel(Endpoint* endpoint) override;
+  void RegisterCommunicationChannel(Endpoint* endpoint, const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) override;
   void DeregisterCommunicationChannel(Endpoint* endpoint) override;
   bool IsPrivilegedBroker() override;
 
@@ -59,6 +59,10 @@ class IPC_EXPORT AttachmentBrokerPrivileged : public IPC::AttachmentBroker {
   // this method. The return value is only guaranteed to be valid while the lock
   // is held.
   Sender* GetSenderWithProcessId(base::ProcessId id);
+
+  const scoped_refptr<base::SingleThreadTaskRunner>& task_runner() {
+    return task_runner_;
+  }
 
   // Errors that can be reported by subclasses.
   // These match tools/metrics/histograms.xml.
@@ -106,6 +110,7 @@ class IPC_EXPORT AttachmentBrokerPrivileged : public IPC::AttachmentBroker {
 
  private:
   std::vector<Endpoint*> endpoints_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   DISALLOW_COPY_AND_ASSIGN(AttachmentBrokerPrivileged);
 };
 

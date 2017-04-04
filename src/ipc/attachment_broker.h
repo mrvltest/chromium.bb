@@ -9,6 +9,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/process/process_handle.h"
+#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
 #include "ipc/brokerable_attachment.h"
@@ -94,7 +95,7 @@ class IPC_EXPORT AttachmentBroker : public Listener {
   // communicates attachment information with the broker process. In the broker
   // process, these channels must be registered and deregistered with the
   // Attachment Broker as they are created and destroyed.
-  virtual void RegisterCommunicationChannel(Endpoint* endpoint);
+  virtual void RegisterCommunicationChannel(Endpoint* endpoint, const scoped_refptr<base::SingleThreadTaskRunner>& task_runner);
   virtual void DeregisterCommunicationChannel(Endpoint* endpoint);
 
   // In each unprivileged process, exactly one channel should be used to

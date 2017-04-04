@@ -810,7 +810,7 @@ scoped_ptr<IPC::ChannelProxy> RenderProcessHostImpl::CreateChannelProxy(
       new IPC::ChannelProxy(this, runner.get()));
 #if USE_ATTACHMENT_BROKER
   IPC::AttachmentBroker::GetGlobal()->RegisterCommunicationChannel(
-      channel.get());
+      channel.get(), runner.get());
 #endif
   channel->Init(
       IPC::ChannelMojo::CreateServerFactory(mojo_task_runner, channel_id),
@@ -831,7 +831,7 @@ scoped_ptr<IPC::ChannelProxy> RenderProcessHostImpl::CreateChannelProxy(
       new IPC::ChannelProxy(this, runner.get()));
 #if USE_ATTACHMENT_BROKER
   IPC::AttachmentBroker::GetGlobal()->RegisterCommunicationChannel(
-      channel.get());
+      channel.get(), runner.get());
 #endif
   channel->Init(channel_id, IPC::Channel::MODE_SERVER, true);
   return channel;

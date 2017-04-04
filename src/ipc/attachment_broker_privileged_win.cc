@@ -71,19 +71,10 @@ void AttachmentBrokerPrivilegedWin::OnDuplicateWinHandle(
   RouteDuplicatedHandle(new_wire_format);
 }
 
-void AttachmentBrokerPrivilegedWin::RouteDuplicatedHandle(
-    const HandleWireFormat& wire_format) {
-  // This process is the destination.
-  if (wire_format.destination_process == base::Process::Current().Pid()) {
-    scoped_refptr<BrokerableAttachment> attachment(
-        new internal::HandleAttachmentWin(wire_format));
-    HandleReceivedAttachment(attachment);
-    return;
-  }
-
-  // Another process is the destination.
+void AttachmentBrokerPrivilegedWin::SendInBrowserIOThread(const HandleWireFormat& wire_format, SRWLOCK* lock) {
   base::ProcessId dest = wire_format.destination_process;
   base::AutoLock auto_lock(*get_lock());
+
   Sender* sender = GetSenderWithProcessId(dest);
   if (!sender) {
     // Assuming that this message was not sent from a malicious process, the
@@ -97,6 +88,63 @@ void AttachmentBrokerPrivilegedWin::RouteDuplicatedHandle(
 
   LogError(DESTINATION_FOUND);
   sender->Send(new AttachmentBrokerMsg_WinHandleHasBeenDuplicated(wire_format));
+  ReleaseSRWLockExclusive(lock);
+}
+
+void AttachmentBrokerPrivilegedWin::RouteDuplicatedHandle(
+    const HandleWireFormat& wire_format) {
+  // This process is the destination.
+  if (wire_format.destination_process == base::Process::Current().Pid()) {
+    scoped_refptr<BrokerableAttachment> attachment(
+        new internal::HandleAttachmentWin(wire_format));
+    HandleReceivedAttachment(attachment);
+    return;
+  }
+
+  // Another process is the destination.
+  base::ProcessId dest = wire_format.destination_process;
+
+  if (task_runner()->BelongsToCurrentThread()) {
+    // The current thread is Chrome_IOThread
+
+    base::AutoLock auto_lock(*get_lock());
+    Sender* sender = GetSenderWithProcessId(dest);
+    if (!sender) {
+      // Assuming that this message was not sent from a malicious process, the
+      // channel endpoint that would have received this message will block
+      // forever.
+      LOG(ERROR) << "Failed to deliver brokerable attachment to process with id: "
+                 << dest;
+      LogError(DESTINATION_NOT_FOUND);
+      return;
+    }
+
+    LogError(DESTINATION_FOUND);
+    sender->Send(new AttachmentBrokerMsg_WinHandleHasBeenDuplicated(wire_format));
+  }
+  else {
+    // The current thread is not Chrome_IOThread.  It is likely
+    // Chrome_ChildIOThread if a renderer is running inside of the browser
+    // process.  The AttachmentBrokerPrivileged is owned by Chrome_IOThread
+    // (which is owned by the browser process) and so the Chrome_ChildIOThread
+    // (which is owned by the renderer process) cannot use the same
+    // (thread-unsafe) IPC::Channel to send messages out.  To resolve this
+    // issue, we hop over to the Chrome_IOThread and blockingly wait for the
+    // posted task to release a lock.
+    SRWLOCK lock = SRWLOCK_INIT;
+    AcquireSRWLockExclusive(&lock);
+
+    task_runner()->PostTask(
+          FROM_HERE,
+          base::Bind(&AttachmentBrokerPrivilegedWin::SendInBrowserIOThread,
+          base::Unretained(this),
+          wire_format,
+          &lock));
+
+    // This will block the thread until the posted task is completed.
+    AcquireSRWLockExclusive(&lock);
+    ReleaseSRWLockExclusive(&lock);
+  }
 }
 
 AttachmentBrokerPrivilegedWin::HandleWireFormat
