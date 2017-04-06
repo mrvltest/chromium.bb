@@ -181,14 +181,16 @@ void SetRuntimeFeaturesDefaultsAndUpdateFromArgs(
 //      WebRuntimeFeatures::enableWebFontsInterventionTrigger(true);
 //  }
 
-  if (base::FeatureList::IsEnabled(features::kScrollAnchoring))
-    WebRuntimeFeatures::enableScrollAnchoring(true);
+/// TODO: Fix this
+//  if (base::FeatureList::IsEnabled(features::kScrollAnchoring))
+//    WebRuntimeFeatures::enableScrollAnchoring(true);
 
   if (command_line.HasSwitch(switches::kEnableSlimmingPaintV2))
     WebRuntimeFeatures::enableSlimmingPaintV2(true);
 
-  if (base::FeatureList::IsEnabled(features::kRenderingPipelineThrottling))
-    WebRuntimeFeatures::enableRenderingPipelineThrottling(true);
+/// TODO: Fix this
+//  if (base::FeatureList::IsEnabled(features::kRenderingPipelineThrottling))
+//    WebRuntimeFeatures::enableRenderingPipelineThrottling(true);
 
   // Enable explicitly enabled features, and then disable explicitly disabled
   // ones.

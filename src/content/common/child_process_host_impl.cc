@@ -134,7 +134,7 @@ std::string ChildProcessHostImpl::CreateChannel() {
   channel_ = IPC::Channel::CreateServer(channel_id_, this);
 #if USE_ATTACHMENT_BROKER
   IPC::AttachmentBroker::GetGlobal()->RegisterCommunicationChannel(
-      channel_.get());
+      channel_.get(), base::MessageLoopForIO::current()->task_runner());
 #endif
   if (!channel_->Connect()) {
 #if USE_ATTACHMENT_BROKER

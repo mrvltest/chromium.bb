@@ -110,12 +110,14 @@ void AttachmentBrokerPrivileged::CreateBrokerForSingleProcessTests() {
 }
 
 void AttachmentBrokerPrivileged::RegisterCommunicationChannel(
-    Endpoint* endpoint) {
+    Endpoint* endpoint,
+    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner) {
   base::AutoLock auto_lock(*get_lock());
   endpoint->SetAttachmentBrokerEndpoint(true);
   auto it = std::find(endpoints_.begin(), endpoints_.end(), endpoint);
   DCHECK(endpoints_.end() == it);
   endpoints_.push_back(endpoint);
+  task_runner_ = task_runner;
 }
 
 void AttachmentBrokerPrivileged::DeregisterCommunicationChannel(
