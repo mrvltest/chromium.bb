@@ -717,28 +717,14 @@ static void adjustMidpointsAndAppendRunsForObjectIfNeeded(LineLayoutItem obj, un
             if (nextMidpoint.offset() + 1 <= end) {
                 lineMidpointState.setBetweenMidpoints(true);
                 lineMidpointState.incrementCurrentMidpoint();
-                if (start < end)
+                if (nextMidpoint.offset() != UINT_MAX) { // UINT_MAX means stop at the object and don't nclude any of it.
+                    if (nextMidpoint.offset() + 1 > start)
+                        appendRunObjectIfNecessary(obj, start, nextMidpoint.offset() + 1, root, resolver, behavior, tracker);
+                    start = nextMidpoint.offset() + 1;
                     continue;
+                }
             } else {
-                if (!haveNextMidpoint || (obj != nextMidpoint.getLineLayoutItem())) {
-                    appendRunObjectIfNecessary(obj, start, end, root, resolver, behavior, tracker);
-                    return;
-                }
-
-                // An end midpoint has been encountered within our object. We
-                // need to go ahead and append a run with our endpoint.
-                if (nextMidpoint.offset() + 1 <= end) {
-                    lineMidpointState.setBetweenMidpoints(true);
-                    lineMidpointState.incrementCurrentMidpoint();
-                    if (nextMidpoint.offset() != UINT_MAX) { // UINT_MAX means stop at the object and don't nclude any of it.
-                        if (nextMidpoint.offset() + 1 > start)
-                            appendRunObjectIfNecessary(obj, start, nextMidpoint.offset() + 1, root, resolver, behavior, tracker);
-                        start = nextMidpoint.offset() + 1;
-                        continue;
-                    }
-                } else {
-                    appendRunObjectIfNecessary(obj, start, end, root, resolver, behavior, tracker);
-                }
+                appendRunObjectIfNecessary(obj, start, end, root, resolver, behavior, tracker);
             }
         }
         return;
