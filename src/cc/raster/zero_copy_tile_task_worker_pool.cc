@@ -33,7 +33,7 @@ class RasterBufferImpl : public RasterBuffer {
                 const gfx::Rect& raster_full_rect,
                 const gfx::Rect& raster_dirty_rect,
                 uint64_t new_content_id,
-                float scale,
+                const gfx::AxisTransform2d& transform,
                 bool include_images) override {
     gfx::GpuMemoryBuffer* buffer = lock_.GetGpuMemoryBuffer();
     if (!buffer)
@@ -50,7 +50,7 @@ class RasterBufferImpl : public RasterBuffer {
     TileTaskWorkerPool::PlaybackToMemory(
         buffer->memory(0), resource_->format(), resource_->size(),
         buffer->stride(0), raster_source, raster_full_rect, raster_full_rect,
-        scale, include_images);
+        transform, include_images);
     buffer->Unmap();
   }
 

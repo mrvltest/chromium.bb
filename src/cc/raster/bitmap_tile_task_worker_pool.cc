@@ -39,7 +39,7 @@ class RasterBufferImpl : public RasterBuffer {
                 const gfx::Rect& raster_full_rect,
                 const gfx::Rect& raster_dirty_rect,
                 uint64_t new_content_id,
-                float scale,
+                const gfx::AxisTransform2d& transform,
                 bool include_images) override {
     gfx::Rect playback_rect = raster_full_rect;
     if (resource_has_previous_content_) {
@@ -51,7 +51,7 @@ class RasterBufferImpl : public RasterBuffer {
     size_t stride = 0u;
     TileTaskWorkerPool::PlaybackToMemory(
         lock_.sk_bitmap().getPixels(), resource_->format(), resource_->size(),
-        stride, raster_source, raster_full_rect, playback_rect, scale,
+        stride, raster_source, raster_full_rect, playback_rect, transform,
         include_images);
   }
 

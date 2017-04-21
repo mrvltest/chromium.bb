@@ -17,6 +17,7 @@
 #include "cc/trees/layer_tree_host_common.h"
 #include "cc/trees/layer_tree_host_impl.h"
 #include "cc/trees/layer_tree_impl.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
@@ -27,7 +28,7 @@ const int kDefaultRasterizeRepeatCount = 100;
 
 void RunBenchmark(DisplayListRasterSource* raster_source,
                   const gfx::Rect& content_rect,
-                  float contents_scale,
+                  const gfx::Scaling2d& contents_scale,
                   size_t repeat_count,
                   base::TimeDelta* min_time,
                   bool* is_solid_color) {
@@ -45,7 +46,7 @@ void RunBenchmark(DisplayListRasterSource* raster_source,
                    kTimeCheckInterval);
     SkColor color = SK_ColorTRANSPARENT;
     *is_solid_color = raster_source->PerformSolidColorAnalysis(
-        content_rect, contents_scale, &color);
+        content_rect, gfx::AxisTransform2d(contents_scale), &color);
 
     do {
       SkBitmap bitmap;
@@ -54,7 +55,7 @@ void RunBenchmark(DisplayListRasterSource* raster_source,
       SkCanvas canvas(bitmap);
 
       raster_source->PlaybackToCanvas(&canvas, content_rect, content_rect,
-                                      contents_scale);
+                                      gfx::AxisTransform2d(contents_scale));
 
       timer.NextLap();
     } while (!timer.HasTimeLimitExpired());
@@ -185,11 +186,10 @@ void RasterizeAndRecordBenchmarkImpl::RunOnLayer(PictureLayerImpl* layer) {
     DCHECK(*it);
 
     gfx::Rect content_rect = (*it)->content_rect();
-    float contents_scale = (*it)->contents_scale();
 
     base::TimeDelta min_time;
     bool is_solid_color = false;
-    RunBenchmark(raster_source, content_rect, contents_scale,
+    RunBenchmark(raster_source, content_rect, (*it)->contents_transform().scale(),
                  rasterize_repeat_count_, &min_time, &is_solid_color);
 
     int tile_size = content_rect.width() * content_rect.height();

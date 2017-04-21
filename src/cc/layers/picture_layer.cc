@@ -14,6 +14,7 @@
 #include "cc/proto/layer.pb.h"
 #include "cc/trees/layer_tree_host.h"
 #include "cc/trees/layer_tree_impl.h"
+#include "cc/trees/property_tree.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -59,6 +60,9 @@ void PictureLayer::PushPropertiesTo(LayerImpl* base_layer) {
   DropRecordingSourceContentIfInvalid();
 
   layer_impl->SetNearestNeighbor(nearest_neighbor_);
+
+  layer_impl->SetUseTransformedRasterization(
+      ShouldUseTransformedRasterization());
 
   // Preserve lcd text settings from the current raster source.
   bool can_use_lcd_text = layer_impl->RasterSourceUsesLCDText();
@@ -185,6 +189,25 @@ void PictureLayer::SetDefaultLCDBackgroundColor(SkColor default_lcd_background_c
 
 bool PictureLayer::HasDrawableContent() const {
   return client_ && Layer::HasDrawableContent();
+}
+
+bool PictureLayer::ShouldUseTransformedRasterization() const {
+  const TransformTree& transform_tree =
+      layer_tree_host()->property_trees()->transform_tree;
+  DCHECK(!transform_tree.needs_update());
+  if (transform_tree.Node(transform_tree_index())
+          ->data.to_screen_is_animated) {
+    return false;
+  }
+
+  const gfx::Transform& to_screen =
+      transform_tree.Node(transform_tree_index())
+          ->data.to_screen;
+  if (!to_screen.IsScaleOrTranslation()) {
+    return false;
+  }
+
+  return true;
 }
 
 void PictureLayer::SetTypeForProtoSerialization(proto::LayerNode* proto) const {

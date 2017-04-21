@@ -17,6 +17,8 @@
         'GFX_IMPLEMENTATION',
       ],
       'sources': [
+        'geometry/axis_transform2d.h',
+        'geometry/axis_transform2d.cc',
         'geometry/box_f.cc',
         'geometry/box_f.h',
         'geometry/cubic_bezier.cc',
@@ -46,6 +48,8 @@
         'geometry/rect_f.cc',
         'geometry/rect_f.h',
         'geometry/safe_integer_conversions.h',
+        'geometry/scaling2d.cc',
+        'geometry/scaling2d.h',
         'geometry/scroll_offset.cc',
         'geometry/scroll_offset.h',
         'geometry/size.cc',

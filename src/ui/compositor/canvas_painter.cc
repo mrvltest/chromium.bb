@@ -6,6 +6,7 @@
 
 #include "cc/playback/display_item_list.h"
 #include "cc/playback/display_item_list_settings.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/canvas.h"
 
 namespace ui {
@@ -23,7 +24,7 @@ CanvasPainter::CanvasPainter(gfx::Canvas* canvas, float raster_scale_factor)
 
 CanvasPainter::~CanvasPainter() {
   list_->Finalize();
-  list_->Raster(canvas_->sk_canvas(), nullptr, rect_, raster_scale_factor_);
+  list_->Raster(canvas_->sk_canvas(), nullptr, rect_, gfx::AxisTransform2d(raster_scale_factor_));
 }
 
 }  // namespace ui

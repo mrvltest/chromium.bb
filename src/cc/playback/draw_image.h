@@ -9,6 +9,7 @@
 #include "third_party/skia/include/core/SkFilterQuality.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkMatrix.h"
+#include "ui/gfx/geometry/scaling2d.h"
 
 namespace cc {
 
@@ -36,6 +37,13 @@ class CC_EXPORT DrawImage {
     return DrawImage(
         image_, src_rect_,
         SkSize::Make(scale_.width() * scale, scale_.height() * scale),
+        filter_quality_, matrix_has_perspective_, matrix_is_decomposable_);
+  }
+
+  DrawImage ApplyScale(const gfx::Scaling2d& scale) const {
+    return DrawImage(
+        image_, src_rect_,
+        SkSize::Make(scale_.width() * scale.x(), scale_.height() * scale.y()),
         filter_quality_, matrix_has_perspective_, matrix_is_decomposable_);
   }
 

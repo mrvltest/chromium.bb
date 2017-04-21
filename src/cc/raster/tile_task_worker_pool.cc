@@ -108,7 +108,7 @@ void TileTaskWorkerPool::PlaybackToMemory(
     const DisplayListRasterSource* raster_source,
     const gfx::Rect& canvas_bitmap_rect,
     const gfx::Rect& canvas_playback_rect,
-    float scale,
+    const gfx::AxisTransform2d& transform,
     bool include_images) {
   TRACE_EVENT0("cc", "TileTaskWorkerPool::PlaybackToMemory");
 
@@ -137,7 +137,8 @@ void TileTaskWorkerPool::PlaybackToMemory(
           SkSurface::NewRasterDirect(info, memory, stride, &surface_props));
       AutoSkipImageCanvas canvas(surface->getCanvas(), include_images);
       raster_source->PlaybackToCanvas(canvas, canvas_bitmap_rect,
-                                      canvas_playback_rect, scale);
+                                      canvas_playback_rect,
+                                      transform);
       return;
     }
     case RGBA_4444:
@@ -148,7 +149,8 @@ void TileTaskWorkerPool::PlaybackToMemory(
       // TODO(reveman): Improve partial raster support by reducing the size of
       // playback rect passed to PlaybackToCanvas. crbug.com/519070
       raster_source->PlaybackToCanvas(canvas, canvas_bitmap_rect,
-                                      canvas_bitmap_rect, scale);
+                                      canvas_bitmap_rect,
+                                      transform);
 
       if (format == ETC1) {
         TRACE_EVENT0("cc",

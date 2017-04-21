@@ -27,6 +27,7 @@
 #include "cc/raster/task_category.h"
 #include "cc/raster/tile_task_runner.h"
 #include "cc/tiles/tile.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace cc {
@@ -47,7 +48,7 @@ class RasterTaskImpl : public RasterTask {
                  DisplayListRasterSource* raster_source,
                  const gfx::Rect& content_rect,
                  const gfx::Rect& invalid_content_rect,
-                 float contents_scale,
+                 const gfx::AxisTransform2d& contents_transform,
                  TileResolution tile_resolution,
                  int layer_id,
                  uint64_t source_prepare_tiles_id,
@@ -63,7 +64,7 @@ class RasterTaskImpl : public RasterTask {
         raster_source_(raster_source),
         content_rect_(content_rect),
         invalid_content_rect_(invalid_content_rect),
-        contents_scale_(contents_scale),
+        contents_transform_(contents_transform),
         tile_resolution_(tile_resolution),
         layer_id_(layer_id),
         source_prepare_tiles_id_(source_prepare_tiles_id),
@@ -111,14 +112,14 @@ class RasterTaskImpl : public RasterTask {
     bool include_images = tile_resolution_ != LOW_RESOLUTION;
     raster_buffer_->Playback(raster_source_.get(), content_rect_,
                              invalid_content_rect_, new_content_id_,
-                             contents_scale_, include_images);
+                             gfx::AxisTransform2d(contents_transform_), include_images);
   }
 
   const Resource* resource_;
   scoped_refptr<DisplayListRasterSource> raster_source_;
   gfx::Rect content_rect_;
   gfx::Rect invalid_content_rect_;
-  float contents_scale_;
+  gfx::AxisTransform2d contents_transform_;
   TileResolution tile_resolution_;
   int layer_id_;
   uint64_t source_prepare_tiles_id_;
@@ -605,9 +606,11 @@ void TileManager::AssignGpuMemoryToTiles(
       // TODO(sohanjg): Check if we could use a shared analysis
       // canvas which is reset between tiles.
       SkColor color = SK_ColorTRANSPARENT;
+      gfx::RectF layer_rect = tile->contents_transform().InverseMapRect(
+          gfx::RectF(tile->content_rect()));
       bool is_solid_color =
           prioritized_tile.raster_source()->PerformSolidColorAnalysis(
-              tile->content_rect(), tile->contents_scale(), &color);
+              gfx::ToEnclosingRect(layer_rect), gfx::AxisTransform2d(), &color);
       if (is_solid_color) {
         tile->draw_info().set_solid_color(color);
         tile->draw_info().set_was_ever_ready_to_draw();
@@ -843,7 +846,9 @@ scoped_refptr<RasterTask> TileManager::CreateRasterTask(
   std::vector<DrawImage>& images = scheduled_draw_images_[tile->id()];
   images.clear();
   prioritized_tile.raster_source()->GetDiscardableImagesInRect(
-      tile->enclosing_layer_rect(), tile->contents_scale(), &images);
+      tile->enclosing_layer_rect(),
+      tile->contents_transform().scale(),
+      &images);
   for (auto it = images.begin(); it != images.end();) {
     scoped_refptr<ImageDecodeTask> task;
     bool need_to_unref_when_finished =
@@ -860,7 +865,7 @@ scoped_refptr<RasterTask> TileManager::CreateRasterTask(
 
   return make_scoped_refptr(new RasterTaskImpl(
       resource, prioritized_tile.raster_source(), tile->content_rect(),
-      tile->invalidated_content_rect(), tile->contents_scale(),
+      tile->invalidated_content_rect(), tile->contents_transform(),
       prioritized_tile.priority().resolution, tile->layer_id(),
       prepare_tiles_count_, static_cast<const void*>(tile), tile->id(),
       tile->invalidated_id(), resource_content_id, tile->source_frame_number(),

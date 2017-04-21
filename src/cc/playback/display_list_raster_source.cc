@@ -21,6 +21,7 @@
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkTLazy.h"
 #include "third_party/skia/include/utils/SkNWayCanvas.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace cc {
@@ -264,7 +265,7 @@ DisplayListRasterSource::~DisplayListRasterSource() {
 void DisplayListRasterSource::PlaybackToSharedCanvas(
     SkCanvas* raster_canvas,
     const gfx::Rect& canvas_rect,
-    float contents_scale) const {
+    const gfx::AxisTransform2d& contents_transform) const {
   // TODO(vmpstr): This can be improved by plumbing whether the tile itself has
   // discardable images. This way we would only pay for the hijack canvas if the
   // tile actually needed it.
@@ -274,40 +275,40 @@ void DisplayListRasterSource::PlaybackToSharedCanvas(
                              image_decode_controller_);
     canvas.addCanvas(raster_canvas);
 
-    RasterCommon(&canvas, nullptr, canvas_rect, canvas_rect, contents_scale);
+    RasterCommon(&canvas, nullptr, canvas_rect, canvas_rect, contents_transform);
   } else {
     RasterCommon(raster_canvas, nullptr, canvas_rect, canvas_rect,
-                 contents_scale);
+                 contents_transform);
   }
 }
 
 void DisplayListRasterSource::RasterForAnalysis(skia::AnalysisCanvas* canvas,
                                                 const gfx::Rect& canvas_rect,
-                                                float contents_scale) const {
-  RasterCommon(canvas, canvas, canvas_rect, canvas_rect, contents_scale);
+                                                const gfx::AxisTransform2d& contents_transform) const {
+  RasterCommon(canvas, canvas, canvas_rect, canvas_rect, contents_transform);
 }
 
 void DisplayListRasterSource::PlaybackToCanvas(
     SkCanvas* raster_canvas,
     const gfx::Rect& canvas_bitmap_rect,
     const gfx::Rect& canvas_playback_rect,
-    float contents_scale) const {
+    const gfx::AxisTransform2d& contents_transform) const {
   PrepareForPlaybackToCanvas(raster_canvas, canvas_bitmap_rect,
-                             canvas_playback_rect, contents_scale);
+                             canvas_playback_rect, contents_transform);
 
   SkImageInfo info = raster_canvas->imageInfo();
   ImageHijackCanvas canvas(info.width(), info.height(),
                            image_decode_controller_);
   canvas.addCanvas(raster_canvas);
   RasterCommon(&canvas, NULL, canvas_bitmap_rect, canvas_playback_rect,
-               contents_scale);
+               contents_transform);
 }
 
 void DisplayListRasterSource::PrepareForPlaybackToCanvas(
     SkCanvas* canvas,
     const gfx::Rect& canvas_bitmap_rect,
     const gfx::Rect& canvas_playback_rect,
-    float contents_scale) const {
+    const gfx::AxisTransform2d& contents_transform) const {
   // TODO(hendrikw): See if we can split this up into separate functions.
   bool partial_update = canvas_bitmap_rect != canvas_playback_rect;
 
@@ -348,7 +349,7 @@ void DisplayListRasterSource::PrepareForPlaybackToCanvas(
     // texel (since the recording won't cover it) and outside the last texel
     // (due to linear filtering when using this texture).
     gfx::Rect content_rect =
-        gfx::ScaleToEnclosingRect(gfx::Rect(size_), contents_scale);
+        gfx::ScaleToEnclosingRect(gfx::Rect(size_), contents_transform.scale());
 
     // The final texel of content may only be partially covered by a
     // rasterization; this rect represents the content rect that is fully
@@ -395,10 +396,10 @@ void DisplayListRasterSource::RasterCommon(
     SkPicture::AbortCallback* callback,
     const gfx::Rect& canvas_bitmap_rect,
     const gfx::Rect& canvas_playback_rect,
-    float contents_scale) const {
+    const gfx::AxisTransform2d& contents_transform) const {
   canvas->translate(-canvas_bitmap_rect.x(), -canvas_bitmap_rect.y());
   gfx::Rect content_rect =
-      gfx::ScaleToEnclosingRect(gfx::Rect(size_), contents_scale);
+      gfx::ScaleToEnclosingRect(gfx::Rect(size_), contents_transform.scale());
   content_rect.Intersect(canvas_playback_rect);
 
   canvas->clipRect(gfx::RectToSkRect(content_rect), SkRegion::kIntersect_Op);
@@ -409,7 +410,7 @@ void DisplayListRasterSource::RasterCommon(
   int repeat_count = std::max(1, slow_down_raster_scale_factor_for_debug_);
   for (int i = 0; i < repeat_count; ++i) {
     display_list_->Raster(canvas, callback, canvas_target_playback_rect,
-                          contents_scale);
+                          contents_transform);
   }
 }
 
@@ -440,12 +441,12 @@ size_t DisplayListRasterSource::GetPictureMemoryUsage() const {
 
 bool DisplayListRasterSource::PerformSolidColorAnalysis(
     const gfx::Rect& content_rect,
-    float contents_scale,
+    const gfx::AxisTransform2d& contents_transform,
     SkColor* color) const {
   TRACE_EVENT0("cc", "DisplayListRasterSource::PerformSolidColorAnalysis");
 
   gfx::Rect layer_rect =
-      gfx::ScaleToEnclosingRect(content_rect, 1.0f / contents_scale);
+      gfx::ScaleToEnclosingRect(content_rect, 1.0f / contents_transform.scale());
 
   layer_rect.Intersect(gfx::Rect(size_));
   skia::AnalysisCanvas canvas(layer_rect.width(), layer_rect.height());
@@ -455,7 +456,7 @@ bool DisplayListRasterSource::PerformSolidColorAnalysis(
 
 void DisplayListRasterSource::GetDiscardableImagesInRect(
     const gfx::Rect& layer_rect,
-    float raster_scale,
+    const gfx::Scaling2d& raster_scale,
     std::vector<DrawImage>* images) const {
   DCHECK_EQ(0u, images->size());
   display_list_->GetDiscardableImagesInRect(layer_rect, raster_scale, images);

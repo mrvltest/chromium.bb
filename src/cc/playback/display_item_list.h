@@ -25,6 +25,10 @@
 class SkCanvas;
 class SkPictureRecorder;
 
+namespace gfx {
+class AxisTransform2d;
+}  // namespace gfx
+
 namespace cc {
 class DisplayItem;
 class DrawingDisplayItem;
@@ -62,7 +66,7 @@ class CC_EXPORT DisplayItemList
   void Raster(SkCanvas* canvas,
               SkPicture::AbortCallback* callback,
               const gfx::Rect& canvas_target_playback_rect,
-              float contents_scale) const;
+              const gfx::AxisTransform2d& contents_transform) const;
 
   // This is a fast path for use only if canvas_ is set and
   // retain_individual_display_items_ is false. This method also updates
@@ -105,7 +109,7 @@ class CC_EXPORT DisplayItemList
 
   void GenerateDiscardableImagesMetadata();
   void GetDiscardableImagesInRect(const gfx::Rect& rect,
-                                  float raster_scale,
+                                  const gfx::Scaling2d& raster_scale,
                                   std::vector<DrawImage>* images);
   bool MayHaveDiscardableImages() const;
 

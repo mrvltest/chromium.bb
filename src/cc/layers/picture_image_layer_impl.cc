@@ -47,7 +47,7 @@ void PictureImageLayerImpl::RecalculateRasterScales() {
   // and avoid frequent re-rastering on change of scale.
   raster_page_scale_ = 1.f;
   raster_device_scale_ = 1.f;
-  raster_source_scale_ = std::max(1.f, MinimumContentsScale());
+  raster_source_scale_ = std::max(gfx::Scaling2d(1.f), MinimumContentsScale());
   raster_contents_scale_ = raster_source_scale_;
   // We don't need low res tiles.
   low_res_raster_contents_scale_ = raster_contents_scale_;

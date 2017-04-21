@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "build/build_config.h"
+#include "ui/gfx/geometry/scaling2d.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/gfx_export.h"
 
@@ -134,14 +135,17 @@ GFX_EXPORT Point ScaleToCeiledPoint(const Point& point,
                                     float x_scale,
                                     float y_scale);
 GFX_EXPORT Point ScaleToCeiledPoint(const Point& point, float x_scale);
+GFX_EXPORT Point ScaleToCeiledPoint(const Point& point, const Scaling2d& scale);
 GFX_EXPORT Point ScaleToFlooredPoint(const Point& point,
                                      float x_scale,
                                      float y_scale);
 GFX_EXPORT Point ScaleToFlooredPoint(const Point& point, float x_scale);
+GFX_EXPORT Point ScaleToFlooredPoint(const Point& point, const Scaling2d& scale);
 GFX_EXPORT Point ScaleToRoundedPoint(const Point& point,
                                      float x_scale,
                                      float y_scale);
 GFX_EXPORT Point ScaleToRoundedPoint(const Point& point, float x_scale);
+GFX_EXPORT Point ScaleToRoundedPoint(const Point& point, const Scaling2d& scale);
 
 }  // namespace gfx
 

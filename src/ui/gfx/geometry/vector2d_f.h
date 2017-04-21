@@ -13,6 +13,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "ui/gfx/geometry/scaling2d.h"
 #include "ui/gfx/gfx_export.h"
 
 namespace gfx {
@@ -59,6 +60,7 @@ class GFX_EXPORT Vector2dF {
   // Scale the x and y components of the vector by |x_scale| and |y_scale|
   // respectively.
   void Scale(float x_scale, float y_scale);
+  void Scale(const gfx::Scaling2d& scale) { Scale(scale.x(), scale.y()); };
 
   std::string ToString() const;
 
@@ -106,6 +108,10 @@ GFX_EXPORT Vector2dF ScaleVector2d(const Vector2dF& v,
 // Return a vector that is |v| scaled by the given scale factor.
 inline Vector2dF ScaleVector2d(const Vector2dF& v, float scale) {
   return ScaleVector2d(v, scale, scale);
+}
+
+inline Vector2dF ScaleVector2d(const Vector2dF& v, const Scaling2d& scale) {
+  return ScaleVector2d(v, scale.x(), scale.y());
 }
 
 // This is declared here for use in gtest-based unit tests but is defined in
