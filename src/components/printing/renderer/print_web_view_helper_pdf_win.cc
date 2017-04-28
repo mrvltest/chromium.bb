@@ -65,9 +65,11 @@ bool PrintWebViewHelper::PrintPagesNative(blink::WebFrame* frame,
     printed_page_params.page_size = page_size_in_dpi[i];
     printed_page_params.content_area = content_area_in_dpi[i];
     Send(new PrintHostMsg_DidPrintPage(routing_id(), printed_page_params));
+
     // Send the rest of the pages with an invalid metafile handle.
-    printed_page_params.metafile_data_handle.Close();
-    printed_page_params.metafile_data_handle = base::SharedMemoryHandle();
+    // TODO(erikchen): Fix semantics. See https://crbug.com/640840
+    if (printed_page_params.metafile_data_handle.IsValid())
+       printed_page_params.metafile_data_handle = base::SharedMemoryHandle();
   }
   return true;
 }
