@@ -941,8 +941,10 @@ static bool LayerCanUseLcdText(const LayerImpl* layer,
 
   if (effect_node->data.screen_space_opacity != 1.f)
     return false;
-  if (!transform_node->data.node_and_ancestors_have_only_integer_translation)
-    return false;
+  // TODO(abetts3): LCD text should be disabled in cases of rotational,
+  // shearing, or perspective transformation.  
+  // if (!transform_node->data.node_and_ancestors_have_only_integer_translation)
+  //   return false;
   if (static_cast<int>(layer->offset_to_transform_parent().x()) !=
       layer->offset_to_transform_parent().x())
     return false;

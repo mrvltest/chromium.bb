@@ -937,21 +937,22 @@ void WebPluginContainerImpl::computeClipRectsForPlugin(
     // Map up to the root frame.
     LayoutRect layoutWindowRect =
         LayoutRect(m_element->document().view()->layoutView()->localToAbsoluteQuad(FloatQuad(FloatRect(frameRect())), TraverseDocumentBoundaries).boundingBox());
-    // Finally, adjust for scrolling of the root frame, which the above does not take into account.
-    layoutWindowRect.moveBy(-rootView->viewRect().location());
     windowRect = pixelSnappedIntRect(layoutWindowRect);
 
     LayoutRect layoutClippedLocalRect = unclippedAbsoluteRect;
     LayoutRect unclippedLayoutLocalRect = layoutClippedLocalRect;
     layoutClippedLocalRect.intersect(LayoutRect(rootView->frameView()->visibleContentRect()));
 
-    // TODO(chrishtr): intentionally ignore transform, because the positioning of frameRect() does also. This is probably wrong.
-    unclippedIntLocalRect = box->absoluteToLocalQuad(FloatRect(unclippedLayoutLocalRect), TraverseDocumentBoundaries).enclosingBoundingBox();
-    // As a performance optimization, map the clipped rect separately if is different than the unclipped rect.
-    if (layoutClippedLocalRect != unclippedLayoutLocalRect)
-        clippedLocalRect = box->absoluteToLocalQuad(FloatRect(layoutClippedLocalRect), TraverseDocumentBoundaries).enclosingBoundingBox();
-    else
-        clippedLocalRect = unclippedIntLocalRect;
+    // Although the clip rect is in absolute space, its origin is the top-left
+    // of the frame rect
+    layoutClippedLocalRect.moveBy(-windowRect.location());
+    unclippedLayoutLocalRect.moveBy(-windowRect.location());
+
+    clippedLocalRect = IntRect(layoutClippedLocalRect);
+    unclippedIntLocalRect = IntRect(unclippedLayoutLocalRect);
+
+    // Finally, adjust for scrolling of the root frame, which the above does not take into account.
+    windowRect.moveBy(roundedIntPoint(-rootView->viewRect().location()));
 }
 
 void WebPluginContainerImpl::calculateGeometry(IntRect& windowRect, IntRect& clipRect, IntRect& unobscuredRect, Vector<IntRect>& cutOutRects)

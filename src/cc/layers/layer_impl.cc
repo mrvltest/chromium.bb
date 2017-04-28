@@ -1769,11 +1769,13 @@ bool LayerImpl::CanUseLCDText() const {
           ->effect_tree.Node(effect_tree_index())
           ->data.screen_space_opacity != 1.f)
     return false;
-  if (!layer_tree_impl()
-           ->property_trees()
-           ->transform_tree.Node(transform_tree_index())
-           ->data.node_and_ancestors_have_only_integer_translation)
-    return false;
+  // TODO(abetts3): LCD text should be disabled in cases of rotational,
+  // shearing, or perspective transformation.
+  // if (!layer_tree_impl()
+  //          ->property_trees()
+  //          ->transform_tree.Node(transform_tree_index())
+  //          ->data.node_and_ancestors_have_only_integer_translation)
+  //   return false;
   if (static_cast<int>(offset_to_transform_parent().x()) !=
       offset_to_transform_parent().x())
     return false;
