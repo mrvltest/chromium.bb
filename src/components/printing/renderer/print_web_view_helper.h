@@ -108,7 +108,8 @@ class PrintWebViewHelper
   };
 
   PrintWebViewHelper(content::RenderView* render_view,
-                     scoped_ptr<Delegate> delegate);
+                     scoped_ptr<Delegate> delegate,
+                     bool single_thread_mode = false);
   ~PrintWebViewHelper() override;
 
   // Disable print preview and switch to system dialog printing even if full
@@ -530,6 +531,8 @@ class PrintWebViewHelper
   base::Closure on_stop_loading_closure_;
 
   base::WeakPtrFactory<PrintWebViewHelper> weak_ptr_factory_;
+
+  bool single_thread_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(PrintWebViewHelper);
 };
