@@ -850,7 +850,8 @@ bool PrintWebViewHelper::Delegate::IsScriptedPrintEnabled() {
 }
 
 PrintWebViewHelper::PrintWebViewHelper(content::RenderView* render_view,
-                                       scoped_ptr<Delegate> delegate)
+                                       scoped_ptr<Delegate> delegate,
+                                       bool single_thread_mode)
     : content::RenderViewObserver(render_view),
       content::RenderViewObserverTracker<PrintWebViewHelper>(render_view),
       reset_prep_frame_view_(false),
@@ -864,7 +865,8 @@ PrintWebViewHelper::PrintWebViewHelper(content::RenderView* render_view,
       is_loading_(false),
       is_scripted_preview_delayed_(false),
       ipc_nesting_level_(0),
-      weak_ptr_factory_(this) {
+      weak_ptr_factory_(this),
+      single_thread_mode_(single_thread_mode) {
   if (!delegate_->IsPrintPreviewEnabled())
     DisablePreview();
 }
@@ -1557,8 +1559,15 @@ std::vector<int> PrintWebViewHelper::GetPrintedPages(
 
 bool PrintWebViewHelper::InitPrintSettings(bool fit_to_paper_size) {
   PrintMsg_PrintPages_Params settings;
-  Send(new PrintHostMsg_GetDefaultPrintSettings(routing_id(),
-                                                &settings.params));
+
+  IPC::SyncMessage* msg = new PrintHostMsg_GetDefaultPrintSettings(routing_id(),
+      &settings.params);
+
+  if (single_thread_mode_) {
+    msg->EnableMessagePumping();
+  }
+
+  Send(msg);
   // Check if the printer returned any settings, if the settings is empty, we
   // can safely assume there are no printer drivers configured. So we safely
   // terminate.
