@@ -50,11 +50,7 @@ void MessagePumpWin::PushRunState(
 
 void MessagePumpWin::Run(Delegate* delegate) {
   RunState s;
-  s.delegate = delegate;
-  s.should_quit = false;
-  s.run_depth = state_ ? state_->run_depth + 1 : 1;
-
-  state_ = &s;
+  PushRunState(&s, delegate);
   DoRunLoop();
   PopRunState();
 }
