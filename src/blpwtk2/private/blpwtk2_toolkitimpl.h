@@ -93,6 +93,7 @@ class ToolkitImpl : public Toolkit {
     void addOriginToTrustworthyList(const StringRef& originString) override;
     String getHostChannelId() override;
     void setWebViewHostObserver(WebViewHostObserver* observer) override;
+    void setDefaultPrinterName(const StringRef& printerName) override;
 
   private:
     void createInProcessHost();

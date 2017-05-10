@@ -204,6 +204,10 @@ class Toolkit {
     // WebView's are created and destroyed.
     virtual void setWebViewHostObserver(WebViewHostObserver* observer) = 0;
 
+    // Sets the default printer name. Chromium will attempt to use this (if
+    // specified) instead of the Windows default printer
+    virtual void setDefaultPrinterName(const StringRef& printerName) = 0;
+
   protected:
     // Destroy this Toolkit object.  Note that clients of blpwtk2 should use
     // the 'destroy()' method, instead of deleting the object directly.

@@ -47,6 +47,7 @@
 #include <content/public/browser/browser_thread.h>
 #include <content/public/browser/render_process_host.h>
 #include <ipc/ipc_channel_proxy.h>
+#include <printing/backend/print_backend.h>
 
 namespace blpwtk2 {
 
@@ -173,6 +174,7 @@ bool ProcessHostImpl::OnMessageReceived(const IPC::Message& message)
             IPC_MESSAGE_HANDLER(BlpWebViewHostMsg_New, onWebViewNew)
             IPC_MESSAGE_HANDLER(BlpWebViewHostMsg_Destroy, onWebViewDestroy)
             IPC_MESSAGE_HANDLER(BlpControlHostMsg_DumpDiagnoticInfo, onDumpDiagnoticInfo)
+            IPC_MESSAGE_HANDLER(BlpControlHostMsg_SetDefaultPrinterName, onSetDefaultPrinterName)
             IPC_MESSAGE_UNHANDLED_ERROR()
         IPC_END_MESSAGE_MAP()
 
@@ -352,6 +354,11 @@ void ProcessHostImpl::onDumpDiagnoticInfo(int infoType, const std::string& path)
     if (infoType == Toolkit::DIAGNOSTIC_INFO_GPU) {
         DumpGpuInfo(path);
     }
+}
+
+void ProcessHostImpl::onSetDefaultPrinterName(const std::string& printerName)
+{
+    printing::PrintBackend::SetUserDefaultPrinterName(printerName);
 }
 
 }  // close namespace blpwtk2
