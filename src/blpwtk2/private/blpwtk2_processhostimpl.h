@@ -89,6 +89,7 @@ class ProcessHostImpl : public ProcessHost,
     void onWebViewNew(const BlpWebViewHostMsg_NewParams& params);
     void onWebViewDestroy(int routingId);
     void onDumpDiagnoticInfo(int infoType, const std::string& path);
+    void onSetDefaultPrinterName(const std::string& printerName);
 
     base::ProcessHandle d_processHandle;
     scoped_ptr<ManagedRenderProcessHost> d_renderProcessHost;

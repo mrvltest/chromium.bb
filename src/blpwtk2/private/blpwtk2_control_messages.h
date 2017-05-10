@@ -56,6 +56,9 @@ IPC_MESSAGE_CONTROL2(BlpControlHostMsg_DumpDiagnoticInfo,
                      int /*info type*/,
                      std::string /* output file path */)
 
+IPC_MESSAGE_CONTROL1(BlpControlHostMsg_SetDefaultPrinterName,
+                     std::string /* printer name */)
+
 // ============= Messages from host to client =======================
 
 IPC_MESSAGE_CONTROL1(BlpControlMsg_SetInProcessRendererChannelName,
