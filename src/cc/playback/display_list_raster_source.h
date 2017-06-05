@@ -21,6 +21,10 @@
 #include "skia/ext/refptr.h"
 #include "third_party/skia/include/core/SkPicture.h"
 
+namespace gfx {
+class AxisTransform2d;
+} // namespace gfx
+
 namespace cc {
 class DisplayItemList;
 class DrawImage;
@@ -48,19 +52,19 @@ class CC_EXPORT DisplayListRasterSource
   virtual void PlaybackToCanvas(SkCanvas* canvas,
                                 const gfx::Rect& canvas_bitmap_rect,
                                 const gfx::Rect& canvas_playback_rect,
-                                float contents_scale) const;
+                                const gfx::AxisTransform2d& contents_transform) const;
 
   // Similar to above, except that the canvas passed here can (or was already)
   // rasterized into by another raster source. That is, it is not safe to clear
   // the canvas or discard its underlying memory.
   void PlaybackToSharedCanvas(SkCanvas* canvas,
                               const gfx::Rect& canvas_rect,
-                              float contents_scale) const;
+                              const gfx::AxisTransform2d& contents_transform) const;
 
   // Returns whether the given rect at given scale is of solid color in
   // this raster source, as well as the solid color value.
   bool PerformSolidColorAnalysis(const gfx::Rect& content_rect,
-                                 float contents_scale,
+                                 const gfx::AxisTransform2d& contents_transform,
                                  SkColor* color) const;
 
   // Returns true iff the whole raster source is of solid color.
@@ -77,7 +81,7 @@ class CC_EXPORT DisplayListRasterSource
   // rect in layer space. The returned draw images' matrices are modified as if
   // they were being using during raster at scale |raster_scale|.
   void GetDiscardableImagesInRect(const gfx::Rect& layer_rect,
-                                  float raster_scale,
+                                  const gfx::Scaling2d& raster_scale,
                                   std::vector<DrawImage>* images) const;
 
   bool HasDiscardableImageInRect(const gfx::Rect& layer_rect) const;
@@ -157,18 +161,18 @@ class CC_EXPORT DisplayListRasterSource
   // SkPicture::AbortCallback, which allows us to early out from analysis.
   void RasterForAnalysis(skia::AnalysisCanvas* canvas,
                          const gfx::Rect& canvas_rect,
-                         float contents_scale) const;
+                         const gfx::AxisTransform2d& contents_transform) const;
 
   void RasterCommon(SkCanvas* canvas,
                     SkPicture::AbortCallback* callback,
                     const gfx::Rect& canvas_bitmap_rect,
                     const gfx::Rect& canvas_playback_rect,
-                    float contents_scale) const;
+                    const gfx::AxisTransform2d& contents_transform) const;
 
   void PrepareForPlaybackToCanvas(SkCanvas* canvas,
                                   const gfx::Rect& canvas_bitmap_rect,
                                   const gfx::Rect& canvas_playback_rect,
-                                  float contents_scale) const;
+                                  const gfx::AxisTransform2d& contents_transform) const;
 
   // Used to ensure that memory dump logic always happens on the same thread.
   base::ThreadChecker memory_dump_thread_checker_;

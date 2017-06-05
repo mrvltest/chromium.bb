@@ -5,6 +5,8 @@
 component("geometry") {
   sources = [
     "../gfx_export.h",
+    "axis_transform2d.cc",
+    "axis_transform2d.h",
     "box_f.cc",
     "box_f.h",
     "cubic_bezier.cc",
@@ -34,6 +36,8 @@ component("geometry") {
     "rect_f.cc",
     "rect_f.h",
     "safe_integer_conversions.h",
+    "scaling2d.cc",
+    "scaling2d.h",
     "scroll_offset.cc",
     "scroll_offset.h",
     "size.cc",

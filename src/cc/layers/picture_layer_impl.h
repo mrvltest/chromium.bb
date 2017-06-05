@@ -20,6 +20,10 @@
 #include "skia/ext/refptr.h"
 #include "third_party/skia/include/core/SkPicture.h"
 
+namespace gfx {
+class AxisTransform2d;
+}  // namespace gfx
+
 namespace cc {
 
 struct AppendQuadsData;
@@ -82,6 +86,8 @@ class CC_EXPORT PictureLayerImpl
 
   void SetNearestNeighbor(bool nearest_neighbor);
 
+  void SetUseTransformedRasterization(bool use);
+
   size_t GPUMemoryUsageInBytes() const override;
 
   void RunMicroBenchmark(MicroBenchmarkImpl* benchmark) override;
@@ -107,16 +113,17 @@ class CC_EXPORT PictureLayerImpl
                    int id,
                    bool is_mask,
                    scoped_refptr<SyncedScrollOffset> scroll_offset);
-  PictureLayerTiling* AddTiling(float contents_scale);
+  PictureLayerTiling* AddTiling(const gfx::AxisTransform2d& contents_transform);
   void RemoveAllTilings();
   void AddTilingsForRasterScale();
   void AddLowResolutionTilingIfNeeded();
   virtual bool ShouldAdjustRasterScale() const;
   virtual void RecalculateRasterScales();
+  gfx::Vector2dF PictureLayerImpl::CalculateRasterTranslation(const gfx::Scaling2d& raster_scale);
   void CleanUpTilingsOnActiveLayer(
       const std::vector<PictureLayerTiling*>& used_tilings);
-  float MinimumContentsScale() const;
-  float MaximumContentsScale() const;
+  gfx::Scaling2d MinimumContentsScale() const;
+  gfx::Scaling2d MaximumContentsScale() const;
   void ResetRasterScale();
   void UpdateViewportRectForTilePriorityInContentSpace();
   PictureLayerImpl* GetRecycledTwinLayer() const;
@@ -130,7 +137,7 @@ class CC_EXPORT PictureLayerImpl
   void AsValueInto(base::trace_event::TracedValue* dict) const override;
 
   virtual void UpdateIdealScales();
-  float MaximumTilingContentsScale() const;
+  gfx::Scaling2d MaximumTilingContentsScale() const;
   scoped_ptr<PictureLayerTilingSet> CreatePictureLayerTilingSet();
 
   PictureLayerImpl* twin_layer_;
@@ -141,20 +148,21 @@ class CC_EXPORT PictureLayerImpl
 
   float ideal_page_scale_;
   float ideal_device_scale_;
-  float ideal_source_scale_;
-  float ideal_contents_scale_;
+  gfx::Scaling2d ideal_source_scale_;
+  gfx::Scaling2d ideal_contents_scale_;
 
   float raster_page_scale_;
   float raster_device_scale_;
-  float raster_source_scale_;
-  float raster_contents_scale_;
-  float low_res_raster_contents_scale_;
+  gfx::Scaling2d raster_source_scale_;
+  gfx::Scaling2d raster_contents_scale_;
+  gfx::Scaling2d low_res_raster_contents_scale_;
 
   bool was_screen_space_transform_animating_;
   bool only_used_low_res_last_append_quads_;
   const bool is_mask_;
 
   bool nearest_neighbor_;
+  bool use_transformed_rasterization_;
 
   // Use this instead of |visible_layer_rect()| for tiling calculations. This
   // takes external viewport and transform for tile priority into account.

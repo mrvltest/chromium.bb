@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include "cc/raster/tile_task_runner.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -42,7 +43,7 @@ class CC_EXPORT TileTaskWorkerPool {
                                const DisplayListRasterSource* raster_source,
                                const gfx::Rect& canvas_bitmap_rect,
                                const gfx::Rect& canvas_playback_rect,
-                               float scale,
+                               const gfx::AxisTransform2d& transform,
                                bool include_images);
 
   // Type-checking downcast routine.

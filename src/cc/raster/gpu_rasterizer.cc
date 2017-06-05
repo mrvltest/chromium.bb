@@ -23,6 +23,7 @@
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 
 namespace cc {
 
@@ -43,7 +44,7 @@ void GpuRasterizer::RasterizeSource(
     const DisplayListRasterSource* raster_source,
     const gfx::Rect& raster_full_rect,
     const gfx::Rect& playback_rect,
-    float scale) {
+    const gfx::AxisTransform2d& transform) {
   // Play back raster_source into temp SkPicture.
   SkPictureRecorder recorder;
   const gfx::Size size = write_lock->GetResourceSize();
@@ -52,7 +53,7 @@ void GpuRasterizer::RasterizeSource(
       recorder.beginRecording(size.width(), size.height(), NULL, flags));
   canvas->save();
   raster_source->PlaybackToCanvas(canvas.get(), raster_full_rect, playback_rect,
-                                  scale);
+                                  transform);
   canvas->restore();
   skia::RefPtr<SkPicture> picture =
       skia::AdoptRef(recorder.endRecordingAsPicture());

@@ -29,7 +29,7 @@ void PictureDrawQuad::SetNew(
     bool nearest_neighbor,
     ResourceFormat texture_format,
     const gfx::Rect& content_rect,
-    float contents_scale,
+    const gfx::Scaling2d& contents_scale,
     scoped_refptr<DisplayListRasterSource> raster_source) {
   ContentDrawQuadBase::SetNew(
       shared_quad_state,
@@ -58,7 +58,7 @@ void PictureDrawQuad::SetAll(
     bool nearest_neighbor,
     ResourceFormat texture_format,
     const gfx::Rect& content_rect,
-    float contents_scale,
+    const gfx::Scaling2d& contents_scale,
     scoped_refptr<DisplayListRasterSource> raster_source) {
   ContentDrawQuadBase::SetAll(shared_quad_state,
                               DrawQuad::PICTURE_CONTENT,
@@ -85,7 +85,10 @@ const PictureDrawQuad* PictureDrawQuad::MaterialCast(const DrawQuad* quad) {
 void PictureDrawQuad::ExtendValue(base::trace_event::TracedValue* value) const {
   ContentDrawQuadBase::ExtendValue(value);
   MathUtil::AddToTracedValue("content_rect", content_rect, value);
-  value->SetDouble("contents_scale", contents_scale);
+  value->BeginArray("contents_scale");  
+  value->AppendDouble(contents_scale.x());
+  value->AppendDouble(contents_scale.y());
+  value->EndArray();  
   value->SetInteger("texture_format", texture_format);
   // TODO(piman): raster_source?
 }

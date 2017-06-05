@@ -347,12 +347,18 @@ void LayerImpl::PopulateSharedQuadState(SharedQuadState* state) const {
 
 void LayerImpl::PopulateScaledSharedQuadState(SharedQuadState* state,
                                               float scale) const {
+  PopulateTransformedSharedQuadState(state, gfx::AxisTransform2d(scale));
+}
+
+void LayerImpl::PopulateTransformedSharedQuadState(SharedQuadState* state,
+                                                   const gfx::AxisTransform2d& transform) const {
   gfx::Transform scaled_draw_transform =
-      draw_properties_.target_space_transform;
-  scaled_draw_transform.Scale(SK_MScalar1 / scale, SK_MScalar1 / scale);
-  gfx::Size scaled_bounds = gfx::ScaleToCeiledSize(bounds(), scale);
+      draw_properties_.target_space_transform;  
+  scaled_draw_transform.Scale(SK_MScalar1 / transform.scale().x(), SK_MScalar1 / transform.scale().y());
+  scaled_draw_transform.Translate(-transform.translation().x(), -transform.translation().y());
+  gfx::Size scaled_bounds = gfx::ScaleToCeiledSize(bounds(), transform.scale().x(), transform.scale().y());
   gfx::Rect scaled_visible_layer_rect =
-      gfx::ScaleToEnclosingRect(visible_layer_rect(), scale);
+      gfx::ScaleToEnclosingRect(visible_layer_rect(), transform.scale());
   scaled_visible_layer_rect.Intersect(gfx::Rect(scaled_bounds));
 
   state->SetAll(scaled_draw_transform, scaled_bounds, scaled_visible_layer_rect,
@@ -1769,13 +1775,11 @@ bool LayerImpl::CanUseLCDText() const {
           ->effect_tree.Node(effect_tree_index())
           ->data.screen_space_opacity != 1.f)
     return false;
-  // TODO(abetts3): LCD text should be disabled in cases of rotational,
-  // shearing, or perspective transformation.
-  // if (!layer_tree_impl()
-  //          ->property_trees()
-  //          ->transform_tree.Node(transform_tree_index())
-  //          ->data.node_and_ancestors_have_only_integer_translation)
-  //   return false;
+  if (!layer_tree_impl()
+           ->property_trees()
+           ->transform_tree.Node(transform_tree_index())
+           ->data.node_and_ancestors_have_only_axis_aligned_transform)
+    return false;
   if (static_cast<int>(offset_to_transform_parent().x()) !=
       offset_to_transform_parent().x())
     return false;
@@ -1813,9 +1817,13 @@ gfx::Rect LayerImpl::GetEnclosingRectInTargetSpace() const {
 }
 
 gfx::Rect LayerImpl::GetScaledEnclosingRectInTargetSpace(float scale) const {
+  return GetScaledEnclosingRectInTargetSpace(gfx::Scaling2d(scale));
+}
+
+gfx::Rect LayerImpl::GetScaledEnclosingRectInTargetSpace(const gfx::Scaling2d& scale) const {
   gfx::Transform scaled_draw_transform = DrawTransform();
-  scaled_draw_transform.Scale(SK_MScalar1 / scale, SK_MScalar1 / scale);
-  gfx::Size scaled_bounds = gfx::ScaleToCeiledSize(bounds(), scale);
+  scaled_draw_transform.Scale(SK_MScalar1 / scale.x(), SK_MScalar1 / scale.y());
+  gfx::Size scaled_bounds = gfx::ScaleToCeiledSize(bounds(), scale.x(), scale.y());
   return MathUtil::MapEnclosingClippedRect(scaled_draw_transform,
                                            gfx::Rect(scaled_bounds));
 }
@@ -1842,6 +1850,24 @@ float LayerImpl::GetIdealContentsScale() const {
   gfx::Vector2dF transform_scales = MathUtil::ComputeTransform2dScaleComponents(
       DrawTransform(), default_scale);
   return std::max(transform_scales.x(), transform_scales.y());
+}
+
+gfx::Scaling2d LayerImpl::GetIdealContentsScale2d() const {
+  float page_scale = IsAffectedByPageScale()
+                         ? layer_tree_impl()->current_page_scale_factor()
+                         : 1.f;
+  float device_scale = layer_tree_impl()->device_scale_factor();
+
+  float default_scale = page_scale * device_scale;
+  if (!layer_tree_impl()
+           ->settings()
+           .layer_transforms_should_scale_layer_contents) {
+    return default_scale;
+  }
+
+  gfx::Vector2dF transform_scales = MathUtil::ComputeTransform2dScaleComponents(
+      DrawTransform(), default_scale);
+  return gfx::Scaling2d(transform_scales.x(), transform_scales.y());
 }
 
 }  // namespace cc

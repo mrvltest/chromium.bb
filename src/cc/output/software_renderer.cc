@@ -28,6 +28,7 @@
 #include "third_party/skia/include/core/SkPoint.h"
 #include "third_party/skia/include/core/SkShader.h"
 #include "third_party/skia/include/effects/SkLayerRasterizer.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/skia_util.h"
 #include "ui/gfx/transform.h"
@@ -374,10 +375,10 @@ void SoftwareRenderer::DrawPictureQuad(const DrawingFrame* frame,
                                               quad->shared_quad_state->opacity,
                                               disable_image_filtering);
     quad->raster_source->PlaybackToSharedCanvas(
-        &filtered_canvas, quad->content_rect, quad->contents_scale);
+        &filtered_canvas, quad->content_rect, gfx::AxisTransform2d(quad->contents_scale));
   } else {
     quad->raster_source->PlaybackToSharedCanvas(
-        current_canvas_, quad->content_rect, quad->contents_scale);
+        current_canvas_, quad->content_rect, gfx::AxisTransform2d(quad->contents_scale));
   }
 }
 

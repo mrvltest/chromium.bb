@@ -353,6 +353,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   void SetAuthoritativeVSyncInterval(const base::TimeDelta& interval);
 
   PropertyTrees* property_trees() { return &property_trees_; }
+  const PropertyTrees* property_trees() const { return &property_trees_; }
   bool needs_meta_info_recomputation() {
     return needs_meta_info_recomputation_;
   }

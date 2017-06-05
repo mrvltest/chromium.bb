@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "cc/base/cc_export.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
@@ -22,7 +23,7 @@ class CC_EXPORT RasterBuffer {
                         const gfx::Rect& raster_full_rect,
                         const gfx::Rect& raster_dirty_rect,
                         uint64_t new_content_id,
-                        float scale,
+                        const gfx::AxisTransform2d& transform,
                         bool include_images) = 0;
 };
 

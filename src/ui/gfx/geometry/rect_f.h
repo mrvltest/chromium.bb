@@ -11,6 +11,7 @@
 #include "build/build_config.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/scaling2d.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -178,6 +179,10 @@ class GFX_EXPORT RectF {
     set_size(ScaleSize(size(), x_scale, y_scale));
   }
 
+  void Scale(const Scaling2d& scale) {
+    Scale(scale.x(), scale.y());
+  }
+
   // This method reports if the RectF can be safely converted to an integer
   // Rect. When it is false, some dimension of the RectF is outside the bounds
   // of what an integer can represent, and converting it to a Rect will require
@@ -224,6 +229,10 @@ inline RectF ScaleRect(const RectF& r, float x_scale, float y_scale) {
 
 inline RectF ScaleRect(const RectF& r, float scale) {
   return ScaleRect(r, scale, scale);
+}
+
+inline RectF ScaleRect(const RectF& r, const Scaling2d& scale) {
+  return ScaleRect(r, scale.x(), scale.y());
 }
 
 // Constructs a rectangle with |p1| and |p2| as opposite corners.

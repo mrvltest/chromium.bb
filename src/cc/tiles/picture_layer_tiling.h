@@ -21,6 +21,7 @@
 #include "cc/tiles/tile.h"
 #include "cc/tiles/tile_priority.h"
 #include "cc/trees/occlusion.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace base {
@@ -83,14 +84,14 @@ class CC_EXPORT PictureLayerTiling {
   PictureLayerTilingClient* client() const { return client_; }
   ~PictureLayerTiling();
 
-  static float CalculateSoonBorderDistance(
+  static gfx::Vector2dF CalculateSoonBorderDistance(
       const gfx::Rect& visible_rect_in_content_space,
-      float content_to_screen_scale);
+      const gfx::Scaling2d& content_to_screen_scale);
 
   // Create a tiling with no tiles. CreateTile() must be called to add some.
   static scoped_ptr<PictureLayerTiling> Create(
       WhichTree tree,
-      float contents_scale,
+      const gfx::AxisTransform2d& contents_transform,
       scoped_refptr<DisplayListRasterSource> raster_source,
       PictureLayerTilingClient* client,
       size_t tiling_interest_area_padding,
@@ -128,7 +129,8 @@ class CC_EXPORT PictureLayerTiling {
   gfx::Size tiling_size() const { return tiling_data_.tiling_size(); }
   gfx::Rect live_tiles_rect() const { return live_tiles_rect_; }
   gfx::Size tile_size() const { return tiling_data_.max_texture_size(); }
-  float contents_scale() const { return contents_scale_; }
+  const gfx::AxisTransform2d& contents_transform() const { return contents_transform_; }
+  const gfx::Scaling2d& contents_scale() const { return contents_transform_.scale(); }
   const TilingData* tiling_data() const { return &tiling_data_; }
 
   Tile* TileAt(int i, int j) const {
@@ -173,7 +175,7 @@ class CC_EXPORT PictureLayerTiling {
 
   void SetAllTilesOccludedForTesting() {
     gfx::Rect viewport_in_layer_space =
-        ScaleToEnclosingRect(current_visible_rect_, 1.0f / contents_scale_);
+        EnclosingLayerRectFromContentsRect(current_visible_rect_);
     current_occlusion_in_layer_space_ =
         Occlusion(gfx::Transform(),
                   SimpleEnclosedRegion(viewport_in_layer_space),
@@ -199,7 +201,7 @@ class CC_EXPORT PictureLayerTiling {
    public:
     CoverageIterator();
     CoverageIterator(const PictureLayerTiling* tiling,
-        float dest_scale,
+        const gfx::Scaling2d& dest_scale,
         const gfx::Rect& rect);
     ~CoverageIterator();
 
@@ -221,7 +223,7 @@ class CC_EXPORT PictureLayerTiling {
    private:
     const PictureLayerTiling* tiling_;
     gfx::Rect dest_rect_;
-    float dest_to_content_scale_;
+    gfx::Scaling2d dest_to_content_scale_;
 
     Tile* current_tile_;
     gfx::Rect current_geometry_rect_;
@@ -238,7 +240,7 @@ class CC_EXPORT PictureLayerTiling {
   void Reset();
 
   bool ComputeTilePriorityRects(const gfx::Rect& viewport_in_layer_space,
-                                float ideal_contents_scale,
+                                const gfx::Scaling2d& ideal_contents_scale,
                                 double current_frame_time_in_seconds,
                                 const Occlusion& occlusion_in_layer_space);
 
@@ -246,6 +248,11 @@ class CC_EXPORT PictureLayerTiling {
       std::vector<PrioritizedTile>* prioritized_tiles) const;
   void AsValueInto(base::trace_event::TracedValue* array) const;
   size_t GPUMemoryUsageInBytes() const;
+
+  gfx::Rect EnclosingContentsRectFromLayerRect(
+      const gfx::Rect& layer_rect) const;
+  gfx::Rect EnclosingLayerRectFromContentsRect(
+      const gfx::Rect& contents_rect) const;
 
  protected:
   friend class CoverageIterator;
@@ -275,7 +282,7 @@ class CC_EXPORT PictureLayerTiling {
   };
 
   PictureLayerTiling(WhichTree tree,
-                     float contents_scale,
+                     const gfx::AxisTransform2d& contents_transform,
                      scoped_refptr<DisplayListRasterSource> raster_source,
                      PictureLayerTilingClient* client,
                      size_t tiling_interest_area_padding,
@@ -298,7 +305,7 @@ class CC_EXPORT PictureLayerTiling {
       const;
 
   // Save the required data for computing tile priorities later.
-  void SetTilePriorityRects(float content_to_screen_scale_,
+  void SetTilePriorityRects(const gfx::Scaling2d& content_to_screen_scale_,
                             const gfx::Rect& visible_rect_in_content_space,
                             const gfx::Rect& skewport,
                             const gfx::Rect& soon_border_rect,
@@ -371,8 +378,8 @@ class CC_EXPORT PictureLayerTiling {
   const float skewport_target_time_in_seconds_;
   const int skewport_extrapolation_limit_in_content_pixels_;
 
-  // Given properties.
-  const float contents_scale_;
+  // Given properties.  
+  const gfx::AxisTransform2d contents_transform_;
   PictureLayerTilingClient* const client_;
   const WhichTree tree_;
   scoped_refptr<DisplayListRasterSource> raster_source_;
@@ -396,7 +403,7 @@ class CC_EXPORT PictureLayerTiling {
   gfx::Rect current_soon_border_rect_;
   gfx::Rect current_eventually_rect_;
   // Other properties used for tile iteration and prioritization.
-  float current_content_to_screen_scale_;
+  gfx::Scaling2d current_content_to_screen_scale_;
   Occlusion current_occlusion_in_layer_space_;
 
   bool has_visible_rect_tiles_;

@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/scaling2d.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/gfx_export.h"
 
@@ -75,6 +76,10 @@ class GFX_EXPORT PointF {
     SetPoint(x() * x_scale, y() * y_scale);
   }
 
+  void Scale(const Scaling2d& scale) {
+    SetPoint(x() * scale.x(), y() * scale.y());
+  }
+
   // Returns a string representation of point.
   std::string ToString() const;
 
@@ -115,6 +120,10 @@ GFX_EXPORT PointF ScalePoint(const PointF& p, float x_scale, float y_scale);
 
 inline PointF ScalePoint(const PointF& p, float scale) {
   return ScalePoint(p, scale, scale);
+}
+
+inline PointF ScalePoint(const PointF& p, const Scaling2d& scale) {
+  return ScalePoint(p, scale.x(), scale.y());
 }
 
 // This is declared here for use in gtest-based unit tests but is defined in

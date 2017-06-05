@@ -23,6 +23,7 @@
 #include "cc/trees/layer_tree_host_common.h"
 #include "skia/ext/analysis_canvas.h"
 #include "third_party/skia/include/utils/SkPictureUtils.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace cc {
@@ -166,7 +167,7 @@ void RasterizeAndRecordBenchmark::RunOnLayer(PictureLayer* layer) {
         if (display_list->ShouldBeAnalyzedForSolidColor()) {
           gfx::Size layer_size = layer->paint_properties().bounds;
           skia::AnalysisCanvas canvas(layer_size.width(), layer_size.height());
-          display_list->Raster(&canvas, nullptr, gfx::Rect(), 1.f);
+          display_list->Raster(&canvas, nullptr, gfx::Rect(), gfx::AxisTransform2d(1.f));
         }
 
         if (memory_used) {

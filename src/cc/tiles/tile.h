@@ -11,6 +11,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "cc/tiles/tile_draw_info.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -32,19 +33,19 @@ class CC_EXPORT Tile {
     int tiling_i_index;
     int tiling_j_index;
     gfx::Rect enclosing_layer_rect;
-    gfx::Rect content_rect;
-    float contents_scale;
+    gfx::Rect content_rect;    
+    gfx::AxisTransform2d contents_transform;
 
     CreateInfo(int tiling_i_index,
                int tiling_j_index,
                const gfx::Rect& enclosing_layer_rect,
                const gfx::Rect& content_rect,
-               float contents_scale)
+               const gfx::AxisTransform2d& contents_transform)
         : tiling_i_index(tiling_i_index),
           tiling_j_index(tiling_j_index),
           enclosing_layer_rect(enclosing_layer_rect),
           content_rect(content_rect),
-          contents_scale(contents_scale) {}
+          contents_transform(contents_transform) {}
   };
 
   enum TileRasterFlags { USE_PICTURE_ANALYSIS = 1 << 0, IS_OPAQUE = 1 << 1 };
@@ -76,7 +77,8 @@ class CC_EXPORT Tile {
   const TileDrawInfo& draw_info() const { return draw_info_; }
   TileDrawInfo& draw_info() { return draw_info_; }
 
-  float contents_scale() const { return contents_scale_; }
+  const gfx::Scaling2d& contents_scale() const { return contents_transform_.scale(); }
+  const gfx::AxisTransform2d& contents_transform() const { return contents_transform_; }
   const gfx::Rect& content_rect() const { return content_rect_; }
   const gfx::Rect& enclosing_layer_rect() const {
     return enclosing_layer_rect_;
@@ -122,7 +124,7 @@ class CC_EXPORT Tile {
   TileManager* const tile_manager_;
   const gfx::Rect content_rect_;
   const gfx::Rect enclosing_layer_rect_;
-  const float contents_scale_;
+  const gfx::AxisTransform2d contents_transform_;
 
   TileDrawInfo draw_info_;
 

@@ -117,7 +117,7 @@ struct CC_EXPORT TransformNodeData {
   bool node_and_ancestors_are_flat : 1;
 
   // This is needed to know if a layer can use lcd text.
-  bool node_and_ancestors_have_only_integer_translation : 1;
+  bool node_and_ancestors_have_only_axis_aligned_transform : 1;
 
   bool scrolls : 1;
 
@@ -492,7 +492,7 @@ class CC_EXPORT TransformTree final : public PropertyTree<TransformNode> {
   void UpdateTransformChanged(TransformNode* node,
                               TransformNode* parent_node,
                               TransformNode* source_node);
-  void UpdateNodeAndAncestorsHaveIntegerTranslations(
+  void UpdateNodeAndAncestorsHaveAxisAlignedTransforms(
       TransformNode* node,
       TransformNode* parent_node);
   bool NeedsSourceToParentUpdate(TransformNode* node);

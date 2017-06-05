@@ -12,6 +12,7 @@
 #include "cc/resources/resource_pool.h"
 #include "cc/tiles/tile.h"
 #include "third_party/skia/include/core/SkMultiPictureDraw.h"
+#include "ui/gfx/geometry/axis_transform2d.h"
 
 namespace cc {
 
@@ -27,7 +28,7 @@ class CC_EXPORT GpuRasterizer {
                        const DisplayListRasterSource* raster_source,
                        const gfx::Rect& raster_full_rect,
                        const gfx::Rect& playback_rect,
-                       float scale);
+                       const gfx::AxisTransform2d& transform);
 
   ResourceProvider* resource_provider() { return resource_provider_; }
 

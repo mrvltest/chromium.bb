@@ -602,4 +602,15 @@ void ToolkitImpl::setWebViewHostObserver(WebViewHostObserver* observer)
     }
 }
 
+void ToolkitImpl::setDefaultPrinterName(const StringRef& printerName)
+{
+    DCHECK(Statics::isRendererMainThreadMode());
+    DCHECK(d_processClient.get());
+
+    std::string printerName2(printerName.data(), printerName.length());
+
+    d_processClient->Send(
+        new BlpControlHostMsg_SetDefaultPrinterName(printerName2));
+}
+
 }  // close namespace blpwtk2

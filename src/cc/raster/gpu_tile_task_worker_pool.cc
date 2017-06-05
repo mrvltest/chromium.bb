@@ -41,7 +41,7 @@ class RasterBufferImpl : public RasterBuffer {
                 const gfx::Rect& raster_full_rect,
                 const gfx::Rect& raster_dirty_rect,
                 uint64_t new_content_id,
-                float scale,
+                const gfx::AxisTransform2d& transform,
                 bool include_images) override {
     TRACE_EVENT0("cc", "RasterBufferImpl::Playback");
     // GPU raster doesn't do low res tiles, so should always include images.
@@ -63,7 +63,7 @@ class RasterBufferImpl : public RasterBuffer {
     // TODO(danakj): Implement partial raster with raster_dirty_rect.
     // Rasterize source into resource.
     rasterizer_->RasterizeSource(&lock_, raster_source, raster_full_rect,
-                                 playback_rect, scale);
+                                 playback_rect, transform);
 
     gpu::gles2::GLES2Interface* gl = scoped_context.ContextGL();
     const uint64_t fence_sync = gl->InsertFenceSyncCHROMIUM();

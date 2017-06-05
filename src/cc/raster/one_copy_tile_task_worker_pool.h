@@ -83,7 +83,7 @@ class CC_EXPORT OneCopyTileTaskWorkerPool
       const DisplayListRasterSource* raster_source,
       const gfx::Rect& raster_full_rect,
       const gfx::Rect& raster_dirty_rect,
-      float scale,
+      const gfx::AxisTransform2d& transform,
       bool include_images,
       uint64_t resource_content_id,
       uint64_t previous_content_id);
