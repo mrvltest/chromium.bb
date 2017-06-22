@@ -50,6 +50,8 @@
 #include <pdf/pdf.h>
 #include <ui/events/event.h>
 #include <ui/gfx/geometry/size.h>
+
+#include <dwmapi.h>
 #include <windows.h>
 
 namespace {
@@ -138,12 +140,15 @@ bool disableResizeOptimization()
 
         ::RegCloseKey(dwmKey);
 
-        if (ERROR_SUCCESS != result || ERROR_SUCCESS != result2) {
+        BOOL compEnabled;
+        HRESULT result3 = ::DwmIsCompositionEnabled(&compEnabled);
+
+        if (ERROR_SUCCESS != result || ERROR_SUCCESS != result2 || !SUCCEEDED(result3)) {
             resizeOptimizationDisabled = false;
             return false;
         }
 
-        resizeOptimizationDisabled = !dpiScaling || compPolicy ? true : false;
+        resizeOptimizationDisabled = !dpiScaling || compPolicy || !compEnabled ? true : false;
     }
 
     return hasBeenFullSecond || blpwtk2::Statics::inProcessResizeOptimizationDisabled || (resizeOptimizationDisabled && getScreenScaleFactor() > 1.0);
