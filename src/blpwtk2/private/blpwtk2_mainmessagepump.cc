@@ -179,7 +179,10 @@ static bool shouldStopDoingWork(bool stopForTimers)
         }
     }
 
-    return queueStatus & mask;
+    if (queueStatus & mask)
+        return true;
+    else
+        return false;
 }
 
 // static

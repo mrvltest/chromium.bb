@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+if [[ $1 = "" || $2 = "" ]]
+then
+  echo "Usage : gn_incredibuild_blpwtk2.sh [shared|static] [Debug|Release]"
+  exit 1
+fi
+
+blpwtk2_tree_trap=out/blpwtk2_tree.trap
+
+if [[ -f $blpwtk2_tree_trap ]]
+then
+  rm $blpwtk2_tree_trap
+fi
+
+lib_type=$1
+build_type=$2
+
+output_dir="out/gn_${lib_type}/${build_type}"
+
+./build/gn_blpwtk2 $lib_type $build_type
+
+while [[ true ]]; do
+  if [[ -f $blpwtk2_tree_trap ]]
+  then
+      break
+  else
+      sleep 2
+  fi
+done
+
+rm $blpwtk2_tree_trap
+
+prebuild_package="third_party/WebKit/Source/core:make_core_generated"
+ninja -C $output_dir $prebuild_package
+
+output_dos_dir="out\\gn_${lib_type}\\${build_type}"
+build_cmd="BuildConsole /command=\"ninja -j 200 -C ${output_dos_dir} blpwtk2_all\""
+echo ${build_cmd} | cmd.exe
+
+exit 0

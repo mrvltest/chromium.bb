@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//third_party/icu/config.gni")
+import("//blpwtk2/blpwtk2.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -558,13 +559,13 @@ if (icu_use_data_file) {
         ]
       }
 
-      outputs = [
-        "$root_out_dir/icudtl.dat",
-      ]
-
-      data = [
-        "$root_out_dir/icudtl.dat",
-      ]
+      if (bb_version != "") {
+        outputs = [ "$root_out_dir/icudtl.$bb_version.dat" ]
+        data = [ "$root_out_dir/icudtl.$bb_version.dat" ]
+      } else {
+        outputs = [ "$root_out_dir/icudtl.dat" ]
+        data = [ "$root_out_dir/icudtl.dat" ]
+      }
     }
   }
 } else {

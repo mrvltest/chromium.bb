@@ -54,6 +54,7 @@ source_set("renderer") {
     "//media",
     "//media/blink",
     "//media/midi",
+    "//media/cast:sender",
     "//mojo/common",
     "//mojo/converters/geometry",
     "//mojo/edk/js",
@@ -87,10 +88,11 @@ source_set("renderer") {
   ]
   allow_circular_includes_from = []
 
-  if (use_aura) {
-    deps += [ "//content/renderer/mus" ]
-    allow_circular_includes_from += [ "//content/renderer/mus" ]
-  }
+  # blpwtk2: trim fat
+#  if (use_aura) {
+#    deps += [ "//content/renderer/mus" ]
+#    allow_circular_includes_from += [ "//content/renderer/mus" ]
+#  }
 
   if (is_mac) {
     sources -= [

@@ -17,6 +17,7 @@
 import("//build/config/chrome_build.gni")
 import("//build/config/chromecast_build.gni")
 import("//build/config/headless_build.gni")
+import("//blpwtk2/blpwtk2.gni")
 if (is_android) {
   import("//build/config/android/config.gni")
 }
@@ -31,8 +32,7 @@ declare_args() {
 
   # Enables Native Client support.
   # TODO(mcgrathr): When mipsel-nacl-clang is available, drop the exclusion.
-  enable_nacl =
-      !is_ios && !is_android && !is_chromecast && current_cpu != "mipsel"
+  enable_nacl = false
 
   # If debug_devtools is set to true, JavaScript files for DevTools are stored
   # as is and loaded from disk. Otherwise, a concatenated file is stored in
@@ -50,7 +50,7 @@ declare_args() {
   # Android OS includes support for proprietary codecs regardless of building
   # Chromium or Google Chrome. We also ship Google Chrome and Chromecast with
   # proprietary codecs.
-  proprietary_codecs = is_android || is_chrome_branded || is_chromecast
+  proprietary_codecs = is_android || is_chrome_branded || is_chromecast || is_blpwtk2
 
   enable_configuration_policy = !is_ios
 
@@ -87,7 +87,7 @@ declare_args() {
   # external API.
   if (is_android) {
     safe_browsing_mode = 2
-  } else if (is_ios) {
+  } else if (is_ios || is_blpwtk2) {
     safe_browsing_mode = 0
   } else {
     safe_browsing_mode = 1

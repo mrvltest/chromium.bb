@@ -58,6 +58,7 @@ if (current_toolchain == host_toolchain) {
     deps = [
       "//build/config/sanitizers:deps",
     ]
+
   }
 
   executable("genmodule") {

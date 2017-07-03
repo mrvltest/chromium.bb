@@ -240,8 +240,8 @@ bool GenerateEntropy(unsigned char* buffer, size_t amount) {
 #if defined(V8_VERIFY_EXTERNAL_STARTUP_DATA)
 // Defined in gen/gin/v8_snapshot_fingerprint.cc
 extern "C" {
-    __declspec(dllimport) const unsigned char* GetV8NativesFingerprint();
-    __declspec(dllimport) const unsigned char* GetV8SnapshotFingerprint();
+    const unsigned char* GetV8NativesFingerprint();
+    const unsigned char* GetV8SnapshotFingerprint();
 }
 #endif  // V8_VERIFY_EXTERNAL_STARTUP_DATA
 

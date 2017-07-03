@@ -725,7 +725,7 @@ public:
         ofn.lpstrTitle = title.c_str();
         ofn.Flags = OFN_EXPLORER | OFN_LONGNAMES | OFN_NOCHANGEDIR;
 
-        BOOL retVal;
+        BOOL retVal = FALSE;
         switch (params.mode()) {
         case blpwtk2::FileChooserParams::OPEN:
             ofn.Flags |= OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
@@ -1095,7 +1095,7 @@ HANDLE spawnProcess()
         char buf[1024];
         sprintf_s(buf, sizeof(buf), "AssignProcessToJobObject failed: %d\n", lastError);
         OutputDebugStringA(buf);
-        ::TerminateProcess(procInfo.hProcess, -1);
+        ::TerminateProcess(procInfo.hProcess, 1);
         return NULL;
     }
 

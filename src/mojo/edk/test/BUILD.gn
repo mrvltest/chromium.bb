@@ -20,10 +20,12 @@ source_set("test_support") {
 
   deps = [
     "//base",
-    "//base/test:test_support",
     "//mojo/edk/system",
     "//mojo/public/cpp/system",
-    "//testing/gtest",
+
+    # blpwtk2: Remove test-only code
+#    "//testing/gtest",
+#    "//base/test:test_support",
   ]
 }
 
@@ -37,10 +39,12 @@ source_set("run_all_unittests") {
     ":test_support",
     ":test_support_impl",
     "//base",
-    "//base/test:test_support",
     "//mojo/edk/system",
     "//mojo/public/c/test_support",
-    "//testing/gtest",
+
+    # blpwtk2: Remove test-only code
+#    "//testing/gtest",
+#    "//base/test:test_support",
   ]
 
   if (is_linux && !is_component_build) {
