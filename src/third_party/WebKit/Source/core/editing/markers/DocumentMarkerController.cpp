@@ -181,9 +181,13 @@ static bool updateMarkerRenderedRect(Node* node, RenderedDocumentMarker& marker)
     range->setStart(node, marker.startOffset(), exceptionState);
     if (!exceptionState.hadException())
         range->setEnd(node, marker.endOffset(), IGNORE_EXCEPTION);
-    if (exceptionState.hadException())
+    if (exceptionState.hadException()) {
+        range->dispose();
         return marker.invalidateRenderedRect();
-    return marker.setRenderedRect(LayoutRect(range->boundingBox()));
+    }
+    const bool isUpdated = marker.setRenderedRect(LayoutRect(range->boundingBox()));
+    range->dispose();
+    return isUpdated;
 }
 
 // Markers are stored in order sorted by their start offset.
