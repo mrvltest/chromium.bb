@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+blpwtk2_tree_trap=out/blpwtk2_tree.trap
+
+if [[ -f $blpwtk2_tree_trap ]]
+then
+  rm $blpwtk2_tree_trap
+fi
+
+OS="$(uname -s)"
+case "$OS" in
+    Linux*) exec python $(dirname "$0")/gn_blpwtk2.py "$@";;
+    CYGWIN*) exec cmd.exe /c $(cygpath -w python).exe $(cygpath -w $(dirname "$0")/gn_blpwtk2.py) "$@";;
+    MINGW*) cmd.exe //c "$(basename "python")".exe $(dirname "$0")/gn_blpwtk2.py "$@";;
+    *)  echo "Unsupported OS ${OS}"
+        exit 1;;
+esac
+
+touch $blpwtk2_tree_trap
+
+exit 0

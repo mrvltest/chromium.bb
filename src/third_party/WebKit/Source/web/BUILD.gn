@@ -15,7 +15,6 @@ web_gypi = exec_script("//build/gypi_to_gn.py",
                        [ rebase_path("web.gypi") ],
                        "scope",
                        [ "web.gypi" ])
-web_unittest_files = web_gypi.web_unittest_files
 
 component("web") {
   output_name = "blink_web"
@@ -46,23 +45,25 @@ component("web") {
   }
 
   if (is_component_build) {
-    deps += [
-      "//base/test:test_support",
-      "//testing/gmock",
-      "//testing/gtest",
-      "//third_party/WebKit/Source/core:testing",
-      "//third_party/WebKit/Source/modules:modules_testing",
-      "//third_party/WebKit/Source/platform:test_support",
-      "//third_party/WebKit/Source/wtf:test_support",
-    ]
+    # blpwtk2: Remove test-only code
+#    deps += [
+#      "//base/test:test_support",
+#      "//testing/gmock",
+#      "//testing/gtest",
+#      "//third_party/WebKit/Source/core:testing",
+#      "//third_party/WebKit/Source/modules:modules_testing",
+#      "//third_party/WebKit/Source/platform:test_support",
+#      "//third_party/WebKit/Source/wtf:test_support",
+#    ]
 
     configs -= [ "//third_party/WebKit/Source:non_test_config" ]
 
-    sources += web_unittest_files
-    sources += bindings_unittest_files
-    sources += core_unittest_files
-    sources += modules_unittest_files
-    sources += platform_web_unittest_files
+    # blpwtk2: Remove test-only code
+#    sources += web_unittest_files
+#    sources += bindings_unittest_files
+#    sources += core_unittest_files
+#    sources += modules_unittest_files
+#    sources += platform_web_unittest_files
 
     sources += [ "WebTestingSupport.cpp" ]
     include_dirs += [ "$root_gen_dir/blink" ]
@@ -150,6 +151,7 @@ test("webkit_unit_tests") {
   configs += [ "//third_party/WebKit/Source:config" ]
 
   if (!is_component_build) {
+    web_unittest_files = web_gypi.web_unittest_files
     deps += [ "//third_party/WebKit/Source/core" ]
 
     configs += [ "//third_party/WebKit/Source:inside_blink" ]

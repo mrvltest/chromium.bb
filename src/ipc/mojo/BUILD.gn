@@ -67,7 +67,9 @@ test("ipc_mojo_unittests") {
     "//ipc/mojo",
     "//mojo/edk/system",
     "//mojo/environment:chromium",
-    "//testing/gtest",
+    # blpwtk2: Remove test-only code
+#    "//testing/gtest",
+
     "//url",
   ]
 }

@@ -488,6 +488,7 @@ component("media") {
     "//media/base",
     "//media/capture",
     "//third_party/opus",
+    "//blpwtk2:blpwtk2_generate_sources"
   ]
 
   deps += [
@@ -505,6 +506,10 @@ component("media") {
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//url",
+  ]
+
+  public_configs = [
+    "//blpwtk2:blpwtk2_public"
   ]
 }
 

@@ -21,7 +21,8 @@ source_set("utility") {
     "//content/public/child:child_sources",
     "//content/public/common:common_sources",
     "//content/public/common:mojo_bindings",
-    "//courgette:courgette_lib",
+    # blpwtk2: Trim fat
+#    "//courgette:courgette_lib",
     "//mojo/common",
     "//mojo/public/cpp/bindings",
     "//mojo/shell",

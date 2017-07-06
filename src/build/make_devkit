@@ -31,7 +31,6 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
 srcDir = os.path.abspath(os.path.join(scriptDir, os.pardir))
 chromiumDir = os.path.abspath(os.path.join(srcDir, os.pardir))
 
-
 def applyVariableToEnvironment(env, var, val):
   if env in os.environ:
     envItems = os.environ[env].split(" ")
@@ -49,24 +48,37 @@ def applyVariableToEnvironment(env, var, val):
   os.environ[env] = " ".join(envItems)
 
 
-def copyVersionFile(destDir):
+def copyVersionFile(destDir, doGnBuild):
   gitHash = bbutil.getHEADSha()
   destFile = os.path.join(destDir, 'version.txt')
   srcFile = os.path.join(chromiumDir, 'version.txt')
-  with open(destFile, 'w') as fDest:
-    with open(srcFile, 'r') as fSrc:
-      if 'GYP_GENERATORS' in os.environ:
-        fDest.write('GYP_GENERATORS="' + os.environ['GYP_GENERATORS'] + '"\n')
-      if 'GYP_MSVS_VERSION' in os.environ:
-        fDest.write('GYP_MSVS_VERSION="' +
-                    os.environ['GYP_MSVS_VERSION'] + '"\n')
-      if 'GYP_GENERATOR_FLAGS' in os.environ:
-        fDest.write('GYP_GENERATOR_FLAGS="' +
-                    os.environ['GYP_GENERATOR_FLAGS'] + '"\n')
-      if 'GYP_DEFINES' in os.environ:
-        fDest.write('GYP_DEFINES="' + os.environ['GYP_DEFINES'] + '"\n')
-      fDest.write('chromium.bb commit ' + gitHash + '\n\n')
-      fDest.write(fSrc.read())
+  if not doGnBuild:
+    with open(destFile, 'w') as fDest:
+      with open(srcFile, 'r') as fSrc:
+        if 'GYP_GENERATORS' in os.environ:
+          fDest.write('GYP_GENERATORS="' + os.environ['GYP_GENERATORS'] + '"\n')
+        if 'GYP_MSVS_VERSION' in os.environ:
+          fDest.write('GYP_MSVS_VERSION="' +
+                      os.environ['GYP_MSVS_VERSION'] + '"\n')
+        if 'GYP_GENERATOR_FLAGS' in os.environ:
+          fDest.write('GYP_GENERATOR_FLAGS="' +
+                      os.environ['GYP_GENERATOR_FLAGS'] + '"\n')
+        if 'GYP_DEFINES' in os.environ:
+          fDest.write('GYP_DEFINES="' + os.environ['GYP_DEFINES'] + '"\n')
+        fDest.write('chromium.bb commit ' + gitHash + '\n\n')
+        fDest.write(fSrc.read())
+  else:
+    with open(destFile, 'w') as fDest:
+      with open(srcFile, 'r') as fSrc:
+        if 'GN_GENERATORS' in os.environ:
+          fDest.write('GN_GENERATORS="' + os.environ['GN_GENERATORS'] + '"\n')
+        if 'GN_GENERATOR_FLAGS' in os.environ:
+          fDest.write('GN_GENERATOR_FLAGS="' +
+                      os.environ['GN_GENERATOR_FLAGS'] + '"\n')
+        if 'GN_DEFINES' in os.environ:
+          fDest.write('GN_DEFINES="' + os.environ['GN_DEFINES'] + '"\n')
+        fDest.write('chromium.bb commit ' + gitHash + '\n\n')
+        fDest.write(fSrc.read())
 
 
 def findHeaderFiles(dirs):
@@ -85,21 +97,37 @@ def copyIncludeFilesFrom(destDir, sourceDirs):
     shutil.copyfile(src, dest)
 
 
-def copyIncludeFiles(destDir):
-  copyIncludeFilesFrom(
-      os.path.join(destDir, 'include', 'blpwtk2'),
-      [os.path.join(srcDir, 'blpwtk2', 'public'),
-       os.path.join(srcDir, 'out', 'Debug', 'gen', 'blpwtk2', 'public')])
+def copyIncludeFiles(destDir, doGnBuild):
+  if not doGnBuild:
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'blpwtk2'),
+        [os.path.join(srcDir, 'blpwtk2', 'public'),
+         os.path.join(srcDir, 'out', 'Debug', 'gen', 'blpwtk2', 'public')])
 
-  copyIncludeFilesFrom(
-      os.path.join(destDir, 'include', 'blppdfutil'),
-      [os.path.join(srcDir, 'blppdfutil', 'public'),
-       os.path.join(srcDir, 'out', 'Debug', 'gen', 'blppdfutil', 'public')])
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'blppdfutil'),
+        [os.path.join(srcDir, 'blppdfutil', 'public'),
+         os.path.join(srcDir, 'out', 'Debug', 'gen', 'blppdfutil', 'public')])
 
-  copyIncludeFilesFrom(
-      os.path.join(destDir, 'include', 'v8'),
-      [os.path.join(srcDir, 'v8', 'include'),
-       os.path.join(srcDir, 'out', 'Debug', 'gen', 'blpv8', 'public')])
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'v8'),
+        [os.path.join(srcDir, 'v8', 'include'),
+         os.path.join(srcDir, 'out', 'Debug', 'gen', 'blpv8', 'public')])
+  else:
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'blpwtk2'),
+        [os.path.join(srcDir, 'blpwtk2', 'public'),
+         os.path.join(srcDir, 'out', 'gn_static', 'Debug', 'gen', 'blpwtk2', 'blpwtk2', 'public')])
+
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'blppdfutil'),
+        [os.path.join(srcDir, 'blppdfutil', 'public'),
+         os.path.join(srcDir, 'out', 'gn_static', 'Debug', 'gen', 'blpwtk2', 'blppdfutil', 'public')])
+
+    copyIncludeFilesFrom(
+        os.path.join(destDir, 'include', 'v8'),
+        [os.path.join(srcDir, 'v8', 'include'),
+         os.path.join(srcDir, 'out', 'gn_static', 'Debug', 'gen', 'blpwtk2', 'blpv8', 'public')])
 
 
 def copyBin(destDir, version):
@@ -144,8 +172,50 @@ def copyBin(destDir, version):
       srcFile = os.path.join(srcBinDir, p)
       shutil.copy(srcFile, destFile)
 
+def copyGnBin(destDir, version):
+  productAppend = '.' + version
 
-def copyLib(destDir, version):
+  products = [
+    'blpwtk2_shell.exe',
+    'blpwtk2_subprocess' + productAppend + '.exe',
+    'content_shell.exe',
+    'd8.exe',
+    'blpv8' + productAppend + '.dll',
+    'natives_blob' + productAppend + '.bin',
+    'snapshot_blob' + productAppend + '.bin',
+    'blpwtk2' + productAppend + '.dll',
+    'blpcr_egl' + productAppend + '.dll',
+    'blpcr_glesv2' + productAppend + '.dll',
+    'blppdfutil' + productAppend + '.dll',
+    'd3dcompiler_47.dll',
+    'icudtl' + productAppend + '.dat',
+    'blpwtk2_devtools' + productAppend + '.pak',
+    'content_shell.pak',
+    'blpv8' + productAppend + '.dll.pdb',
+    'blpv8' + productAppend + '.map',
+    'blpwtk2' + productAppend + '.dll.pdb',
+    'blpwtk2' + productAppend + '.map',
+    'blpcr_egl' + productAppend + '.dll.pdb',
+    'blpcr_egl' + productAppend + '.map',
+    'blpcr_glesv2' + productAppend + '.dll.pdb',
+    'blpcr_glesv2' + productAppend + '.map',
+    'blppdfutil' + productAppend + '.dll.pdb',
+    'blppdfutil' + productAppend + '.map',
+    'blpwtk2_subprocess' + productAppend + '.exe.pdb',
+    'blpwtk2_subprocess' + productAppend + '.map',
+  ]
+
+  configs = ['Debug', 'Release']
+  for config in configs:
+    destBinDir = os.path.join(destDir, 'bin', config)
+    srcBinDir = os.path.join(srcDir, 'out', 'gn_static', config)
+    for p in products:
+      destFile = os.path.join(destBinDir, p)
+      srcFile = os.path.join(srcBinDir, p)
+      shutil.copy(srcFile, destFile)
+
+
+def copyLib(destDir, version, doGnBuild):
   productAppend = '.' + version
 
   products = [
@@ -157,14 +227,17 @@ def copyLib(destDir, version):
   configs = ['Debug', 'Release']
   for config in configs:
     destBinDir = os.path.join(destDir, 'lib', config)
-    srcBinDir = os.path.join(srcDir, 'out', config)
+    if not doGnBuild:
+      srcBinDir = os.path.join(srcDir, 'out', config)
+    else:
+      srcBinDir = os.path.join(srcDir, 'out', 'gn_static', config)
     for p in products:
       destFile = os.path.join(destBinDir, p)
       srcFile = os.path.join(srcBinDir, p)
       shutil.copy(srcFile, destFile)
 
 
-def addGenFiles():
+def addGenFiles(doGnBuild):
   configs = ['Debug', 'Release']
 
   def wantedFile(fname):
@@ -177,7 +250,10 @@ def addGenFiles():
 
   filesToAdd = []
   for config in configs:
-    genDir = os.path.join(srcDir, 'out', config, 'gen')
+    if not doGnBuild:
+      genDir = os.path.join(srcDir, 'out', config, 'gen')
+    else:
+      genDir = os.path.join(srcDir, 'out', 'gn_static', config, 'gen')
     for dirpath, dirnames, filenames in os.walk(genDir):
       dirnames[:] = filter(lambda d: d != 'ffmpeg', dirnames)
       filenames = filter(lambda f: wantedFile(f), filenames)
@@ -197,12 +273,13 @@ def addGenFiles():
 
 
 def main(args):
-  version = "bb702"   # SET BB VERSION NUMBER HERE
+  version = "bb703"   # SET BB VERSION NUMBER HERE
 
   outDir = None
   doClean = True
   doTag = False
   doPushTag = True
+  doGnBuild = False
   for i in range(len(args)):
     if args[i] == '--outdir':
       outDir = args[i+1]
@@ -212,8 +289,10 @@ def main(args):
       doTag = True
     elif args[i] == '--nopushtag':
       doPushTag = False
+    elif args[i] == '--gn':
+      doGnBuild = True
     elif args[i].startswith('-'):
-      print("Usage: make_devkit --outdir <outdir> [--noclean] [--maketag [--nopushtag] ]")
+      print("Usage: make_devkit --outdir <outdir> [--noclean] [--maketag [--nopushtag] ] [--gn]")
       return 1
 
   if not outDir:
@@ -240,39 +319,77 @@ def main(args):
       shutil.rmtree(buildOutDir)
     bbutil.shellExec('git clean -fdx')
 
-  applyVariableToEnvironment('GYP_DEFINES', 'component', 'static_library')
-  applyVariableToEnvironment('GYP_DEFINES', 'bb_generate_map_files', '1')
-  applyVariableToEnvironment('GYP_DEFINES', 'bb_version', version)
-  applyVariableToEnvironment('GYP_DEFINES', 'bb_ppapi_examples', '0')
-  applyVariableToEnvironment('GYP_DEFINES', 'dont_include_type_in_pdb', '1')
-  applyVariableToEnvironment('GYP_DEFINES', 'win_embed_manifest', '1')
-
   with open('devkit_version.txt', 'w') as f:
     f.write(version)
 
-  print("Running hooks for ninjaDebug...")
-  sys.stdout.flush()
-  rc = bbutil.shellExecNoPipe('python src/build/runhooks.py ninjaDebug')
-  if rc != 0:
-    return rc
+  if not doGnBuild: # GYP build
+    applyVariableToEnvironment('GYP_DEFINES', 'component', 'static_library')
+    applyVariableToEnvironment('GYP_DEFINES', 'bb_generate_map_files', '1')
+    applyVariableToEnvironment('GYP_DEFINES', 'bb_version', version)
+    applyVariableToEnvironment('GYP_DEFINES', 'bb_ppapi_examples', '0')
+    applyVariableToEnvironment('GYP_DEFINES', 'dont_include_type_in_pdb', '1')
+    applyVariableToEnvironment('GYP_DEFINES', 'win_embed_manifest', '1')
+  
+  
+    print("Running hooks for ninjaDebug...")
+    sys.stdout.flush()
+    rc = bbutil.shellExecNoPipe('python src/build/runhooks.py ninjaDebug')
+    if rc != 0:
+      return rc
+  
+    print("Building Debug...")
+    sys.stdout.flush()
+    rc = bbutil.shellExecNoPipe('ninja.exe -C src/out/Debug blpwtk2_all')
+    if rc != 0:
+      return rc
+  
+    print("Running gyp for ninjaRelease...")
+    sys.stdout.flush()
+    rc = bbutil.shellExecNoPipe('python src/build/gyp_blpwtk2.py ninjaRelease -Dbuildtype=Official')
+    if rc != 0:
+      return rc
+  
+    print("Building Release...")
+    sys.stdout.flush()
+    rc = bbutil.shellExecNoPipe('ninja.exe -C src/out/Release blpwtk2_all')
+    if rc != 0:
+      return rc
+  else: # Do GN build
+    os.environ['GN_GENERATORS'] = 'ninja'
+    applyVariableToEnvironment('GN_GENERATOR_FLAGS', 'msvs_version', '2013')
+    applyVariableToEnvironment('GN_DEFINES', 'bb_generate_map_files', 'true')
+    applyVariableToEnvironment('GN_DEFINES', 'bb_ppapi_examples', 'false')
+    applyVariableToEnvironment('GN_DEFINES', 'win_embed_manifest', 'true')
 
-  print("Building Debug...")
-  sys.stdout.flush()
-  rc = bbutil.shellExecNoPipe('ninja.exe -C src/out/Debug blpwtk2_all')
-  if rc != 0:
-    return rc
+    print ("srcDir is : " + srcDir)
+    os.chdir(srcDir)
 
-  print("Running gyp for ninjaRelease...")
-  sys.stdout.flush()
-  rc = bbutil.shellExecNoPipe('python src/build/gyp_blpwtk2.py ninjaRelease -Dbuildtype=Official')
-  if rc != 0:
-    return rc
+    rc = bbutil.shellExecNoPipe('python build/runhooks.py')
+    if rc != 0:
+      return rc
 
-  print("Building Release...")
-  sys.stdout.flush()
-  rc = bbutil.shellExecNoPipe('ninja.exe -C src/out/Release blpwtk2_all')
-  if rc != 0:
-    return rc
+    print("Building Debug...")
+    sys.stdout.flush()
+    rc = bbutil.shellExecNoPipe('python build/gn_blpwtk2.py static Debug --bb_version')
+    if rc != 0:
+      return rc
+
+    rc = bbutil.shellExecNoPipe('ninja.exe -C out/gn_static/Debug blpwtk2_all')
+    if rc != 0:
+      return rc
+
+    print("Building Release...")
+    sys.stdout.flush()
+    applyVariableToEnvironment('GN_DEFINES', 'is_official_build', 'true')
+    rc = bbutil.shellExecNoPipe('python build/gn_blpwtk2.py static Release --bb_version')
+    if rc != 0:
+      return rc
+
+    rc = bbutil.shellExecNoPipe('ninja.exe -C out/gn_static/Release blpwtk2_all')
+    if rc != 0:
+      return rc
+
+    os.chdir("..")
 
   print("Creating devkit at " + destDir)
   sys.stdout.flush()
@@ -288,18 +405,21 @@ def main(args):
   os.mkdir(os.path.join(destDir, 'lib', 'Debug'))
   os.mkdir(os.path.join(destDir, 'lib', 'Release'))
 
-  copyIncludeFiles(destDir)
-  copyBin(destDir, version)
-  copyLib(destDir, version)
+  copyIncludeFiles(destDir, doGnBuild)
+  if not doGnBuild:
+    copyBin(destDir, version)
+  else:
+    copyGnBin(destDir, version)
+  copyLib(destDir, version, doGnBuild)
 
   if doTag:
     print("Adding generated code to source control...")
     sys.stdout.flush()
-    addGenFiles()
+    addGenFiles(doGnBuild)
 
   # Copy version.txt *after* committing the generated files so that the sha in
   # the version.txt file includes the generated code.
-  copyVersionFile(destDir)
+  copyVersionFile(destDir, doGnBuild)
 
   if doTag:
     print("Creating tag...")

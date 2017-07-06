@@ -53,7 +53,10 @@ test("mojo_shell_unittests") {
     "//mojo/shell/background/tests:unittests",
     "//mojo/shell/public/cpp",
     "//mojo/util:filename_util",
-    "//testing/gtest",
+
+    # blpwtk2: Remove test-only code
+#    "//testing/gtest",
+
     "//url",
   ]
 }

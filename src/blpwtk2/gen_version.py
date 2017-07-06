@@ -187,14 +187,16 @@ def doMain(args):
     elif args[i] == '--output-version-cc':
       versionCCFile = args[i+1]
     elif args[i] == '--version':
-      version = args[i+1]
+      if i+1 < len(args):
+        version = args[i+1]
 
   assert(blpwtk2ProductsFile != None)
   assert(blpv8ProductsFile != None)
   assert(blppdfutilProductsFile != None)
   assert(versionHFile != None)
   assert(versionCCFile != None)
-  assert(version != None)
+  if version == None:
+    version = ''
 
   with open(blpwtk2ProductsFile, 'w') as f:
     writeBlpwtk2ProductsFile(f, version)

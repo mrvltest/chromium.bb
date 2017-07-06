@@ -209,7 +209,7 @@ void ProcessHostImpl::OnBadMessageReceived(const IPC::Message& message)
 void ProcessHostImpl::OnChannelConnected(int32_t peer_pid)
 {
     LOG(INFO) << "channel connected: peer_pid(" << peer_pid << ")";
-    if (peer_pid == base::GetCurrentProcId()) {
+    if (peer_pid == (int32_t)base::GetCurrentProcId()) {
         d_processHandle = base::GetCurrentProcessHandle();
         CHECK(d_processHandle != base::kNullProcessHandle);
     }

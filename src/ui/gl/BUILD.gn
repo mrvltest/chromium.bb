@@ -120,7 +120,10 @@ component("gl") {
 
   all_dependent_configs = [ ":gl_config" ]
 
-  public_configs = [ "//third_party/khronos:khronos_headers" ]
+  public_configs = [
+    "//third_party/khronos:khronos_headers",
+    "//blpwtk2:blpwtk2_public",
+  ]
 
   deps = [
     "//base/third_party/dynamic_annotations",
@@ -132,6 +135,7 @@ component("gl") {
     "//ui/events/platform",
     "//ui/gfx",
     "//ui/gfx/geometry",
+    "//blpwtk2:blpwtk2_generate_sources",
   ]
 
   if (is_win || is_android || is_linux) {
@@ -156,9 +160,10 @@ component("gl") {
       "gl_implementation_osmesa.h",
     ]
   }
-  if (!is_android) {  # TODO(GYP) Enable on Android when osmesa links.
-    deps += [ "//third_party/mesa:osmesa" ]
-  }
+  # blpwtk2, not needed
+#  if (!is_android) {  # TODO(GYP) Enable on Android when osmesa links.
+#    deps += [ "//third_party/mesa:osmesa" ]
+#  }
   if (use_x11) {
     sources += [
       "gl_bindings_autogen_glx.cc",
@@ -216,7 +221,8 @@ component("gl") {
     data_deps = [
       "//third_party/angle:libEGL",
       "//third_party/angle:libGLESv2",
-      "//third_party/mesa:osmesa",
+      # blpwtk2, not needed
+#      "//third_party/mesa:osmesa",
     ]
   }
   if (is_mac) {

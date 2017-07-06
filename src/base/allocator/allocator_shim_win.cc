@@ -18,6 +18,8 @@
 // 2. Calling new_handler if malloc fails.
 
 extern "C" {
+
+typedef void *_HFILE; 
 // We set this to 1 because part of the CRT uses a check of _crtheap != 0
 // to test whether the CRT has been initialized.  Once we've ripped out
 // the allocators from libcmt, we need to provide this definition so that
@@ -325,6 +327,10 @@ int _CrtDbgReportW(int reportType,
 }
 
 int _CrtSetReportMode(int, int) {
+  return 0;
+}
+
+int _CrtSetReportFile(int, _HFILE) {
   return 0;
 }
 

@@ -149,6 +149,8 @@ grit("resources") {
   outputs = [
     "grit/blink_resources.h",
     "blink_resources.pak",
+    # needed by blpwtk2
+    "blink_resources.rc",
   ]
   if (use_concatenated_impulse_responses) {
     grit_flags = [
@@ -156,6 +158,17 @@ grit("resources") {
       "use_concatenated_impulse_responses",
     ]
   }
+}
+
+# Needed by blpwtk2
+grit("inspector_resources") {
+  output_dir = "$root_gen_dir/blink/public/resources"
+  use_qualified_include = true
+  source = "blink_inspector_resources.grd"
+  outputs = [
+    "grit/blink_inspector_resources.h",
+    "blink_inspector_resources.pak",
+  ]
 }
 
 # GYP version: WebKit/public/blink_resources.gyp:blink_image_resources

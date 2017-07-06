@@ -116,6 +116,7 @@ source_set("child") {
       "//third_party/WebKit/public:blink_headers",
       "//third_party/WebKit/public:image_resources",
       "//third_party/WebKit/public:resources",
+      "//third_party/WebKit/public:inspector_resources",
       "//third_party/npapi",
     ]
   }

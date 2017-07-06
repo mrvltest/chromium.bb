@@ -164,7 +164,7 @@ def main():
 
     if win_sdk_path:
       additional_includes = [
-        os.path.join(win_sdk_path, 'Include', '10.0.10586.0', p)
+        os.path.join(win_sdk_path, 'Include', '10.0.14393.0', p)
         for p in ['shared', 'um', 'winrt']]
       additional_includes = os.path.pathsep.join(additional_includes)
       env['INCLUDE'] = additional_includes + os.path.pathsep + env['INCLUDE']

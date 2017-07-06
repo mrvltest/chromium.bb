@@ -6,9 +6,14 @@ import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//blpwtk2/blpwtk2.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
+}
+
+if (is_win) {
+  import("//build/config/win/visual_studio_version.gni")
 }
 
 # Because standalone V8 builds are not supported, assume this is part of a
@@ -63,7 +68,7 @@ config("internal_config") {
 
   include_dirs = [ "." ]
 
-  if (is_component_build) {
+  if (is_component_build || v8_as_shared_library) {
     defines = [
       "V8_SHARED",
       "BUILDING_V8_SHARED",
@@ -80,7 +85,7 @@ config("internal_config_base") {
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
-  if (is_component_build) {
+  if (is_component_build || v8_as_shared_library) {
     defines = [
       "V8_SHARED",
       "USING_V8_SHARED",
@@ -436,9 +441,11 @@ if (v8_use_external_startup_data) {
       "$target_gen_dir/libraries_experimental_extras.bin",
     ]
 
-    outputs = [
-      "$root_out_dir/natives_blob.bin",
-    ]
+    if (bb_version == "") {
+      outputs = [ "$root_out_dir/natives_blob.bin" ]
+    } else {
+      outputs = [ "$root_out_dir/natives_blob.$bb_version.bin" ]
+    }
 
     script = "tools/concatenate-files.py"
 
@@ -501,11 +508,19 @@ action("run_mksnapshot") {
   }
 
   if (v8_use_external_startup_data) {
-    outputs += [ "$root_out_dir/snapshot_blob.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
-    ]
+    if (bb_version == "") {
+      outputs += [ "$root_out_dir/snapshot_blob.bin" ]
+      args += [
+        "--startup_blob",
+        rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+      ]
+    } else {
+      outputs += [ "$root_out_dir/snapshot_blob.$bb_version.bin" ]
+      args += [
+        "--startup_blob",
+        rebase_path("$root_out_dir/snapshot_blob.$bb_version.bin", root_build_dir),
+      ]
+    }
   }
 }
 
@@ -577,6 +592,9 @@ source_set("v8_snapshot") {
     ":features",
     ":toolchain",
   ]
+  if (bb_generate_map_files) {
+    configs += [ "//blpwtk2:blpwtk2_gen_map" ]
+  }
 }
 
 if (v8_use_external_startup_data) {
@@ -1665,6 +1683,14 @@ source_set("v8_base") {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]
   }
+
+  public_deps = [
+    "//blpwtk2:blpwtk2_generate_sources",
+  ]
+
+  public_configs = [
+    "//blpwtk2:blpwtk2_public",
+  ]
 }
 
 source_set("v8_libbase") {
@@ -1861,15 +1887,25 @@ if (current_toolchain == snapshot_toolchain) {
 # Public targets
 #
 
-if (is_component_build) {
-  component("v8") {
+if (v8_as_shared_library) {
+  shared_library("v8") {
+    output_name = "blpv8.$bb_version"
+
+#    if (soname_version != "") {
+#        output_extention = "so.$soname_version"
+#    }
+
     sources = [
+      "src/blpv8.rc",
       "src/v8dll-main.cc",
     ]
 
     public_deps = [
       ":v8_base",
+      ":v8_libplatform",
       snapshot_target,
+      "//blpwtk2:blpwtk2_generate_sources",
+      "//base/allocator"
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
@@ -1879,8 +1915,15 @@ if (is_component_build) {
       ":features",
       ":toolchain",
     ]
+    if (bb_generate_map_files) {
+      configs += [ "//blpwtk2:blpwtk2_gen_map" ]
+    }
 
-    public_configs = [ ":external_config" ]
+    public_configs = [
+      ":external_config",
+      "//blpwtk2:blpwtk2_public",
+      "//base/allocator:allocator_shim_define",
+    ]
 
     libs = []
     if (is_android && current_toolchain != host_toolchain) {
@@ -1916,12 +1959,16 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       ":features",
       ":toolchain",
     ]
+    if (bb_generate_map_files) {
+      configs += [ "//blpwtk2:blpwtk2_gen_map" ]
+    }
 
     deps = [
       ":d8_js2c",
       ":v8",
       ":v8_libplatform",
       "//build/config/sanitizers:deps",
+      "//base/allocator"
     ]
 
     # TODO(jochen): Add support for vtunejit.
@@ -1932,7 +1979,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       sources += [ "src/d8-windows.cc" ]
     }
 
-    if (!is_component_build) {
+    if (!is_component_build && !v8_as_shared_library) {
       sources += [
         "$target_gen_dir/d8-js.cc",
       ]
