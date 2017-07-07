@@ -1825,15 +1825,27 @@ void CompositedLayerMapping::updateLCDBackgroundColor(const PaintLayer* composit
         }
     }
 
-    if (m_lcdBackgroundColor == lcdBackgroundColor) {
-        return;
-    }
-
     m_lcdBackgroundColor = lcdBackgroundColor;
 
     // Now set LCD background color on the GraphicsLayer's that might use it:
+    if (m_ancestorClippingLayer) {
+        m_ancestorClippingLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+
     m_graphicsLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
 
+    if (m_childContainmentLayer) {
+        m_childContainmentLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+    if (m_childTransformLayer) {
+        m_childTransformLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+    if (m_scrollingLayer) {
+        m_scrollingLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+    if (m_scrollingContentsLayer) {
+        m_scrollingContentsLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
     if (m_backgroundLayer) {
         m_backgroundLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
     }
@@ -1842,6 +1854,12 @@ void CompositedLayerMapping::updateLCDBackgroundColor(const PaintLayer* composit
     }
     if (m_squashingLayer) {
         m_squashingLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+    if (m_overflowControlsAncestorClippingLayer) {
+        m_overflowControlsAncestorClippingLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
+    }
+    if (m_squashingContainmentLayer) {
+        m_squashingContainmentLayer->setDefaultLCDBackgroundColor(m_lcdBackgroundColor);
     }
 }
 
