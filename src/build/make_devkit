@@ -279,7 +279,7 @@ def main(args):
   doClean = True
   doTag = False
   doPushTag = True
-  doGnBuild = False
+  doGnBuild = True
   for i in range(len(args)):
     if args[i] == '--outdir':
       outDir = args[i+1]
