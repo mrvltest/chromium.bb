@@ -273,13 +273,13 @@ def addGenFiles(doGnBuild):
 
 
 def main(args):
-  version = "bb703"   # SET BB VERSION NUMBER HERE
+  version = "bb704"   # SET BB VERSION NUMBER HERE
 
   outDir = None
   doClean = True
   doTag = False
   doPushTag = True
-  doGnBuild = False
+  doGnBuild = True
   for i in range(len(args)):
     if args[i] == '--outdir':
       outDir = args[i+1]
