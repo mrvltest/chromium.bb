@@ -666,10 +666,11 @@ void WebViewImpl::onNCHitTestResult(int x, int y, int result)
     // always have the latest info.
     if (d_delegate && d_ncHitTestEnabled) {
         POINT ptNow;
-        ::GetCursorPos(&ptNow);
-        if (ptNow.x != x || ptNow.y != y) {
-            d_ncHitTestPendingAck = true;
-            d_delegate->requestNCHitTest(this);
+        if(::GetCursorPos(&ptNow)) {
+            if (ptNow.x != x || ptNow.y != y) {
+                d_ncHitTestPendingAck = true;
+                d_delegate->requestNCHitTest(this);
+            }
         }
     }
 }
