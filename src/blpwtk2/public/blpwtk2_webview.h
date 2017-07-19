@@ -291,6 +291,7 @@ public:
     // Display a print dialog and print the contents of this WebView if the
     // user clicks 'OK'.
     virtual void print() = 0;
+    virtual bool printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint) = 0;
 
     // Inform the web widget of a sequence of input events
     virtual void handleInputEvents(const InputEvent *events, size_t eventsCount) = 0;

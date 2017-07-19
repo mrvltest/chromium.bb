@@ -142,9 +142,10 @@ class WebViewImpl : public WebView,
     void rootWindowPositionChanged() override;
     void rootWindowSettingsChanged() override;
     void print() override;
+    bool printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint) override;
     void handleInputEvents(const InputEvent *events, size_t eventsCount) override;
     void setDelegate(WebViewDelegate* delegate) override;
-    void drawContentsToBlob(Blob *blob, const DrawParams& params) override;
+    void drawContentsToBlob(Blob *blob, const DrawParams& params) override; 
     int getRoutingId() const override;
     void setBackgroundColor(NativeColor color) override;
     void setRegion(NativeRegion region) override;

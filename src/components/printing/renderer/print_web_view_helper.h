@@ -124,6 +124,7 @@ class PrintWebViewHelper
   bool IsPrintingEnabled();
 
   void PrintNode(const blink::WebNode& node);
+  bool PrintToPDF(blink::WebLocalFrame* localframe, std::string& pdfString);
 
  private:
   friend class PrintWebViewHelperTestBase;

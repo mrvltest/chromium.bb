@@ -54,6 +54,7 @@
 #include <dwmapi.h>
 #include <windows.h>
 
+
 namespace {
 
 const int DEFAULT_DPI_X = 96;
@@ -290,6 +291,11 @@ void WebViewProxy::print()
 {
     DCHECK(Statics::isInApplicationMainThread());
     Send(new BlpWebViewHostMsg_Print(d_routingId));
+}
+
+bool WebViewProxy::printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint)
+{   
+    return false;
 }
 
 static inline SkScalar distance(SkScalar x, SkScalar y)

@@ -127,6 +127,7 @@ class WebViewProxy : public WebView,
     void rootWindowPositionChanged() override;
     void rootWindowSettingsChanged() override;
     void print() override;
+    bool printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint) override;
     void handleInputEvents(const InputEvent *events, size_t eventsCount) override;
     void setDelegate(WebViewDelegate* delegate) override;
     void drawContentsToBlob(Blob *blob, const DrawParams& params) override;
