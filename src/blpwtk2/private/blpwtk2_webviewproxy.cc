@@ -293,9 +293,10 @@ void WebViewProxy::print()
     Send(new BlpWebViewHostMsg_Print(d_routingId));
 }
 
-bool WebViewProxy::printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint)
+String WebViewProxy::printToPDF(const char *propertyNameOnIframeToPrint)
 {   
-    return false;
+    // NOT YET IMPLEMENTED
+    return String();
 }
 
 static inline SkScalar distance(SkScalar x, SkScalar y)

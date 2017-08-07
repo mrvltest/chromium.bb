@@ -359,22 +359,30 @@ void WebViewImpl::print()
     printViewManager->PrintNow();
 }
 
-bool WebViewImpl::printToPDF(std::string &buffer, const char *propertyNameOnIframeToPrint)
+String WebViewImpl::printToPDF(const char *propertyNameOnIframeToPrint)
 {    
+    String returnVal;
     content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
 
-    for (auto *frame = rv->GetWebView()->mainFrame(); frame; frame = frame->traverseNext(false)) {
+    for (auto *frame = rv->GetWebView()->mainFrame();
+         frame;
+         frame = frame->traverseNext(false)) {
 
-        NPObject *winOBject = frame->windowObject();
-        NPIdentifier property = blink::WebBindings::getStringIdentifier(propertyNameOnIframeToPrint);
+        NPObject *winObject = frame->windowObject();
+        NPIdentifier property =
+            blink::WebBindings::getStringIdentifier(propertyNameOnIframeToPrint);
 
-        if (blink::WebBindings::hasProperty(0, winOBject, property)) {
+        if (blink::WebBindings::hasProperty(0, winObject, property)) {
+            std::vector<char> buffer =
+                printing::PrintWebViewHelper::Get(rv)->PrintToPDF(
+                    frame->toWebLocalFrame());
 
-            return printing::PrintWebViewHelper::Get(rv)->PrintToPDF(frame->toWebLocalFrame(), buffer);
+            returnVal.assign(buffer.data(), buffer.size());
+            break;
         }
     }
 
-    return false;
+    return returnVal;
 }
 
 void WebViewImpl::drawContentsToBlob(Blob *blob, const DrawParams& params)

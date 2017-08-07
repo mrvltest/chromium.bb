@@ -992,59 +992,51 @@ bool PrintWebViewHelper::GetPrintFrame(blink::WebLocalFrame** frame) {
   return true;
 }
 
-bool PrintWebViewHelper::PrintToPDF(blink::WebLocalFrame* localframe, std::string& pdfString) {
+std::vector<char> PrintWebViewHelper::PrintToPDF(blink::WebLocalFrame* localframe) {
   
+  std::vector<char> buffer;
   DCHECK(localframe);
 
   int expected_pages_count_ = 0;
-  if (!CalculateNumberOfPages(localframe, blink::WebNode(), &expected_pages_count_)) {
-    return false;
+  if (CalculateNumberOfPages(localframe, blink::WebNode(), &expected_pages_count_) &&
+      expected_pages_count_ > 0) {
+
+    PrintMsg_PrintPages_Params& params = *print_pages_params_;
+    PrintMsg_Print_Params& print_params = params.params;
+    prep_frame_view_.reset(new PrepareFrameAndViewForPrint(
+          print_params, localframe, blink::WebNode(), true));
+
+    prep_frame_view_->StartPrinting();
+    int page_count = prep_frame_view_->GetExpectedPageCount();
+
+    blink::WebFrame* frame = prep_frame_view_->frame();
+
+    std::vector<int> printed_pages = GetPrintedPages(params, page_count);
+    if (!printed_pages.empty()) {
+      std::vector<gfx::Size> page_size_in_dpi(printed_pages.size());
+      std::vector<gfx::Rect> content_area_in_dpi(printed_pages.size());
+
+      PdfMetafileSkia metafile;
+      CHECK(metafile.Init());
+
+      PrintMsg_PrintPage_Params page_params;
+      page_params.params = params.params;
+      for (size_t i = 0; i < printed_pages.size(); ++i) {
+        page_params.page_number = printed_pages[i];
+        PrintPageInternal(page_params,
+                          frame,
+                          &metafile,
+                          &page_size_in_dpi[i],
+                          &content_area_in_dpi[i], page_count);
+      }
+      FinishFramePrinting();
+      metafile.FinishDocument();
+
+      metafile.GetDataAsVector(&buffer);
+    }
   }
 
-  if (!expected_pages_count_) {
-    return false;
-  }
-
-  PrintMsg_PrintPages_Params& params = *print_pages_params_;
-  PrintMsg_Print_Params& print_params = params.params;
-  prep_frame_view_.reset(new PrepareFrameAndViewForPrint(
-        print_params, localframe, blink::WebNode(), true));
-
-  prep_frame_view_->StartPrinting();
-  int page_count = prep_frame_view_->GetExpectedPageCount();
-
-  blink::WebFrame* frame = prep_frame_view_->frame();
-
-  std::vector<int> printed_pages = GetPrintedPages(params, page_count);
-  if (printed_pages.empty())
-    return false;
-
-  std::vector<gfx::Size> page_size_in_dpi(printed_pages.size());
-  std::vector<gfx::Rect> content_area_in_dpi(printed_pages.size());
-
-  PdfMetafileSkia metafile;
-  CHECK(metafile.Init());
-
-  PrintMsg_PrintPage_Params page_params;
-  page_params.params = params.params;
-  for (size_t i = 0; i < printed_pages.size(); ++i) {
-    page_params.page_number = printed_pages[i];
-    PrintPageInternal(page_params,
-                      frame,
-                      &metafile,
-                      &page_size_in_dpi[i],
-                      &content_area_in_dpi[i], page_count);
-  }
-  FinishFramePrinting();
-  metafile.FinishDocument();
-
-  std::vector<char> buffer;
-  if (metafile.GetDataAsVector(&buffer)) {
-    pdfString = std::string(buffer.data(), buffer.size());
-    return true;
-  }
-
-  return false;
+  return buffer;
 }
 
 #if defined(ENABLE_BASIC_PRINTING)
