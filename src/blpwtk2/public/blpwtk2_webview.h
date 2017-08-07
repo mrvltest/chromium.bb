@@ -292,6 +292,10 @@ public:
     // user clicks 'OK'.
     virtual void print() = 0;
 
+    // Prints the webview into a PDF file and returns it as a byte-stream.
+    // An empty return value indicates that an error has occurred.
+    virtual String printToPDF(const char *propertyNameOnIframeToPrint) = 0;
+
     // Inform the web widget of a sequence of input events
     virtual void handleInputEvents(const InputEvent *events, size_t eventsCount) = 0;
 

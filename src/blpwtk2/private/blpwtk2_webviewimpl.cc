@@ -43,10 +43,12 @@
 #include <base/strings/utf_string_conversions.h>
 #include <chrome/browser/printing/print_view_manager.h>
 #include <components/devtools_http_handler/devtools_http_handler.h>
+#include <components/printing/renderer/print_web_view_helper.h>
 #include <content/browser/renderer_host/render_widget_host_view_base.h>
 #include <content/public/browser/host_zoom_map.h>
 #include <content/public/browser/media_capture_devices.h>
 #include <content/public/browser/render_frame_host.h>
+
 #include <content/public/browser/render_process_host.h>
 #include <content/public/browser/render_view_host.h>
 #include <content/public/browser/render_widget_host.h>
@@ -58,6 +60,7 @@
 #include <content/renderer/render_view_impl.h>
 #include <third_party/WebKit/public/web/WebFindOptions.h>
 #include <third_party/WebKit/public/web/WebView.h>
+#include <third_party/WebKit/public/web/WebBindings.h>
 #include <ui/base/win/hidden_window.h>
 
 namespace blpwtk2 {
@@ -354,6 +357,32 @@ void WebViewImpl::print()
     printing::PrintViewManager* printViewManager =
         printing::PrintViewManager::FromWebContents(d_webContents.get());
     printViewManager->PrintNow();
+}
+
+String WebViewImpl::printToPDF(const char *propertyNameOnIframeToPrint)
+{    
+    String returnVal;
+    content::RenderView* rv = content::RenderView::FromRoutingID(d_renderViewRoutingId);
+
+    for (auto *frame = rv->GetWebView()->mainFrame();
+         frame;
+         frame = frame->traverseNext(false)) {
+
+        NPObject *winObject = frame->windowObject();
+        NPIdentifier property =
+            blink::WebBindings::getStringIdentifier(propertyNameOnIframeToPrint);
+
+        if (blink::WebBindings::hasProperty(0, winObject, property)) {
+            std::vector<char> buffer =
+                printing::PrintWebViewHelper::Get(rv)->PrintToPDF(
+                    frame->toWebLocalFrame());
+
+            returnVal.assign(buffer.data(), buffer.size());
+            break;
+        }
+    }
+
+    return returnVal;
 }
 
 void WebViewImpl::drawContentsToBlob(Blob *blob, const DrawParams& params)
