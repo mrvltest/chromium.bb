@@ -925,7 +925,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, wchar_t*, int)
 {
     g_instance = instance;
 
-    g_url = "http://www.google.com";
+    g_url = "http://3g.qq.com";
     std::string hostChannel = "";
     bool isHost = false;
 
@@ -1386,8 +1386,8 @@ Shell* createShell(blpwtk2::Profile* profile, blpwtk2::WebView* webView)
                                 WS_OVERLAPPEDWINDOW, // top-level window
                                 CW_USEDEFAULT,       // default horizontal position
                                 CW_USEDEFAULT,       // default vertical position
-                                CW_USEDEFAULT,       // default width
-                                CW_USEDEFAULT,       // default height
+                                540,       // default width
+                                810,       // default height
                                 (HWND) NULL,         // no owner window
                                 (HMENU) NULL,        // use class menu
                                 g_instance,          // handle to application instance

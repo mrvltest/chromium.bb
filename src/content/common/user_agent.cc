@@ -21,6 +21,8 @@
 // Generated
 #include "webkit_version.h"  // NOLINT
 
+#define HACK_USER_AGENT 1
+
 namespace content {
 
 namespace {
@@ -53,6 +55,9 @@ std::string GetWebKitRevision() {
 }
 
 std::string BuildOSCpuInfo() {
+#if defined(HACK_USER_AGENT) && HACK_USER_AGENT
+ return "Android 6.0; Nexus 5 Build/MRA58N";
+#endif
   std::string os_cpu;
 
 #if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_CHROMEOS) ||\
@@ -159,7 +164,11 @@ std::string BuildOSCpuInfo() {
 std::string BuildUserAgentFromProduct(const std::string& product) {
   const char kUserAgentPlatform[] =
 #if defined(OS_WIN)
+#if defined(HACK_USER_AGENT) && HACK_USER_AGENT
+      "Linux; ";
+#else
       "";
+#endif
 #elif defined(OS_MACOSX)
       "Macintosh; ";
 #elif defined(USE_X11) || defined(USE_OZONE)
